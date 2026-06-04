@@ -289,6 +289,39 @@ At session end, Tom will say "Update the docs" — only then generate updates. F
 
 ---
 
+## 16. Session Summary & GitHub Commit Message
+
+At the end of every session, Claude generates both of the following without 
+being asked — as part of the standard session close:
+
+### Session Summary
+A 3–5 sentence plain-English summary of what was accomplished. Covers:
+- What was built or fixed
+- Any significant debugging or environment issues resolved
+- Current status of the project
+
+### GitHub Commit Message
+A conventional commit format message ready to paste into GitHub:
+<type>: <short summary line>
+
+<bullet: what changed>
+<bullet: what changed>
+<bullet: why or outcome>
+
+
+**Types:** `feat` (new feature), `fix` (bug fix), `chore` (config/docs/tooling), 
+`refactor` (code change, no behavior change)
+
+### When to generate
+Claude generates both automatically when the session end checklist runs — 
+i.e. when Tom says "Update the docs." No separate prompt needed.
+
+### Also update TimeLog.md
+The TimeLog entry summary line should match the session summary in tone and 
+brevity — one sentence capturing the session's main accomplishment.
+
+---
+
 ## 15. What Claude Should Never Do
 
 - **Never update, generate, or modify any MD files unless explicitly told "Update the docs"**

@@ -51,6 +51,8 @@ Every project GitHub repo must have a `/docs` folder at the root containing all 
 ### 3b. Files to upload at session start
 MD files live in `[project-repo]/docs/` on GitHub — pull the latest versions and upload them at the start of each session. Do not store MD files permanently in the Claude Project.
 
+Note that ALL Client level-reference MDs (non-code) line in OneDrive under C:\Users\tjunk\OneDrive\Documents\_DATAFORGE\_CLIENTS\[ClientName]/ rather than in a GitHub repo. 
+
 **Upload ALL of the following at session start — do not start coding without them:**
 
 | File | Purpose |

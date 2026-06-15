@@ -113,6 +113,14 @@ touching several MD files. Large multi-file prompts risk truncation in the
 chat window before they can be copied. Generate one prompt per file, even if
 it means pasting several prompts in sequence.
 
+### Nested code fences in CC prompts
+If a CC prompt's content itself contains a fenced code block (e.g. an MD file
+rewrite that includes its own ``` SQL/code block, run-order references, etc.),
+wrap the entire CC prompt in four backticks (````) instead of three. Matching
+fence depth between the outer prompt and an inner block causes the inner
+closing fence to prematurely close the outer one — splitting the prompt into
+multiple disconnected chat windows and breaking copy-paste.
+
 ### When to use chat vs CC
 | Use chat (Claude.ai) | Use Claude Code (VS Code) |
 |---------------------|--------------------------|

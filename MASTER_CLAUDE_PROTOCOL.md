@@ -106,6 +106,13 @@ Rules:
 - [e.g. "Always --legacy-peer-deps"]
 ```
 
+### One file per prompt
+Never combine full-file rewrites or edits to multiple files into a single CC
+prompt — even for closely related changes like an end-of-session doc sync
+touching several MD files. Large multi-file prompts risk truncation in the
+chat window before they can be copied. Generate one prompt per file, even if
+it means pasting several prompts in sequence.
+
 ### When to use chat vs CC
 | Use chat (Claude.ai) | Use Claude Code (VS Code) |
 |---------------------|--------------------------|

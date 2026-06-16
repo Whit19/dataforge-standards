@@ -144,9 +144,9 @@ multiple disconnected chat windows and breaking copy-paste.
 - `TimeLog.md` — duration + one-sentence summary per session
 
 ### 5b. MD file update workflow (end of every session)
-1. Claude generates updated content for each changed MD file in chat
-2. Use CC prompt to write the updated content to the actual files on disk
-3. Upload updated files back to the Claude Project
+1. Claude generates a CC prompt for each changed MD file (one prompt per file)
+2. Tom pastes CC prompts into Claude Code in VS Code — files written to disk
+3. Tom saves updated files back to the Claude Project (no downloads needed)
 
 **Do not rely on screenshots to capture updated MD content — always get the text.**
 
@@ -288,9 +288,10 @@ Run this every time a new project starts:
 
 At session end, Tom will say "Update the docs" — only then generate updates. For each file that changed:
 
-1. Claude generates the updated content in chat
-2. CC prompt writes the updated file to `docs/[filename].md` in the project repo
-3. Commit and push — GitHub is the source of truth
+1. Claude generates a CC prompt (one per file) to write the updated content to `docs/[filename].md`
+2. Tom pastes CC prompts into Claude Code in VS Code — files written to disk
+3. Tom saves updated files back to the Claude Project — no downloads needed
+4. Commit and push — GitHub is the source of truth
 
 **Files to consider per session (only update if changed):**
 - `SessionStarter.md` — almost always needs updating (status, completed items, next priorities)

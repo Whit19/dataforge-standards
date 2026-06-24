@@ -1,6 +1,6 @@
 # Master Claude Protocol — DataForge
 **Apply this to every Claude Project and every session. No exceptions.**
-Last updated: 2026-06-03
+Last updated: 2026-06-24
 
 ---
 
@@ -30,12 +30,15 @@ Milwaukee, WI — freelance developer / AI consultant
 
 ## 3. Session Startup — Required Every Session
 
-### 3a. Standard repo structure
-Every project GitHub repo must have a `/docs` folder at the root containing all MD files:
+### 3a. Doc storage — dataforge-standards repo
+All project documentation lives in the **public** `dataforge-standards` GitHub repo
+(github.com/Whit19/dataforge-standards), not in the private code repos.
+This allows Claude to fetch docs directly via raw GitHub URLs with no authentication.
 
 ```
-[project-repo]/
-├── docs/
+dataforge-standards/                    ← public repo
+├── MASTER_CLAUDE_PROTOCOL.md           ← root; fetched by all projects
+├── up-golf-pwa/                        ← one subfolder per project
 │   ├── SessionStarter.md
 │   ├── TechnicalArchitecture.md
 │   ├── ProjectRoadmap.md
@@ -43,20 +46,32 @@ Every project GitHub repo must have a `/docs` folder at the root containing all 
 │   ├── IssuesTracker.md
 │   ├── BestMethods.md
 │   └── TimeLog.md
-├── src/
-├── .gitignore
-└── ...
+├── club-golf/
+│   └── ...
+├── afas/
+│   └── ...
+└── hq-dashboard/
+    └── ...
 ```
 
-### 3b. Files to upload at session start
-MD files live in `[project-repo]/docs/` on GitHub — pull the latest versions and upload them at the start of each session. Do not store MD files permanently in the Claude Project.
+Private code repos (e.g. `up-golf-pwa`) contain only source code — no docs.
+Client-level reference MDs (non-code) stay in OneDrive under
+`C:\Users\tjunk\OneDrive\Documents\_DATAFORGE\_CLIENTS\[ClientName]\`.
+These are uploaded manually when needed; they are not fetched via URL.
 
-Note that ALL Client level-reference MDs (non-code) line in OneDrive under C:\Users\tjunk\OneDrive\Documents\_DATAFORGE\_CLIENTS\[ClientName]/ rather than in a GitHub repo. 
+### 3b. Fetching docs at session start
+Claude fetches all docs via `web_fetch` at the start of every session using the
+raw GitHub URLs configured in each Claude Project's Instructions field. No manual
+uploads are needed or expected.
 
-**Upload ALL of the following at session start — do not start coding without them:**
+**Raw URL pattern:**
+`https://raw.githubusercontent.com/Whit19/dataforge-standards/main/[project]/[file].md`
+
+**Files Claude fetches for every session:**
 
 | File | Purpose |
 |------|---------|
+| `MASTER_CLAUDE_PROTOCOL.md` | Always fetched first — overrides everything |
 | `SessionStarter.md` | Current status, next priorities, key decisions |
 | `TechnicalArchitecture.md` | Data models, stack, file structure |
 | `ProjectRoadmap.md` | Phased task list with status |
@@ -65,15 +80,22 @@ Note that ALL Client level-reference MDs (non-code) line in OneDrive under C:\Us
 | `BestMethods.md` | Hard-won lessons — read before writing any code |
 | `TimeLog.md` | Session time tracking |
 
-**Never start writing code until all required files are uploaded and read.**
+**Never start working until all URLs have been fetched and read.**
+If a fetch fails (network error, 404), Claude must stop and tell Tom before proceeding.
+
+The Project Instructions field in each Claude Project contains the full list of URLs
+for that project. Update the URLs there if a file is renamed or moved.
 
 ### 3c. Session startup prompt template
+Claude fetches all docs automatically from the URLs in Project Instructions.
+Tom only needs to state the session focus:
+
 ```
-New session for [Project Name].
-Uploading docs from /docs folder now.
-[upload files]
 Today's focus: [1-2 sentence goal]
 ```
+
+Claude responds with: "[Project] docs loaded. [One sentence current status from
+SessionStarter]. Ready."
 
 ---
 
@@ -168,9 +190,12 @@ Claude Code in VS Code.
 - `TimeLog.md` — duration + one-sentence summary per session
 
 ### 5b. MD file update workflow (end of every session)
-1. Claude generates a CC prompt for each changed MD file (one prompt per file)
-2. Tom pastes CC prompts into Claude Code in VS Code — files written to disk
-3. Tom saves updated files back to the Claude Project (no downloads needed)
+1. Claude generates a CC prompt MD file for each changed doc (one per file)
+2. Tom downloads the CC prompt MD files and pastes into Claude Code in VS Code — files written to disk
+3. Tom commits and pushes to `dataforge-standards` repo — GitHub is the source of truth
+4. Claude fetches the latest version automatically at the next session start via URL
+
+No manual re-upload to Claude Project needed. GitHub commit = live for next session.
 
 **Do not rely on screenshots to capture updated MD content — always get the text.**
 
@@ -293,9 +318,9 @@ Every bug or deferred item gets logged. Format:
 
 Run this every time a new project starts:
 
-- [ ] Create GitHub repo (private) — create `/docs` folder, MD files live here
-- [ ] Create all 7 standard MD files locally in `/docs` and commit to GitHub
-- [ ] Create Claude Project in claude.ai — load MD files from GitHub at session start (do not store permanently in Claude Project)
+- [ ] Create GitHub repo (private) — source code only, no docs folder needed
+- [ ] Create project subfolder in `dataforge-standards` repo — add all 7 standard MD files and commit
+- [ ] Create Claude Project in claude.ai — paste raw GitHub URLs for all 7 docs + master protocol into Project Instructions field
 - [ ] Add project row to Notion Projects database
 - [ ] Add services to Notion Services database (linked to project)
 - [ ] Add `.env` / `local.settings.json` to `.gitignore` before first commit
@@ -312,10 +337,10 @@ Run this every time a new project starts:
 
 At session end, Tom will say "Update the docs" — only then generate updates. For each file that changed:
 
-1. Claude generates a CC prompt (one per file) to write the updated content to `docs/[filename].md`
-2. Tom pastes CC prompts into Claude Code in VS Code — files written to disk
-3. Tom saves updated files back to the Claude Project — no downloads needed
-4. Commit and push — GitHub is the source of truth
+1. Claude generates a CC prompt MD file (one per file) targeting `[project]/[filename].md` in the `dataforge-standards` repo
+2. Tom downloads the CC prompt MD files and pastes into Claude Code in VS Code — files written to disk
+3. Tom commits and pushes `dataforge-standards` — GitHub is the source of truth
+4. No Claude Project re-upload needed — Claude fetches latest via URL at next session start
 
 **Files to consider per session (only update if changed):**
 - `SessionStarter.md` — almost always needs updating (status, completed items, next priorities)
@@ -370,7 +395,7 @@ brevity — one sentence capturing the session's main accomplishment.
 - **Never make any code changes unless explicitly asked — no proactive fixes, no "while I'm here" edits**
 - Never write sensitive values (keys, tokens, passwords) into any file or chat response
 - Never read sensitive values from screenshots
-- Never start writing code before all session docs are uploaded
+- Never start working before all session docs have been fetched via web_fetch
 - Never make multiple speculative code changes at once when debugging
 - Never inline Firestore collection/doc refs outside `firestorePaths.js`
 - Never use `&&` chaining in PowerShell commands

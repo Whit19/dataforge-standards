@@ -424,3 +424,100 @@ was a rules-only bug, not a UI gating difference. Winnings tab (`WinningsTab` in
 `MoneyScreen.jsx`) was unaffected — it only reads `rounds`/`matches`/
 `scrambleResults`/`outing`, none of which are payments-gated, and is correctly
 gated by round lock per DEC-127 identically for all users.
+
+---
+
+## DEC-140 — Tournament Results PDF Export
+**Date:** 2026-06-24 | **Category:** Feature / Architecture | **Status:** Final
+**Decision:** Built a client-rendered tournament results page at `/results-pdf`
+(admin, with print button) and `/history/:year` (player-accessible, no print button).
+Single component `TournamentResultsPDF.jsx` uses `useLocation` to detect route and
+conditionally show the print bar. Admin Panel home screen shows "📄 Export Results PDF"
+button when `outing.status === 'complete'`. User taps browser print → Save as PDF.
+No Cloud Function, no Firebase Storage upload, no file management needed.
+**Sections:** Tournament header + courses + purse; age group winners; notable
+achievements (low round, most birdies, eagles); quick-nav anchor links; final
+standings (all 32 players); top 5 overall/prize/skins; per-round leaderboards
+R1–R4 with match results; skins hole-by-hole per opted-in round.
+**Skins table:** Transposed — players as rows, holes 1–18 as columns, skins won
+count in final column. Skins sections use `@page landscape` print CSS. Only
+opted-in players shown (correct by design — skins is an optional buy-in).
+**Print CSS:** `.bottom-nav`, `.sync-bar`, `.app__main` hidden via `@media print`.
+Quick-nav links hidden in print via `.no-print` class.
+**Data sources:** `useLeaderboard`, `useSkins`, `useOutingSetup`, round docs
+(onSnapshot), score docs (onSnapshot). All prize calculations reuse existing
+`calculatePrizePools`, `calculateScramblePrizes`, `prizePerMatchWinner` from
+`prizes.js`. Top 5 prize/skins logic ported directly from `TournamentSummaryCard`
+in `Dashboard.jsx`.
+**Alternatives considered:** Cloud Function PDF generation (puppeteer/pdfkit) —
+rejected as unnecessary complexity; browser print-to-PDF is indistinguishable for
+sharing purposes.
+
+---
+
+## DEC-141 — History Entry Point in Info Screen
+**Date:** 2026-06-24 | **Category:** Feature / UX | **Status:** Final
+**Decision:** Added a 🏆 History card to the Info screen home grid. Tapping
+navigates to `/history/2026` using the same navigate-not-setActiveSection pattern
+as the existing Players card. Route `/history/:year` added to `App.jsx` without
+AdminGuard — any logged-in player can view results. When Phase 8A builds the
+`historicalTournaments` Firestore collection, the `/history` route (no year param)
+will render a year-picker list; tapping a year navigates to `/history/:year`.
+Currently `/history/2026` renders live 2026 data via `TournamentResultsPDF`;
+future years will render from historical import data once Phase 8A is complete.
+
+---
+
+## DEC-142 — Historical Data Import Schema
+**Date:** 2026-06-24 | **Category:** Architecture | **Status:** Final
+**Decision:** Historical data (2011–2025) stored in dedicated Firestore collections
+separate from live tournament collections to avoid collisions with Phase 8A
+multi-tournament architecture. Collections: `historicalTournaments/{year}`,
+`historicalResults/{year}_{roundNumber}_{playerName}`,
+`historicalStandings/{year}_{playerName}`, `historicalPlayers/{playerName}`,
+`courses/{courseName}_{tees}`.
+**Source:** `UP_Golf_Historical_Import_v3.xlsx` — 6-sheet Excel (Tournaments,
+Players, Courses, Rounds, Results, Standings). Tom audited and confirmed final.
+**Import method:** One-time Node.js script reads Excel via xlsx library, writes
+to Firestore. Script to be built in Phase 8A.
+**Key schema decisions:**
+- `payout` in Results = per-round only (never tournament total)
+- `finalRank` lives in Standings sheet only, not Results
+- `yearsPlayed` stored as comma-separated year list; `yearsCount` computed from length
+- `tees` per player per round (required for future handicap calc)
+- `gameFormat` controlled vocabulary: `stroke_individual`, `stroke_stableford`,
+  `better_ball_gross`, `better_ball_stableford`, `scramble_2team`…`scramble_8team`,
+  `better_ball_match`
+- `handicapUsed`: Y / N / Unknown per round
+- Courses sheet: one row per course+tee combo with slope + rating (pre-filled
+  from web research for all 5 UP Golf courses; Royal St Patrick's flagged for
+  scorecard verification)
+
+---
+
+## DEC-143 — CC Prompts Always Delivered as Downloadable MD Files
+**Date:** 2026-06-24 | **Category:** Process | **Status:** Final
+**Decision:** All CC prompts are delivered as downloadable `.md` files via
+`create_file` tool, never as inline chat text. Naming convention:
+`CC_[ShortDescription].md`. All files presented together via `present_files`
+at end of the code-delivery step. This was added to MASTER_CLAUDE_PROTOCOL.md
+section 4. Applies to all projects, all sessions.
+**Rationale:** MD files can be opened and copied in full without scrolling or
+truncation risk; files persist in session for reference if Claude Code needs
+to be re-run; naming makes it clear which file each prompt targets.
+
+---
+
+## DEC-144 — Session Docs Fetched via GitHub URLs, Never Uploaded Manually
+**Date:** 2026-06-24 | **Category:** Process / Architecture | **Status:** Final
+**Decision:** All project docs (SessionStarter, DecisionLog, IssuesTracker,
+ProjectRoadmap, TechnicalArchitecture, BestMethods, TimeLog) moved to the
+public `dataforge-standards` GitHub repo under `up-golf-pwa/` subfolder.
+MASTER_CLAUDE_PROTOCOL.md lives at the repo root. Claude fetches all docs
+via `web_fetch` at session start using raw GitHub URLs configured in the
+Claude Project Instructions field. No manual file uploads ever needed.
+Session end: Claude generates CC prompt MD files → Tom pastes into Claude Code
+→ commits and pushes `dataforge-standards` → live for next session automatically.
+**Rationale:** Eliminates manual upload friction, ensures Claude always has
+latest committed version, single source of truth in GitHub.
+**Repo:** github.com/Whit19/dataforge-standards (public)

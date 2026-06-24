@@ -121,6 +121,30 @@ fence depth between the outer prompt and an inner block causes the inner
 closing fence to prematurely close the outer one — splitting the prompt into
 multiple disconnected chat windows and breaking copy-paste.
 
+### CC prompts are delivered as downloadable MD files
+Every CC prompt — whether for a code file, a new component, or an end-of-session
+doc update — must be delivered as a downloadable `.md` file, not as inline chat text.
+
+**Why:**
+- MD files can be opened and copied in full without scrolling or truncation risk
+- Files persist in the session for reference if Claude Code needs to be re-run
+- Naming convention makes it clear which file each prompt targets
+
+**Naming convention:** `CC_[ShortDescription].md`
+Examples: `CC_TournamentResultsPDF.md`, `CC_AppJsx_ResultsRoute.md`, `CC_SessionStarter.md`
+
+**One MD file per CC prompt** — same rule as one prompt per file. Never combine
+multiple CC prompts into a single MD file.
+
+**How:** Claude uses the `create_file` tool to write each CC prompt to
+`/mnt/user-data/outputs/CC_[ShortDescription].md`, then presents all CC prompt
+files together at the end using `present_files`. Tom downloads and pastes into
+Claude Code in VS Code.
+
+**This applies to all projects, all sessions, without exception.**
+
+---
+
 ### When to use chat vs CC
 | Use chat (Claude.ai) | Use Claude Code (VS Code) |
 |---------------------|--------------------------|

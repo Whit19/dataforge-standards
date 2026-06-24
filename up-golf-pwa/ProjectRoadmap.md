@@ -16,7 +16,7 @@
 | Phase 5 | Push Notifications & Offline Sync | ✅ Complete |
 | Phase 6 | Admin Panel (Full) | ✅ Complete |
 | Phase 7 | Polish, Testing & Deployment | ✅ Complete |
-| Phase 8 | Multi-Tournament & History | 🔲 Not Started |
+| Phase 8 | Multi-Tournament & History | 🟡 In Progress |
 
 ---
 
@@ -109,9 +109,24 @@
 
 ---
 
-## Phase 8 — Multi-Tournament, Net Scoring & Flexible Formats 🔲 Not Started
+## Phase 8 — Multi-Tournament, Net Scoring & Flexible Formats 🟡 In Progress
 
-### 8A — Multi-Tournament Architecture
+### Completed in Phase 8 (2026-06-24)
+- [x] Tournament Results PDF export — `TournamentResultsPDF.jsx` at `/results-pdf` (admin) and `/history/:year` (player) (DEC-140) ✅
+- [x] History entry point — 🏆 History card in Info screen navigates to `/history/2026` (DEC-141) ✅
+- [x] Historical data Excel — `UP_Golf_Historical_Import_v3.xlsx` audited and finalized (DEC-142) ✅
+  - 6 sheets: Tournaments, Players, Courses, Rounds, Results, Standings
+  - All 14 years (2011–2025) populated; ranks/payouts/formats pre-filled
+  - Slope/rating pre-filled for all 5 UP Golf courses
+- [x] Session docs moved to public dataforge-standards GitHub repo (DEC-144) ✅
+- [x] CC prompts now always delivered as downloadable MD files (DEC-143) ✅
+
+### 8A — Multi-Tournament Architecture (Next Priority)
+- [ ] Historical data import script — Node.js, reads UP_Golf_Historical_Import_v3.xlsx,
+      writes to `historicalTournaments`, `historicalResults`, `historicalStandings`,
+      `historicalPlayers`, `courses` Firestore collections
+- [ ] History browser — `/history` route lists all years from `historicalTournaments`;
+      tapping year navigates to `/history/:year` (route already exists)
 - [ ] `config/active` Firestore document → `useActiveTournament.js` hook (replaces `ACTIVE_OUTING_ID` constant)
 - [ ] `tournaments` collection (one doc per tournament, replacing `outings`)
 - [ ] `enrollments` collection (links players to tournaments)
@@ -119,7 +134,6 @@
 - [ ] Admin: Create Tournament wizard (name, dates, format config, buy-in, player enrollment)
 - [ ] Admin: Set Active Tournament toggle
 - [ ] Admin: Clone Tournament (copy format config to new tournament)
-- [ ] History browser screen (past tournaments, results)
 - [ ] Career stats per player (across all tournaments)
 
 ### 8B — Course Data Integration

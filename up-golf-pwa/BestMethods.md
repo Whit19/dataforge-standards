@@ -347,3 +347,43 @@ screens only. Never use bare `'monospace'` — always use `var(--font-mono)`.
 Secondary text on the login screen must meet contrast requirements. Use
 `rgba(255,255,255,0.75)` for subdued text on the dark green background.
 (DEC-099, ISS-092)
+
+---
+
+## Phase 8A Lessons (June 29, 2026)
+
+### Excel/Node.js Date Import
+XLSX library passes date values as JS Date objects — calling `new Date(val)` on
+an already-parsed Date is safe, but passing a string form like "2011-06-06 00:00:00"
+to `new Date()` produces epoch-zero (Dec 31 1969) in Firestore. Always check
+`instanceof Date` first, then numeric (Excel serial), then string fallback.
+
+### Firestore null vs undefined in filters
+`s.finalRank != null` does not reliably filter Firestore null fields in JS.
+Use `typeof s.finalRank === 'number'` for numeric fields that may be null in Firestore.
+
+### CSS grid for data tables
+`gridTemplateColumns` with `repeat(N, Xpx)` is far more reliable than flexbox
+for aligning score columns in standings tables. N is dynamic (rounds.length).
+Use `fontVariantNumeric: 'tabular-nums'` for number columns.
+
+### Tabler Icons via CDN
+Add `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css" />`
+to index.html. Use `<i className="ti ti-{name}" />` in JSX. Inherits currentColor
+for nav icons automatically. Same icon set used in Club Golf.
+
+### Raw GitHub URL pattern
+BestMethods.md and all project docs must be fetched using:
+`https://raw.githubusercontent.com/Whit19/dataforge-standards/refs/heads/main/up-golf-pwa/`
+The standard `/main/` path returns 404 for this repo. Update all session-start
+fetch URLs to use `refs/heads/main`.
+
+### History doc ID consistency
+When mixing imported data (year-based IDs) with archived data (outingId-based),
+always check which format a doc uses before building queries. The `outingId` field
+on tournament docs is the reliable discriminator — null means imported, set means archived.
+
+### Scramble scores in history
+Scramble round scores are team scores stored against arbitrary player entries.
+Always filter scramble rounds (gameFormat.startsWith('scramble')) out of individual
+scoring averages and display '—' in standings tables for those rounds.

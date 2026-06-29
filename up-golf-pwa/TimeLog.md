@@ -5,6 +5,7 @@
 
 | Date | Duration | Summary |
 |------|----------|---------|
+| 2026-06-29 | ~4 hrs | Phase 8A: historical data import (1,521 docs across 4 history_ collections, 2011–2025), off-season 3-tab nav, HistoryScreen.jsx (Tournaments + Players tabs), Tabler Icons CDN, app renamed Tourney Golf, Firestore rules + composite indexes for history_ collections, AdminArchiveTournament.jsx, "Full Results" button in history detail. |
 | 2026-06-04 | ~1.5 hrs | Added in-app PDF guides (App Setup + User Guide) to Info screen via Firebase Storage; resolved laptop dev environment setup; called Phase 7 complete. |
 | 2026-06-13 | ~1 hr | Post-freeze exception (DEC-136): fixed unreachable Save button on "Add Dining Event" form on iOS PWA (ISS-136) by converting AnnouncementModal/DiningEventModal to inline forms after two reverted CSS-only attempts; modal CSS and useModalScrollLock fully reverted/removed. |
 | 2026-06-16 | ~2.5 hrs | Added Player Profile card + Players Directory feature post-freeze; Storage rules updated; firstYear bulk-set on all 32 player docs. |

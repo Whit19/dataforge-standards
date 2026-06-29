@@ -111,53 +111,42 @@
 
 ## Phase 8 — Multi-Tournament, Net Scoring & Flexible Formats 🟡 In Progress
 
-### Completed in Phase 8 (2026-06-24)
+## Phase 8A — History Browser & Data Import ✅ COMPLETE (June 29, 2026)
+
+### Completed
+- [x] Node.js historical data import script (fetch-uids.js + import-history.js)
+- [x] history_tournaments, history_rounds, history_results, history_standings collections
+- [x] History screen /history — Tournaments tab + Players tab
+- [x] Off-season 3-tab nav (Home | History | Info)
+- [x] useOutingStatus hook
+- [x] Tabler Icons CDN
+- [x] App renamed to Tourney Golf
+- [x] Firestore rules for history_ collections
+- [x] Archive Tournament admin component
+- [x] "Full Results" button in history tournament detail
 - [x] Tournament Results PDF export — `TournamentResultsPDF.jsx` at `/results-pdf` (admin) and `/history/:year` (player) (DEC-140) ✅
-- [x] History entry point — 🏆 History card in Info screen navigates to `/history/2026` (DEC-141) ✅
 - [x] Historical data Excel — `UP_Golf_Historical_Import_v3.xlsx` audited and finalized (DEC-142) ✅
-  - 6 sheets: Tournaments, Players, Courses, Rounds, Results, Standings
-  - All 14 years (2011–2025) populated; ranks/payouts/formats pre-filled
-  - Slope/rating pre-filled for all 5 UP Golf courses
 - [x] Session docs moved to public dataforge-standards GitHub repo (DEC-144) ✅
 - [x] CC prompts now always delivered as downloadable MD files (DEC-143) ✅
 
-### 8A — Multi-Tournament Architecture (Next Priority)
-- [ ] Historical data import script — Node.js, reads UP_Golf_Historical_Import_v3.xlsx,
-      writes to `historicalTournaments`, `historicalResults`, `historicalStandings`,
-      `historicalPlayers`, `courses` Firestore collections
-- [ ] History browser — `/history` route lists all years from `historicalTournaments`;
-      tapping year navigates to `/history/:year` (route already exists)
-- [ ] `config/active` Firestore document → `useActiveTournament.js` hook (replaces `ACTIVE_OUTING_ID` constant)
-- [ ] `tournaments` collection (one doc per tournament, replacing `outings`)
-- [ ] `enrollments` collection (links players to tournaments)
-- [ ] Admin: Tournament List screen
-- [ ] Admin: Create Tournament wizard (name, dates, format config, buy-in, player enrollment)
-- [ ] Admin: Set Active Tournament toggle
-- [ ] Admin: Clone Tournament (copy format config to new tournament)
-- [ ] Career stats per player (across all tournaments)
+## Phase 8B — Tournament Lifecycle & Multi-Tournament Support (NEXT)
 
-### 8B — Course Data Integration
-- [ ] Integrate GolfCourseAPI.com (free) or GolfAPI.io (paid, 42k+ courses) for course search
-- [ ] Course search UI in AdminCourseLibrary
-- [ ] Extended `courses` Firestore collection schema with per-hole strokeIndex
-- [ ] One-time API fetch at setup; stored in Firestore
+### Goals
+- [ ] config/active Firestore doc — dynamic active tournament ID
+- [ ] useActiveTournament hook — replaces ACTIVE_OUTING_ID hardcoding
+- [ ] History doc ID migration — year-based → outingId-based ("outing_2025")
+- [ ] TournamentResultsPDF reads outingId from URL param
+- [ ] Create Tournament admin form (name, year, dates, location, round count)
+- [ ] Tournament states: Scheduled → Active → Locked
+- [ ] Off-season Home screen redesign (teaser card for scheduled tournament)
+- [ ] Multiple tournaments per year support
+- [ ] Archive outing_2026 to history (run AdminArchiveTournament)
 
-### 8C — Handicap & Net Scoring Engine
-- [ ] `handicapIndex` field on `users` doc (admin-entered)
-- [ ] Course Handicap calculation: `HI × (Slope / 113) + (CourseRating - Par)`
-- [ ] Net score per hole = `gross - strokesReceived`
-- [ ] `useNetScoring.js` hook
-
-### 8D — Flexible Game Format Engine
-- [ ] Format definitions stored in Firestore `tournaments/{id}.roundFormats[]`
-- [ ] Supported format types: `individual_gross`, `individual_net`, `best_ball_net`, `variable_best_ball_net`, `scramble`, `stableford_gross`, `stableford_net`
-- [ ] Leaderboard engine extended to handle all format types
-- [ ] Skins available in gross or net mode
-
-### 8E — Admin & UX
-- [ ] Per-player handicap index entry in AdminPlayers
-- [ ] Round Setup UI shows computed Course Handicap
-- [ ] Scorecard entry shows strokes-received indicators per hole
+## Phase 8C — Career Stats & Net Scoring
+- [ ] Net scoring engine (WHS Course Handicap calculation)
+- [ ] Handicap Index admin entry
+- [ ] Career stats enhancements (win streaks, scoring trends)
+- [ ] Player profile page with career stats link
 
 ### Phase 8 Key Decisions (Pre-Recorded)
 - **DEC-101** — Handicap Index is admin-entered, not pulled from GHIN API

@@ -2,7 +2,7 @@
 **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 Repo: github.com/Whit19/dataforge-standards
 **Load this at the start of every session to restore full context.**
-*Updated June 2026 — Session 30 complete (GHIN handicap sync)*
+*Updated June 2026 — Session 31 complete (game setup redesign + per-game GHIN sync)*
 
 ---
 
@@ -33,49 +33,64 @@ Built by Tom Junker, who also built UP Golf PWA (fully deployed, 32 players, Pha
 ---
 
 ## Current Status
-**Session 30 complete. ~67h invested.**
+**Session 31 complete. ~72h invested.**
 
-### What's working (all prior sessions + Sessions 29–30):
+### What's working (all prior sessions + Session 31):
 - Full 6-Point Game scoring flow
 - Read-only viewer link
 - ResultsPage + HistoryPage + statsUtils
-- BottomTabBar — 5 tabs for all users (Home / History / Leaderboard / Profile / Info); Games tab renamed to Home with ti-home icon; tab bar hidden on home page (/games exact)
-- Admin tab removed from bottom bar — Admin Panel button in ProfilePage (admin only)
+- BottomTabBar — 5 tabs for all users (Home / History / Leaderboard / Profile / Info); tab bar hidden on home page
 - AdminPage — Roster + Course + Club Profile management
 - Member invite flow — sendInvite / claimInvite / deleteMember / deactivateMember / reactivateMember Cloud Functions
-- Invite emails sent from tjunker9@gmail.com
 - PWA icon + manifest + "Add to Home Screen" prompt
 - Game creation open to all authenticated members
-- Landscape scorecard view
-- Firestore security rules — roles-based
+- Landscape scorecard view, Firestore security rules — roles-based
 - ProfilePage, HistoryPage, GamesPage (single scrolling feed)
 - Multi-course support, scheduled games, plus handicaps
-- Invite flow hardened, forgot password, password reset from RosterPage
-- CSV bulk import — 183 members imported
-- Lighthouse audit — Accessibility 94, Best Practices 100
-- Starting hole + numHoles (9/18) settings with wraparound hole sequence
-- LeaderboardPage — dedicated tab with auto-detected year picker, 4 stat tabs, full ranked list
-- Per-year stats — member stats now nested as `stats.all` (lifetime) + `stats[year]`
-- Deactivate / Reactivate member — admin can disable/re-enable Firebase Auth accounts from RosterPage
-- Role editor in RosterPage — admin can change member role (member/admin) from edit panel
-- RosterPage tab order — Active | Pending | To Invite | Not Active
+- LeaderboardPage — dedicated tab with auto-detected year picker, 4 stat tabs
+- Per-year stats — `stats.all` (lifetime) + `stats[year]`
+- Deactivate / Reactivate member, role editor in RosterPage
 - HI Age indicator — color-coded badge in NewGamePage and RosterPage
-- Custom domain — `club-golf.app` live via Firebase Hosting + GoDaddy DNS
-- PWA update banner — useRegisterSW hook in App.jsx
-- Invite email overhaul — URL updated to club-golf.app, install instructions added
+- Custom domain `club-golf.app`, PWA update banner, invite email overhaul
 - Game creator access control — only creator or admin can edit; others redirected to viewer
-- GamesPage redesigned as home page — windmill header, stats strip, New Game hero button, Games card, 2×2 nav grid
-- **Live game card hole/score display** — home page live game rows show "Hole {n} · {A}-{B} · {date}" via `getLiveGameStatus()` helper in GamesPage.jsx; no new Firestore reads
-- **Viewer back navigation** — ViewerPage has a back button in portrait (rp-back-btn) and landscape (sc-back-btn via optional onBack prop on ScorecardView) navigating to /games; ScoreEntryPage unaffected
-- **GHIN handicap sync** — admin-triggered sync from home page; syncHandicaps Cloud Function fetches HI for all non-deactivated members from GHIN API; writes handicapIndex + handicapUpdatedAt + hiSyncStatus to each member doc; writes lastHiSync summary to club profile doc; sendHiSyncReminder scheduled function emails tjunker9@gmail.com every Monday at 8 AM Central; NOT FOUND / ERROR badges in RosterPage HI column; dry run mode supported
+- GamesPage redesigned as home page — windmill header, stats strip, New Game hero button, 2×2 nav grid
+- Live game card hole/score display via `getLiveGameStatus()` helper
+- Viewer back navigation — portrait + landscape
+- GHIN admin sync — home page modal, full roster, weekly reminder email
+- **NewGamePage redesigned as 4-step wizard: Setup / Teams / Settings / Review**
+  - Setup step: course dropdown (always shown), date, compact player rows (name + inline HI edit + age badge + tee dropdown), GHIN sync button when all 4 filled
+  - Tees default to logged-in member's `defaultTees`; guests also default to creator's tees
+  - Inline HI editing — tap HI value → input in place → blur commits → writes to member doc immediately (guests: local only)
+  - Guest name entry — inline editable text input in the name column
+  - Teams step: player pool with PH, 2×2 slot grid, combined PH balance indicator, team colors (A=blue, B=orange)
+  - Team assignment uses explicit slot picker — tap slot → mini picker shows unassigned players
+  - Teams reset when player slots change
+  - Settings + Review steps: unchanged
+  - GHIN external lookup link removed
+- **Per-game GHIN sync in Setup step**
+  - "Update handicaps from GHIN" button — appears only when all 4 players filled
+  - Scoped to the 4 players in the game (memberIds filter + guestNames)
+  - Cascading search for roster members: Tripoli+WI → WI only
+  - Guest search: single state (creator selects in modal, defaults to All States)
+  - Guest state selector in GHIN modal — per guest, full US state list alphabetical, "All States" first
+  - GHIN modal shows roster member names (auto lookup) vs guest state selectors
+  - `parseGhinHI` helper — treats "NH" and non-numeric HI values as null
+  - Single result with null HI → cascades to next level rather than stopping
+  - Multiple results with same non-null HI → auto-resolved
+  - Multiple results with different HIs → disambiguation picker (name + club + state)
+  - Ambiguous guests → `ambiguousEntries` (not `updates`) — no NaN display
+  - Guest lookup errors → surfaced as empty candidate entry with "could not look up" message
+  - Result display: named updated list (green) + not found list (amber) + disambiguation picker
+  - Roster member writes: `handicapIndex` + `handicapUpdatedAt` to member doc
+  - Guest writes: local slot state only, not saved to Firestore
+  - Full-roster summary (`lastHiSync`) only written for admin sync, not per-game sync
 
 ### Known remaining items:
-- [ ] Jon Cyganiak — GHIN API does not resolve him; update HI manually in RosterPage
+- [ ] Jon Cyganiak — GHIN name is "Jon I. Cyganiak"; CF splits to last="I. Cyganiak" → not found. Update HI manually in RosterPage or rename member doc to "Jon I. Cyganiak"
 - [ ] Begin inviting members — work through To Invite tab in RosterPage
 - [ ] Monitor invite delivery from tjunker9@gmail.com
 - [ ] crack.mp3 audio file (source and place at `public/sounds/crack.mp3`)
 - [ ] Delete serviceAccountKey.json from scripts/ after confirming no longer needed
-- [ ] Send "coming soon" install instructions email to members
 - [ ] Send wave 1 invite emails once members have installed PWA
 
 ### Next session priorities:
@@ -91,14 +106,7 @@ Built by Tom Junker, who also built UP Golf PWA (fully deployed, 32 players, Pha
 |-------|------|--------|-----------|
 | 1G | Admin + Deploy | ✅ Complete | — |
 | 1H | Club Profile & Platform Foundation | ✅ Complete | — |
-| 2A | Multi-Course Support | ✅ Complete | — |
-| 2B | Member Doc: tnmlTeam field | ✅ Complete | — |
-| 2C | Scheduled Games + UX Fixes | ✅ Complete | — |
-| 2D | Member Management | ✅ Complete | — |
-| 2E | CSV/Bulk Invite | ✅ Complete | — |
-| 2F | Season Filtering / Leaderboard | ✅ Complete | — |
-| 2H | Infrastructure, Access Control + Home Page | ✅ Complete | — |
-| 2I | GHIN Handicap Sync | ✅ Complete | — |
+| 2A–2I | Full Member Roster + Auth + GHIN Sync | ✅ Complete | — |
 | 3 | Thursday Night Men's League | 🔲 Not Started | 12–18h |
 | 4 | Format Library + EZ Games | 🔲 Not Started | 30–45h |
 | 5 | Platform Launch + Monetization | 🔲 Not Started | 20–30h |
@@ -116,6 +124,7 @@ Built by Tom Junker, who also built UP Golf PWA (fully deployed, 32 players, Pha
 - `lastHiSync` field on club profile doc: `{ ranAt, updatedCount, notFoundCount, errorCount, ranBy, dryRun }`
 - Plus handicaps stored as negative numbers (e.g. -3.5 for +3.5 HI)
 - `GAME_STATUS` three values: `SCHEDULED`, `ACTIVE`, `COMPLETE`
+- Team assignment stored per player via `teamForSlot(slotId)` — reads from `teamAssignment` state, not slot.team
 
 ---
 
@@ -127,8 +136,11 @@ Built by Tom Junker, who also built UP Golf PWA (fully deployed, 32 players, Pha
 | CGAD-049 | Game edit access restricted to creator + admins |
 | CGAD-050 | Home page has no bottom tab bar; Games tab renamed to Home |
 | CGAD-051 | GHIN sync is admin-triggered (not scheduled); weekly reminder email Monday 8 AM Central |
+| CGAD-052 | NewGamePage redesigned as 4-step wizard: Setup / Teams / Settings / Review |
+| CGAD-053 | Inline HI editing with immediate Firestore write-back; guests local only |
+| CGAD-054 | Per-game GHIN sync scoped to 4 players; cascading search; guest state picker; disambiguation |
 
-Full rationale in DecisionLog.md. Next available ID: **CGAD-052**
+Full rationale in DecisionLog.md. Next available ID: **CGAD-055**
 
 ---
 
@@ -142,8 +154,10 @@ Full rationale in DecisionLog.md. Next available ID: **CGAD-052**
 - Cloud Functions: `syncHandicaps` timeout 180s; `sendHiSyncReminder` scheduled every monday 13:00 UTC
 - Club profile doc path: `clubs/{clubId}/profile/profile` (4 segments)
 - GHIN API: unofficial consumer API — credentials passed at call time, never stored
-- GHIN name splitter: `first = parts[0]`, `last = parts.slice(1).join(' ')`
-- GHIN sync scope: all members where `inviteStatus != 'skip'`
+- GHIN `parseGhinHI` helper: treats "NH" and non-numeric values as null
+- GHIN roster search cascade: Tripoli+WI → WI only
+- GHIN guest search: single state passed from client (guest.state), defaults to null (all states attempted)
+- GHIN `syncHandicaps` return shape: `{ updated, notFound, errors, notFoundNames, errorNames, dryRun, updates, guestUpdates, ambiguous }`
 
 ---
 

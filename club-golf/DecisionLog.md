@@ -260,7 +260,26 @@ Each entry includes: ID, title, decision made, rationale, date, and status.
 - **Date:** 6/18/26
 - **Status:** Final
 
+### CGAD-052 — NewGamePage Redesigned as 4-Step Wizard
+- **Decision:** NewGamePage restructured from 3 steps (Players / Settings / Review) to 4 steps (Setup / Teams / Settings / Review). Setup consolidates course, date, players, tees, and HI confirmation onto one scrolling page. Teams is a new explicit step with player pool, PH display, and 2×2 slot grid. Settings and Review unchanged.
+- **Rationale:** Player feedback — teams should be chosen after players are entered, not implied by slot order. Separating tees/HI confirmation from player selection improves clarity and reduces errors.
+- **Date:** 6/19/26
+- **Status:** Final
+
+### CGAD-053 — Inline HI Editing with Immediate Write-Back
+- **Decision:** In the Setup step, tapping a player's HI value turns it into an inline number input. On blur, value is validated (-10 to 54) and written immediately to the member's Firestore doc (`handicapIndex` + `handicapUpdatedAt`). Guest HI edits are local to the game only — no Firestore write.
+- **Rationale:** HIs can change daily. Giving the game creator a fast in-context edit path avoids navigating away to RosterPage or ProfilePage.
+- **Date:** 6/19/26
+- **Status:** Final
+
+### CGAD-054 — Per-Game GHIN Sync with Guest State Picker and Disambiguation
+- **Decision:** "Update handicaps from GHIN" button in Setup step (visible when all 4 players filled) triggers a scoped `syncHandicaps` call with `memberIds` + `guestNames`. Roster members use cascading search (Tripoli+WI → WI). Guests use a single-state search — creator selects state per guest in the GHIN modal (full US state list, alphabetical, "All States" first). `parseGhinHI` treats "NH" and non-numeric values as null. Single result with null HI cascades to next level. Multiple results with different HIs return disambiguation candidates. Ambiguous entries route to `ambiguousEntries` (not `updates`) to prevent NaN. Guest writes apply to slot state only. Roster member writes go to Firestore. Full-roster `lastHiSync` summary not written for per-game syncs.
+- **Rationale:** HIs change daily — weekly admin sync isn't enough for game day accuracy. Guest state picker solves the GHIN API limitation (no nationwide search) while keeping the UX simple.
+- **Alternatives considered:** Multi-state cascade for guests — rejected as too slow and picks wrong matches. State picker with disambiguation is more accurate and user-controlled.
+- **Date:** 6/19/26
+- **Status:** Final
+
 ---
 
 ## Decision ID Sequence
-Next available ID: **CGAD-052**
+Next available ID: **CGAD-055**

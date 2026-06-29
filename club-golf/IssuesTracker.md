@@ -137,10 +137,17 @@ Each entry includes: ID, title, type, priority, status, description, and resolut
 | CGI-083 | Non-admin viewer (ViewerPage) had no way back to home | Added rp-back-btn to portrait header (navigate to /games). Added optional onBack prop to ScorecardView, rendered as sc-back-btn in sc-left-block when provided; ViewerPage passes onBack for landscape. ScoreEntryPage's ScorecardView usage unaffected. Resolved 6/13/26. |
 | CGI-084 | GHIN sync Cloud Function timeout on large roster | Increased syncHandicaps timeout to 180s via onCall options. Resolved 6/18/26. |
 | CGI-085 | GHIN sync writing to wrong Firestore path | Profile doc path corrected from `clubs/${clubId}/profile` (3 segments) to `clubs/${clubId}/profile/profile` (4 segments). Resolved 6/18/26. |
+| CGI-086 | NewGamePage wizard restructured; GHIN lookup link removed | NewGamePage redesigned as 4-step wizard (Setup/Teams/Settings/Review). GHIN external anchor link removed — per-game sync replaces it. Resolved 6/19/26. |
+| CGI-087 | GHIN sync missing non-Tripoli members (e.g. Benjamin Juech) | fetchGhinHandicap cascade now tries Tripoli+WI → WI; single-result null-HI path cascades instead of stopping; parseGhinHI treats "NH" as null; guest state picker added to GHIN modal. Resolved 6/19/26. |
+| CGI-088 | Guest player name not editable in Setup step | ng-pr-name renders as inline text input for isGuest slots. Resolved 6/19/26. |
+| CGI-089 | Guest tees not defaulting to creator's default tees | handleMemberSelect guest branch now sets teeSet from creatorDefaultTees ref. Resolved 6/19/26. |
+| CGI-090 | GHIN sync showing NaN for players with "NH" handicap index | parseGhinHI helper added — treats "NH" and any non-numeric HI value as null. Resolved 6/19/26. |
+| CGI-091 | Multiple guests showing duplicate names in updated list | allUpdates now uses updates array only (guestUpdates is a subset — was double-counted). Resolved 6/19/26. |
+| CGI-092 | Second guest silently dropped from GHIN sync | Guest catch block now pushes to ambiguousEntries with empty candidates so client surfaces "could not look up" message. Resolved 6/19/26. |
 
 ---
 
 ## Issue ID Sequence
-Next open issue: **CGI-086**
+Next open issue: **CGI-093**
 Next bug: **CGI-B047**
 Next deferred item: **CGI-D025**

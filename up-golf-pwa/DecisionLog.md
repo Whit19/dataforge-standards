@@ -521,3 +521,56 @@ Session end: Claude generates CC prompt MD files → Tom pastes into Claude Code
 **Rationale:** Eliminates manual upload friction, ensures Claude always has
 latest committed version, single source of truth in GitHub.
 **Repo:** github.com/Whit19/dataforge-standards (public)
+
+---
+
+## Session — June 29, 2026
+
+**DEC-145 — History collections use prefixed top-level names**
+`history_tournaments`, `history_rounds`, `history_results`, `history_standings` — prefixed to avoid collision with live data collections. All four are top-level (not subcollections), consistent with existing app architecture.
+
+---
+
+**DEC-146 — Historical-only players stored by name only (no uid)**
+Players without app credentials (uid: null) in history_ collections. Active players (32) linked by UID at import time. If a historical player returns, linking done manually by admin.
+
+---
+
+**DEC-147 — Off-season nav: 3-tab mode**
+When `outing.status === 'complete'`, bottom nav shows Home | History | Info (+ Admin for admins). Full 5-tab nav shown during active tournament. Driven by `useOutingStatus` hook reading live outing doc.
+
+---
+
+**DEC-148 — History doc IDs: year-based for 2011–2025, outingId-based going forward**
+Imported historical docs use year as ID ("2025"). Future archived tournaments use outingId ("outing_2026"). Migration to unified outingId scheme deferred to Phase 8B.
+
+---
+
+**DEC-149 — Archive to history is admin-triggered (manual)**
+No Cloud Function. AdminArchiveTournament component reads live Firestore data and writes to history_ collections via client SDK. Admin confirms before running. Safe to re-run (set() overwrites).
+
+---
+
+**DEC-150 — TournamentResultsPDF stays hardcoded to ACTIVE_OUTING_ID for now**
+Phase 8B will add URL param support. "Full Results" button in history only shows for current outing (matched by outingId field on tournament doc).
+
+---
+
+**DEC-151 — Tabler Icons added via CDN**
+`@tabler/icons-webfont` loaded from jsdelivr CDN in index.html. Matches Club Golf icon system. Used for history nav icon (ti ti-history) and header.
+
+---
+
+**DEC-152 — App renamed to Tourney Golf**
+Display name only — Firebase project ID (up-golf-pwa), repo name, and local folder unchanged. index.html title and apple-mobile-web-app-title updated. Paired app Club Golf covers single-round play; Tourney Golf covers multi-day tournament outings.
+
+---
+
+**DEC-153 — Player career stats exclude scramble rounds from scoring averages**
+Scramble round scores are team scores, not individual. Excluded from avg score calculation and shown as '—' in standings tables. Detection: gameFormat.startsWith('scramble').
+
+---
+
+**DEC-154 — BestMethods.md raw URL uses refs/heads/main path**
+Correct URL: `https://raw.githubusercontent.com/Whit19/dataforge-standards/refs/heads/main/up-golf-pwa/BestMethods.md`
+Standard `/main/` path returns 404. Update Claude Project Instructions to use refs/heads/main for all 7 doc URLs.

@@ -19,57 +19,45 @@ GoDaddy CNAME subdomain.
 ---
 
 ## Current Status
-**Phase 7 COMPLETE ✅ — 2026 Outing COMPLETE ✅**
-**Phase 8 is now the active phase — multi-tournament architecture + historical data.**
-
-Tournament completed June 2026. All 4 rounds played. Tournament Lock pressed.
-No code freeze in effect — Phase 8 development is active.
+**Phase 8A** is underway. Historical data (2011–2025) imported to Firestore history_ collections. History browser (Tournaments + Players tabs) live at /history. Off-season 3-tab nav (Home | History | Info) implemented. App renamed to Tourney Golf. Archive Tournament admin function built.
 
 ---
 
-## What Was Completed This Session (2026-06-24)
+## Last Session — June 29, 2026
 
-- Historical data Excel file recovered (corrupt external links stripped) ✅
-- UP_Golf_Historical_Import_v3.xlsx built — 6 sheets, all years 2011–2025 ✅
-  - Tournaments, Players, Courses, Rounds, Results, Standings sheets
-  - Ranks + payouts pre-filled from per-year sheets (2013–2025)
-  - Course slope/rating pre-filled for all 5 courses from web research
-  - gameFormat + handicapUsed pre-filled for all 46 rounds
-  - Tees pre-filled for 2024/2025 R3+R4 from year sheets; older years yellow
-  - Tom audited and confirmed file is final
-- Tournament Results PDF export built (DEC-140) ✅
-  - `TournamentResultsPDF.jsx` — new component at `/results-pdf` (admin) and `/history/:year` (players)
-  - Admin Panel home screen: "📄 Export Results PDF" button (visible when status=complete)
-  - Sections: header, age group winners, notable achievements, quick-nav links,
-    final standings (all 32), top 5 overall/prize/skins, per-round leaderboards
-    with match results, skins hole-by-hole (transposed: players as rows, holes as columns)
-  - Print CSS hides bottom nav, sync bar, app chrome
-  - Skins table shows opted-in players only (correct by design)
-- History browser entry point added to Info screen (DEC-141) ✅
-  - 🏆 History card added to Info screen grid
-  - Navigates to `/history/2026` — player-accessible, no AdminGuard
-  - Same TournamentResultsPDF component, no print button on player route
-- GitHub URL fetch workflow implemented for all session docs ✅
-  - All 7 UP Golf docs now in public dataforge-standards repo under up-golf-pwa/
-  - MASTER_CLAUDE_PROTOCOL.md updated with new fetch workflow
-  - CC prompts now always delivered as downloadable MD files (section 4 update)
+### Completed
+- **Historical data import** — `UP_Golf_Historical_Import_v3.xlsx` imported via Node.js Admin SDK scripts (`fetch-uids.js` + `import-history.js`) into 4 Firestore collections:
+  - `history_tournaments` (14 docs, 2011–2025)
+  - `history_rounds` (53 docs)
+  - `history_results` (1,151 docs)
+  - `history_standings` (303 docs)
+  - Active players linked by UID; historical-only players stored by name only
+- **Off-season nav** — `useOutingStatus.js` hook; 3-tab nav (Home | History | Info + Admin) when `outing.status === 'complete'`; 5-tab nav during active tournament
+- **History screen** (`/history`) — Tournaments tab (year picker → tournament detail with rounds table + standings table + per-round scores) + Players tab (alphabetical list + search + career stats: years played, total earned, best finish, top 3, course history, year-by-year)
+- **Tabler Icons** — added via CDN in index.html; `ti ti-history` used for nav and header icons
+- **App renamed** — "UP Golf" → "Tourney Golf" in index.html title and apple-mobile-web-app-title
+- **Firestore rules** — added read (isSignedIn) + write (isAdmin) for all 4 history_ collections
+- **Composite indexes** — created for history_standings (year+finalRank) and history_rounds (year+roundNumber)
+- **Course name fix** — "Grey Walls" corrected to "Greywalls" in 5 Firestore docs (2012–2016 R2)
+- **2011 standings** — added history_standings docs for Tom Junker, Brad Pietz, Mike Dethloff with finalRank: null
+- **Archive Tournament** — `AdminArchiveTournament.jsx` admin component; reads live outing data, writes to history_ collections; only visible when outing.status === 'complete'
+- **"Full Results" button** — in History tournament detail view; navigates to /results-pdf; only shows for current active outing (matched by outingId)
 
----
+### Deferred to Phase 8B
+- `config/active` Firestore doc + dynamic outingId (currently hardcoded as ACTIVE_OUTING_ID)
+- `TournamentResultsPDF` reading outingId from URL param (currently always uses ACTIVE_OUTING_ID)
+- History doc ID migration: year-based ("2025") → outingId-based ("outing_2025")
+- Tournament creation wizard
+- Off-season Home screen redesign
+- "Create New Tournament" admin form
+- Multiple tournaments per year support
 
-## Next Session Priority
-
-**Phase 8A — Multi-tournament architecture:**
-1. Historical data import script (Node.js) — reads UP_Golf_Historical_Import_v3.xlsx,
-   writes to Firestore `tournaments`, `historicalResults`, `historicalStandings`,
-   `historicalPlayers` collections
-2. History browser — `/history` route lists all tournaments by year; tapping navigates
-   to `/history/:year` (already built)
-3. `tournaments` collection + `config/active` Firestore doc
-4. `useActiveTournament.js` hook replaces `ACTIVE_OUTING_ID` constant
-
-**Results PDF — known remaining items:**
-- Skins column cutoff (hole 18 + skins won) — landscape print fix deployed,
-  verify in next test print
+### Known Issues / Notes
+- BestMethods.md raw URL must use `refs/heads/main` not `main`:
+  `https://raw.githubusercontent.com/Whit19/dataforge-standards/refs/heads/main/up-golf-pwa/BestMethods.md`
+- history_tournaments docs for 2011–2025 use year as doc ID ("2025"); future tournaments will use outingId ("outing_2026") — migration needed in Phase 8B
+- TournamentResultsPDF always loads ACTIVE_OUTING_ID regardless of URL — Phase 8B fix
+- 2026 outing not yet archived to history (Archive button built, ready to run when confirmed)
 
 ---
 

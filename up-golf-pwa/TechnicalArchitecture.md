@@ -157,6 +157,45 @@ Firestore security: admin write, auth read required.
 
 ---
 
+### History Collections (Phase 8A)
+
+Four read-only collections store archived tournament data. Imported via Node.js
+Admin SDK scripts for 2011–2025; future years archived via AdminArchiveTournament.
+
+**history_tournaments**
+Doc ID: year string for imports ("2025"), outingId for archived ("outing_2026")
+Fields: year, name, startDate, endDate, location, playerCount, totalPurse,
+        outingId (archived only), notes, importedAt, archivedAt
+
+**history_rounds**
+Doc ID: {tournamentDocId}_R{roundNumber}
+Fields: year, outingId, roundNumber, course, gameFormat, handicapUsed,
+        holesPlayed, par, notes, importedAt
+
+**history_results**
+Doc ID: {tournamentDocId}_R{roundNumber}_{uid|playerName}
+Fields: year, outingId, roundNumber, playerName, uid (null for historical-only),
+        score, score18, holesPlayed, payout, teamId, skinsWon, notes, importedAt
+
+**history_standings**
+Doc ID: {tournamentDocId}_{uid|playerName}
+Fields: year, outingId, playerName, uid (null for historical-only),
+        finalRank (null if no ranking recorded), totalPayout, importedAt
+
+### Composite Indexes (added Phase 8A)
+- history_standings: year ASC + finalRank ASC
+- history_standings: uid ASC + year DESC
+- history_rounds: year ASC + roundNumber ASC
+
+### New Files (Phase 8A)
+- src/hooks/useOutingStatus.js — subscribes to active outing doc, returns {outingStatus, isOffSeason}
+- src/screens/HistoryScreen.jsx — /history route; Tournaments + Players tabs
+- src/components/AdminArchiveTournament.jsx — admin tool to archive live outing to history_
+- functions/fetch-uids.js — one-time utility (delete after use)
+- functions/import-history.js — one-time utility (delete after use)
+
+---
+
 ## 3. Round Lock → Status Flow (DEC-072)
 
 ```

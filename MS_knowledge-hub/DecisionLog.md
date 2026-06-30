@@ -1,5 +1,5 @@
 # DecisionLog — knowledge-hub
-Last updated: 2026-06-09
+Last updated: 2026-06-30
 
 > Append-only. Never delete or edit past entries. Mark superseded decisions as `Superseded by [ID]`.
 
@@ -74,3 +74,11 @@ Last updated: 2026-06-09
 **Rationale:** The demo already showed in-browser editing — delivering less than the demo creates a poor client experience. Dale should not need a GitHub account or any external tooling to maintain content. Since the wiki already runs on Express (same server as Ask the Docs), building the edit routes is straightforward and keeps everything in one deployable unit.
 **Alternatives considered:** Docusaurus + GitHub web editor (requires Dale to use GitHub), Decap CMS (extra setup, external dependency), Notion sync (adds pipeline complexity).
 **Status:** Active
+
+---
+
+### MS-007 — MicroSynergies declines proposal, builds in-house
+**Decision:** MicroSynergies will not move forward with the Knowledge Hub proposal (Ask the Docs + Tech Team Wiki). They will build both capabilities internally with their own team.
+**Rationale:** Per Brad (CTO, email 2026-06-30): after reviewing the demos (Wiki + White Paper AI Chat), the team realized they were farther along internally than initially thought and want to give their own team the opportunity to build these capabilities over the coming months. This was a build-vs-buy decision, not a budget objection — Brad noted the demo was valuable specifically because it "helped clarify what 'good' looks like." Brad explicitly left the relationship open: he will reach back out if internal progress stalls or if another project arises that's a better fit for outside collaboration, and offered to make referral introductions to other companies that could benefit from DataForge's work.
+**Alternatives considered:** Phased delivery starting with Ask the Docs only, retainer renegotiation, full approval at original quote — none of these were the actual blocker; client chose in-house build over all three.
+**Status:** Active — project status set to Inactive in SessionStarter.md. Revisit if MicroSynergies re-engages or a referral materializes.

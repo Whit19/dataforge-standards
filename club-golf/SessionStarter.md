@@ -2,7 +2,7 @@
 **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 Repo: github.com/Whit19/dataforge-standards
 **Load this at the start of every session to restore full context.**
-*Updated June 2026 — Session 31 complete (game setup redesign + per-game GHIN sync)*
+*Updated June 2026 — Session 32 complete (Review step team display bug fixed — CGI-093)*
 
 ---
 
@@ -33,7 +33,7 @@ Built by Tom Junker, who also built UP Golf PWA (fully deployed, 32 players, Pha
 ---
 
 ## Current Status
-**Session 31 complete. ~72h invested.**
+**Session 32 complete. ~72h invested.**
 
 ### What's working (all prior sessions + Session 31):
 - Full 6-Point Game scoring flow
@@ -67,6 +67,7 @@ Built by Tom Junker, who also built UP Golf PWA (fully deployed, 32 players, Pha
   - Teams reset when player slots change
   - Settings + Review steps: unchanged
   - GHIN external lookup link removed
+  - Review step team display now reads live `teamAssignment` state via `teamForSlot(s.slotId)` instead of stale `s.team` slot property (CGI-093, fixed 6/30/26)
 - **Per-game GHIN sync in Setup step**
   - "Update handicaps from GHIN" button — appears only when all 4 players filled
   - Scoped to the 4 players in the game (memberIds filter + guestNames)
@@ -96,7 +97,8 @@ Built by Tom Junker, who also built UP Golf PWA (fully deployed, 32 players, Pha
 ### Next session priorities:
 1. Begin sending member invites through RosterPage To Invite tab
 2. Monitor delivery / Safari link issues
-3. Phase 3 — Thursday Night Men's League
+3. Verify Firestore-saved team assignments on a couple of real games created before the CGI-093 fix (display bug only — save logic was unaffected, but worth a spot check)
+4. Phase 3 — Thursday Night Men's League
 
 ---
 

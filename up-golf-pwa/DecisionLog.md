@@ -574,3 +574,165 @@ Scramble round scores are team scores, not individual. Excluded from avg score c
 **DEC-154 — BestMethods.md raw URL uses refs/heads/main path**
 Correct URL: `https://raw.githubusercontent.com/Whit19/dataforge-standards/refs/heads/main/up-golf-pwa/BestMethods.md`
 Standard `/main/` path returns 404. Update Claude Project Instructions to use refs/heads/main for all 7 doc URLs.
+
+---
+
+## Session — June 30, 2026
+
+**DEC-155 — AdminArchiveTournament.jsx reads only fields that actually exist on live docs**
+`payments.prizeWon`/`payments.skinsWon` (nonexistent fields) replaced with
+`payments.winningsEarned` (real, now-persisted field). `outing.location`/
+`outing.startDate`/`outing.endDate` (nonexistent — outings doc has no such
+fields) replaced with values derived from `rounds[].courseName` (joined,
+deduplicated) and `rounds[].date` (min/max). `rounds.gameFormat` source read
+corrected to `rounds.format` — the `history_rounds` destination field name
+stays `gameFormat` to match the 2011–2025 imported schema (DEC-142); only the
+live-doc source field name was wrong.
+
+---
+
+**DEC-156 — functions/prizes.js: loud failure replaces silent empty-batch writes**
+`calculateAndWriteMatchResults` and `calculateAndWriteScrambleResults` now
+count actual writes against docs found and throw a descriptive error if data
+existed but nothing was updated, instead of committing an empty batch
+successfully. The final `prizesCalculatedAt` write (the idempotency guard) is
+now also gated on this check — it will not be written for a round that
+produced no real results, so a future failure of this kind can retry on the
+next lock event rather than being permanently skipped by the guard. Also: the
+hardcoded `r2Pool / 8 / 2` match-prize calculation in
+`recalculateAllPlayerWinnings` was replaced with a count derived from actual
+`matchesSnap` data per round (R2/R4 separately), matching the equivalent live
+calculation already used in `AdminPayments.jsx` (`prizePerMatchWinner(pool,
+matchList.length || 8)`), consistent with BestMethods.md's
+format-driven-not-hardcoded principle. `prizePerPlayer` is now also written
+directly onto each `matches` doc alongside `winner`, so a doc reader never
+needs to re-derive the dollar amount.
+**Rationale:** Discovered via Tom's outing_2026 archive cleanup request —
+`matches.winner` and `matches.team1CombinedScore`/`team2CombinedScore` were
+`null` on real, locked-round match docs despite `onRoundLocked`'s logs
+showing successful completion and `prizesCalculatedAt` already set on every
+round (every subsequent trigger logged "already calculated — skipping
+duplicate trigger"). The original cause of why the very first invocation's
+batch wrote nothing was never conclusively root-caused (see ISS-149) — this
+fix prevents recurrence and makes any future instance immediately visible in
+logs, rather than resolving the historical mystery.
+
+---
+
+**DEC-157 — Scramble place-assignment tie-detection uses the full tiebreaker chain**
+`calculateAndWriteScrambleResults`'s place-assignment step previously compared
+only `totalGross` to decide whether two consecutive sorted teams tied for the
+same place — but the sort immediately above it already breaks ties using
+`backNine` then `lastThree` (per DEC-052/ISS-052). This meant any time
+multiple teams shared the same `totalGross` (already correctly separated by
+the sort via tiebreakers), the place-assignment step collapsed them into one
+shared place anyway, paying the wrong prize tier. Fixed: tie detection now
+requires `totalGross`, `backNine`, AND `lastThree` to all match before two
+teams are treated as genuinely tied.
+**Confirmed via real data:** outing_2026 R3 had three teams (T5, T2, T8) all
+at `totalGross: 61`; before the fix, all three were assigned `place: 2`. T5's
+real place (2nd, by `backNine: 30` vs the others' `32`) is independently
+confirmed by the live `AdminPayments.jsx` screen, which has separately and
+correctly computed prize tiers all along via different logic
+(`calculateScramblePrizes`) — this is what made the bug detectable: the
+backfilled Firestore data disagreed with the already-trusted live UI.
+**Note:** An earlier fix attempt this session targeted a suspected
+self-referencing-array `ReferenceError` in the same code block. That issue
+may or may not be real depending on JS engine specifics, but was confirmed
+NOT to be the actual cause of the wrong-prize-tier bug — the real cause is
+the tie-detection condition described above. Both issues were fixed together
+in the same code block since they were adjacent.
+
+---
+
+**DEC-158 — Single source of truth for match/skins/scramble winnings: Firestore, not live recompute**
+`AdminPayments.jsx`'s `CollectPaySection` no longer recomputes match winners
+(`resolvedMatches`), prize-per-player (`calculatePrizePools`/
+`prizePerMatchWinner`), or scramble winnings (`calculateScramblePrizes`)
+client-side on every render. It now reads `matches.winner`/
+`matches.prizePerPlayer` and `payments.scrambleWinnings` directly — the
+persisted values written by `functions/prizes.js` (DEC-156/157). `useSkins.js`
+already correctly preferred a persisted `skinsResults` doc over its
+client-side fallback computation (`if (storedResults[roundNumber])` check) —
+only its header comments were updated to stop describing the Cloud Function
+as disabled/hypothetical, since it has been live since 2026-03-30 (ISS-036).
+**Rationale:** The live-recompute pattern in `AdminPayments.jsx` was originally
+built as a deliberate fallback in March 2026 while `onRoundLocked` was
+disabled (ISS-036), explicitly documented as such in `useSkins.js`'s header
+comment at the time. Once ISS-036 was resolved and the function deployed
+2026-03-30, nobody reverted the fallback — it silently became the permanent
+path, and the two systems (live recompute, persisted Firestore writes) drifted
+completely apart with zero observable symptom, since the UI always showed
+correct numbers regardless of what was actually stored. This was only
+discovered because Tom asked to archive `outing_2026` and the archive script
+read the (wrong) persisted values instead of the (correct) UI values.
+**Verification:** A one-time snapshot script captured the live UI's
+per-player winnings as ground truth BEFORE any code changed (manually
+spot-verified against real paid-out amounts in the Payments screen — Jeff
+Searing, Danny Sanicki, etc.). After the fix, a backfill script manually
+invoked the corrected calculation logic against the already-locked
+`outing_2026` (Firestore triggers don't re-fire on already-true `isLocked`)
+and diffed every player's result against the snapshot. Final diff: 32/32
+players matched exactly once the scramble place-detection bug (DEC-157) was
+also fixed — all "mismatches" before that fix were the snapshot's own R3
+figures being unset (since `scrambleResults` had never successfully been
+written for `outing_2026`), not errors in the new persisted data.
+**Status:** Final — this is now the standing pattern. Any future prize/winnings
+display work should read persisted Firestore values, never recompute from
+raw scores/matches client-side.
+
+---
+
+**DEC-159 — TournamentResultsPDF.jsx: historical mode reads history_ collections via :year param**
+New hook `useHistoricalResults.js` reads `history_tournaments`/
+`history_rounds`/`history_results`/`history_standings` and reshapes the data
+into the same row shapes `useLeaderboard`'s `cumulativeLeaderboard` already
+produces, so existing JSX (Final Standings table, etc.) renders either source
+without duplicated rendering logic. `TournamentResultsPDF.jsx` now derives
+`isHistoricalMode` from the `:year` URL param — `true` whenever the requested
+year is not the currently active outing's year. In historical mode, live
+hooks (`useLeaderboard`, `useSkins`, `useOutingSetup`) are still called
+(React hooks rules require unconditional calls) but their output is ignored
+in favor of `useHistoricalResults`'s output. `totalPurse` reads
+`history_tournaments.totalPurse` directly in historical mode instead of
+recomputing from `outing.buyIn * playerCount`. `top5Prize` in historical mode
+is derived from `history_standings` sorted by `totalPayout` descending,
+labeled generically (`sources: ['final payout']`) since per-category
+attribution isn't available at that granularity in `history_results`.
+**Rationale:** This was a known, previously-logged gap (DEC-150) —
+`TournamentResultsPDF.jsx` always read `ACTIVE_OUTING_ID` regardless of the
+`:year` param, meaning `/history/2025` would have silently shown whatever
+tournament was currently active rather than 2025's actual archived results,
+once a tournament other than 2026 became active. Addressed proactively this
+session while the archive/payout work was already in progress, ahead of
+Phase 8B.
+**Known gaps (not addressed this session, see ISS-148):** Per-round
+leaderboard detail tables (R1–R4 with match results) and hole-by-hole skins
+grids render empty in historical mode — no historical equivalent of these
+data shapes was built. `ageGroup` is not present in `history_standings`'s
+current schema, so the Grp column shows `—` for archived years.
+**Doc ID assumption:** Historical mode currently assumes `:year` is a plain
+year string matching `history_tournaments` doc IDs (correct for 2011–2025
+imports per DEC-148). A future outingId-based archived tournament (post Phase
+8B doc ID migration) will need a follow-up — out of scope for this fix.
+**Tested:** `/history/2025` confirmed rendering correctly end-to-end
+(standings, payout breakdown, course/format/dates). `/results-pdf` and
+`/history/2026` confirmed unchanged (both still resolve to live-data mode,
+since 2026 is the current active outing).
+
+---
+
+**DEC-160 — Full payout breakdown by category added to TournamentResultsPDF**
+New "Payout Breakdown" table added to `TournamentResultsPDF.jsx`, placed
+between Final Standings and Top 5 Winners. Ranked highest-paid to $0,
+including $0 players (not filtered out, consistent with the ranking
+convention established earlier this session). Live mode shows six columns
+(R1 Skins, R2 Skins, R2 Match, R3 Scramble, R4 Skins, R4 Match) built from
+`matches.winner`/`prizePerPlayer`, `skinsByRound[rn].playerSummary`, and
+`payments.scrambleWinnings` — all persisted values per DEC-158, not
+recomputed. Historical mode shows four columns (R1–R4) since
+`history_results.payout` is only available at per-round granularity, not
+broken out by category within a round.
+**Rationale:** Tom requested visibility into how each player's total
+winnings break down by source, beyond the single aggregate "Won" figure
+already shown in Final Standings.

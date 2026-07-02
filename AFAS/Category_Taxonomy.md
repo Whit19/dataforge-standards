@@ -8,7 +8,7 @@ Last updated: 2026-07-01 (Interest reclassification, subcategory-mirror recurren
 | Metric | Value |
 |--------|-------|
 | Total categories | 29 |
-| Total subcategories | 136 |
+| Total subcategories | 137 |
 | Last structural change | 2026-06-01 |
 
 ---

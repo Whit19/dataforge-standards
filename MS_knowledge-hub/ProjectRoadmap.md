@@ -1,5 +1,10 @@
 # ProjectRoadmap — knowledge-hub
-Last updated: 2026-06-09
+
+> **STATUS: INACTIVE — Client declined proposal, building in-house (2026-06-30).**
+> See DecisionLog.md MS-007 for full context. Roadmap below preserved for reference
+> in case MicroSynergies re-engages or a referral opportunity uses this scope as a template.
+
+Last updated: 2026-06-30
 
 ---
 

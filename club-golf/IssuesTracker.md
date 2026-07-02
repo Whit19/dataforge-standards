@@ -144,10 +144,11 @@ Each entry includes: ID, title, type, priority, status, description, and resolut
 | CGI-090 | GHIN sync showing NaN for players with "NH" handicap index | parseGhinHI helper added — treats "NH" and any non-numeric HI value as null. Resolved 6/19/26. |
 | CGI-091 | Multiple guests showing duplicate names in updated list | allUpdates now uses updates array only (guestUpdates is a subset — was double-counted). Resolved 6/19/26. |
 | CGI-092 | Second guest silently dropped from GHIN sync | Guest catch block now pushes to ambiguousEntries with empty candidates so client surfaces "could not look up" message. Resolved 6/19/26. |
+| CGI-093 | NewGamePage Review step showed wrong team grouping | Review step Teams filter read the stale `s.team` slot property (set once at slot creation, never updated) instead of `teamForSlot(s.slotId)`, which reads the live `teamAssignment` state. Actual saved games were unaffected — `handleCreate`/`handleUpdate` already used `teamForSlot`. Fixed Review step filter to match. Resolved 6/30/26. |
 
 ---
 
 ## Issue ID Sequence
-Next open issue: **CGI-093**
+Next open issue: **CGI-094**
 Next bug: **CGI-B047**
 Next deferred item: **CGI-D025**

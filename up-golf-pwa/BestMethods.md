@@ -1,6 +1,6 @@
 # BestMethods.md — UP Golf PWA
 **Hard-won lessons from building this app. Read before writing any code.**
-Last Updated: 2026-06-29
+Last Updated: 2026-06-30
 
 ---
 
@@ -55,6 +55,28 @@ independent of any awaited Firestore operation. (ISS-095, DEC-107)
 ### Admin SDK reads only — never commit service account keys
 `serviceAccountKey.json` is never committed. Delete after use. All secrets via
 environment variables or Firebase App Settings only.
+
+### A Cloud Function `batch.commit()` with zero writes in it still succeeds
+A Firestore batch that had nothing added to it (e.g. every doc in a query
+result was skipped by a filter condition) commits successfully with no error —
+it is indistinguishable from a batch that correctly wrote real data, both at
+the call site and in logs that only say "X written" without a count. Any
+Cloud Function building a batch from a query result must count actual writes
+against the number of docs expected, and throw if they don't match, BEFORE
+writing any idempotency guard field that would block a retry. This exact
+failure mode let `onRoundLocked` write `prizesCalculatedAt` for rounds where
+match/scramble results were never actually persisted, for months, with logs
+that always read as success. (DEC-156, ISS-142)
+
+### Reuse the exact tiebreaker chain in every comparison, not just the sort
+If a sort uses a multi-field tiebreaker chain (e.g. `totalGross`, then
+`backNine`, then `lastThree`), any subsequent logic that checks "are these
+two rows equal/tied" must compare the SAME fields — not a subset. Comparing
+only the first field in the chain will treat already-correctly-separated
+rows as tied again, silently undoing the sort's tiebreaker work. This caused
+three distinctly-ranked scramble teams (same `totalGross`, different
+`backNine`) to be collapsed into one shared place and paid the wrong prize
+tier. (DEC-157, ISS-143)
 
 ---
 
@@ -206,6 +228,23 @@ Admin score entry bypasses the normal foursome lookup with a `selectedFoursomeId
 state and a group picker UI. The `isAdmin` check is used to show the picker, not
 to change the scoring logic itself. (DEC-113, ISS-108)
 
+### A "temporary" client-side fallback for a disabled backend can become
+permanent and silently diverge — check before keeping it
+If a UI component recomputes something a Cloud Function is supposed to
+calculate and persist (because the function was disabled or broken at build
+time), that fallback must be reverted once the function is confirmed working
+again — or explicitly documented as the permanent pattern with a reason.
+Leaving it in place by default means two independent implementations of the
+same business logic now exist, and they can drift indefinitely with zero
+visible symptom, since the UI will always show whatever the fallback
+computes regardless of what's actually in Firestore. This happened with
+`AdminPayments.jsx`'s live prize/winnings recompute (built while
+`onRoundLocked` was disabled, ISS-036) — it silently diverged from
+persisted data for 3 months after the Cloud Function was fixed and deployed,
+discovered only because a downstream consumer (the archive script) read the
+wrong data while the UI kept showing the right numbers. (DEC-158, ISS-145)
+When in doubt: read the persisted value, don't recompute it independently.
+
 ---
 
 ## 6. Data Integrity
@@ -310,6 +349,25 @@ and are very hard to read without this filter.
 - Modal button unreachable → iOS PWA scroll/fixed-element containment issue
 - Leaderboard age filter not applying → `ageCategory` vs `ageGroup` field mismatch
 - Prize calculation not running → `notifyRoundLocked` called after idempotency guard
+- Cloud Function logs "success" but data is missing → check whether a batch
+  inside it had zero actual writes; count writes explicitly, don't trust a
+  generic "done" log line
+- UI shows correct data but Firestore doesn't → check for a client-side
+  recompute path shadowing a Cloud Function that's supposed to persist the
+  same value; the UI may be silently ignoring what's actually stored
+
+### Verify against independently-confirmed ground truth before trusting a fix
+When debugging financial/scoring data, don't just confirm a fix "looks
+plausible" or "compiles" — cross-check the actual output against a source
+you've already independently verified (e.g. a live screen the user has
+confirmed shows correct real-world amounts, like an admin payments screen
+matched against actual Venmo/cash payouts). A snapshot of trusted current
+output, taken BEFORE changing anything, then diffed against the new
+behavior after the fix, catches both "fix didn't work" and "fix
+introduced a new, different bug" — both happened in the same debugging
+session here (an unrelated `ReferenceError` fix attempt didn't actually
+explain the real symptom; the real bug was found only by comparing
+backfilled values against the trusted screen). (DEC-157, DEC-158)
 
 ---
 

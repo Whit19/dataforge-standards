@@ -128,6 +128,33 @@
 }
 ```
 
+### `payments` — ID = `{outingId}_{playerId}`
+```js
+{
+  playerId: string,
+  outingId: string,
+  entryFeeOwed: number,
+  entryFeePaid: boolean,
+  entryFeePaidAt: timestamp | null,
+  skinsOptIns: [{ roundNumber, optedIn, buyInAmount, buyInPaid }],
+  totalSkinsOwed: number,
+  totalSkinsPaid: number,
+  winningsEarned: number,      // sum of match + scramble + skins winnings, written by functions/prizes.js on round lock — see DEC-156/158
+  matchWinnings: number,       // R2 + R4 combined — NOT split by round in this doc; see Section 17 for per-round derivation
+  scrambleWinnings: number,    // R3 total
+  skinsWinnings: number,       // R1 + R2 + R4 combined
+  payoutsReceived: number,
+  netBalance: number,
+  paidOutFlags: { [flagKey]: boolean },  // e.g. 'r2Match', 'r4Match' — admin toggle, tracks physical payout only, not the dollar amount itself
+}
+```
+Note: `winningsEarned`/`matchWinnings`/`scrambleWinnings`/`skinsWinnings` are
+written by `recalculateAllPlayerWinnings` in `functions/prizes.js` on round
+lock (DEC-156, DEC-158) — `AdminPayments.jsx` and `TournamentResultsPDF.jsx`
+read these directly rather than recomputing. `matchWinnings` is an aggregate
+across R2+R4; per-round split requires reading `matches.winner`/
+`prizePerPlayer` directly (see Section 17).
+
 ### `scrambleTeams` — ID = `{outingId}_T{teamNumber}`
 ```js
 {
@@ -552,3 +579,61 @@ Replaces the `ACTIVE_OUTING_ID` constant pattern entirely. Reads `config/active`
 | Chat scroll | `ChatThread.jsx` uses setTimeout(0) + image load handlers — not a simple useEffect on messages |
 | Leaderboard font | `.lb-table__seed-num`, `.lb-table__score`, `.lb-table__tpar` use var(--font-ui) not var(--font-mono) |
 | Floating modal overlay (iOS PWA) | `.modal-overlay`/`.modal` pattern can become unscrollable/unreachable on iOS standalone (Save button hidden behind bottom nav, no vertical scroll). Body-level `position: fixed` scroll-lock breaks `.bottom-nav` (also fixed) by changing its containing block. Prefer inline forms (toggle `showForm`, hide list) over floating modals for full-page forms — see NotesTab, AnnouncementForm, DiningEventForm (DEC-136) |
+| Live recompute vs. persisted data | Never build a parallel client-side recalculation of something `functions/prizes.js` already calculates and persists — read the stored value instead. A "temporary" client-side fallback (built while a Cloud Function was disabled) silently became permanent and diverged from Firestore for 3 months with zero visible symptom (DEC-158) |
+| Scramble place-assignment ties | Tie detection must compare the FULL tiebreaker chain (`totalGross`, `backNine`, `lastThree`) — comparing `totalGross` alone collapses distinctly-ranked tied teams into one shared place even though the sort above it already separated them correctly (DEC-157) |
+| Cloud Function silent empty batches | A Firestore batch with zero `.update()`/`.set()` calls in it still commits successfully with no error — always count actual writes against expected docs and throw if they don't match, especially before writing any idempotency guard field |
+| matches.winner / prizePerPlayer | These ARE documented schema fields (Section 2) — if code isn't writing/reading them, that's a code bug, not a missing-feature gap |
+| TournamentResultsPDF historical mode | `:year` param drives `isHistoricalMode` — only true when the requested year is NOT the active outing's year. Live hooks are still called unconditionally (React hooks rules) even in historical mode; their output is just ignored |
+
+---
+
+## 17. Prize Calculation Architecture (DEC-156, DEC-157, DEC-158)
+
+### Single source of truth
+`functions/prizes.js`'s `onRoundLocked` Cloud Function is the ONLY place
+match winners, prize amounts, scramble results, and skins results are
+calculated. It writes:
+- `matches.{winner, prizePerPlayer, team1CombinedScore, team2CombinedScore}`
+  per match doc (R2, R4)
+- `scrambleResults/{outingId}_R3` with a `results[]` array including `place`
+  per team (R3) — place assignment uses the FULL tiebreaker chain
+  (`totalGross`, then `backNine`, then `lastThree`) to match the sort
+  immediately above it; comparing `totalGross` alone is a bug (DEC-157)
+- `skinsResults/{outingId}_R{n}` per skins-eligible round (R1, R2, R4)
+- `payments.{winningsEarned, matchWinnings, scrambleWinnings, skinsWinnings}`
+  per player, via `recalculateAllPlayerWinnings`, run last after the three
+  steps above
+
+No other file should independently recompute these values from raw
+scores/matches data. `AdminPayments.jsx`, `TournamentResultsPDF.jsx`, and the
+archive script all read the persisted values above directly.
+
+### Live preview exception
+Before a round locks, no `skinsResults` doc exists yet for that round.
+`useSkins.js` computes a CLIENT-SIDE LIVE PREVIEW from raw scores + payment
+opt-ins for this case only — this is intentional and correct, not a
+violation of the single-source-of-truth rule, since there is genuinely no
+persisted final result to read yet. The hook automatically prefers the
+persisted doc once it exists (`if (storedResults[roundNumber])` check).
+Consumers can check `result?.computedClientSide === true` to distinguish a
+live preview from a finalized result.
+
+### Idempotency and failure handling
+`onRoundLocked` is a Firestore trigger with at-least-once delivery — it can
+fire more than once for a single `isLocked` write. `prizesCalculatedAt` on
+the round doc is the idempotency guard: once set, subsequent triggers log
+"already calculated — skipping duplicate trigger" and exit immediately.
+**Critical:** `prizesCalculatedAt` is only written if every calculation step
+actually produced real results — each step counts its own writes and throws
+if data existed but nothing was updated (e.g. matches found but none could
+be scored), instead of silently committing an empty batch. This prevents a
+future failure from being permanently locked in by the idempotency guard
+with no way to retry.
+
+### Historical/archived data
+Once a tournament is archived (`AdminArchiveTournament.jsx`), `history_results`
+stores `payout` per player per round — but only at round-level granularity,
+not broken out by category (match vs. skins vs. scramble) within a round.
+`TournamentResultsPDF.jsx`'s historical mode (`useHistoricalResults.js`,
+DEC-159) reflects this limitation — its payout breakdown shows R1–R4 totals,
+not the six-category breakdown available in live mode.

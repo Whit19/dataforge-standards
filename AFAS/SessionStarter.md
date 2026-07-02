@@ -42,18 +42,11 @@ Serverless financial pipeline: Plaid → Azure Function (Python) → Azure SQL (
 ## Pick Up Here — Next Session
 **Phase 4: Power BI holdings pages, budget targets, Principal token, remaining cleanup**
 
-1. **Connect Phase 4 views to Power BI** — refresh dataset in Power BI Service, add new pages:
-   - Net Worth (vw_net_worth) — total by asset_category, trend over time
-   - Holdings Summary (vw_holdings_summary) — by account, sector, asset_type slicers
-   - Asset Allocation (vw_asset_allocation) — pie/donut by sector and asset_type
-   - Liability Summary (vw_liability_summary) — paydown progress
-   - Budget vs Actual (vw_budget_vs_actual) — after seeding budget_targets
-2. **Seed budget_targets table** with initial annual targets for key categories
-3. **Acquire Principal Financial 401k Plaid token** (ISSUE-009) — run get_plaid_tokens.py, store as `PLAID_ACCESS_TOKEN_PRINCIPAL`
-4. **Await Baird response** (ISSUE-008) — CSV pipeline now in place as permanent fallback
-5. **Monthly Baird CSV procedure** — export all accounts, add Account Name + Date columns, add cash row, drop in imports\baird\, run import_baird_holdings.py, archive files
-6. **Update physical asset valuations monthly** — Zillow for house, KBB for 3 Teslas (sql\39_physical_asset_valuations_seed.sql pattern)
-7. **Review 8 intentionally parked Apple Uncategorized rows**
+1. **Full Category_Taxonomy.md audit** (ISSUE-012) — every category/subcategory/in_budget flag reviewed against live category_map/merchant_patterns
+2. **Verify Chase/Amex/Associated transactions are actually present in dbo.transactions** (ISSUE-013)
+3. **Investigate root cause of subcategory-mirror recurrence** (ISSUE-014)
+4. **Baird activity/dividend/fee ingestion** (deferred earlier this session)
+5. **HONA security_sectors entry** — confirm final classification is correct
 
 ---
 

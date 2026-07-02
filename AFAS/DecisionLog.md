@@ -1,6 +1,15 @@
 # AFAS Project — Decision Log
 **Append only. Never delete entries. Most recent session at top.**
-Last updated: 2026-06-17
+Last updated: 2026-07-01
+
+---
+
+## 2026-07-01: enrich_transactions.py column-loading bug (critical)
+load_transactions() in enrich_transactions.py never loaded category_source, category_confidence, subcategory, in_budget, or type from the DB before running — only category was loaded. Combined with a blind-initialization loop that set all uninitialized enrichment columns to None, any row that already had a category (i.e., most 2024+ rows) had those five columns silently blanked to NULL on write-back, since no enrichment step's mask logic ever touched them.
+Impact: ~7,069 transactions had category_source/category_confidence/subcategory/in_budget/type wiped in a single run on 2026-07-01.
+Recovery: Azure SQL point-in-time restore to 2026-07-01 22:15 UTC (pre-corruption), reconciled via a one-time script (scripts/restore_category_source.py) that used COALESCE-based updates to restore only NULL columns without touching any legitimately-set values. Full recovery confirmed — 0 data loss.
+Fix: load_transactions() now loads all five columns from the DB; blind-initialization loop only applies to columns genuinely absent (category, category_reviewed).
+Lesson: any script following the "load some enrichment columns, blind-init the rest" pattern needs every column it writes to also be loaded first — this is now a pattern to check for in any future enrichment script review.
 
 ---
 

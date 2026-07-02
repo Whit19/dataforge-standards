@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-06-17
+Last updated: 2026-07-01
 
 ---
 
@@ -38,6 +38,28 @@ Last updated: 2026-06-17
 
 ### NOTE — 8 Apple Uncategorized rows intentionally parked
 Pending manual review. All have `category_source = manual`, `in_budget = 1`. Not a data quality issue — held for owner classification decision.
+
+---
+
+### ISSUE-012 — Category taxonomy drift
+category_map contains subcategories not documented in Category_Taxonomy.md (Dividends, Mobile Deposit, Pension, Tax Refund under Other Income — discovered 2026-07-01 during Interest reclassification). Needs a full taxonomy audit next session: every category/subcategory/in_budget flag reviewed against actual category_map and merchant_patterns contents, not just spot-checked reactively.
+
+---
+
+### ISSUE-013 — Chase/Amex/Associated transaction verification needed
+timer_sync (renamed cadence: now monthly, was daily) confirmed running successfully in Azure Monitor every day this past month with zero errors, and plaid_sync.py's _TOKEN_KEYS correctly lists all three institutions — but actual presence of Chase/Amex/Associated transactions in dbo.transactions was never directly confirmed. Verify with:
+```sql
+SELECT source, COUNT(*) AS cnt, MAX([date]) AS most_recent
+FROM dbo.transactions
+GROUP BY source
+ORDER BY cnt DESC;
+```
+before assuming ingestion is working just because the timer fires successfully.
+
+---
+
+### ISSUE-014 (recurrence note on prior fix) — subcategory-mirror violations recurred
+2026-06-01 taxonomy fix corrected subcategory=category mirror violations (Clothing, Dining Out, Gifts/Charity, Groceries, Payment). By 2026-07-01, 294 merchant_patterns rows and 11 category_map rows had the same violation again (Clothing, Groceries, Car, Property Tax, Payment, Dining Out, Interest). Root cause of the recurrence not yet investigated — worth checking whether a specific import/enrichment script is reintroducing these values, rather than treating each occurrence as an isolated one-off fix.
 
 ---
 

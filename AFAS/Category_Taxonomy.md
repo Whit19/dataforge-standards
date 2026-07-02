@@ -1,6 +1,6 @@
 # AFAS Project — Category Taxonomy Reference
 **Update this file when any category, subcategory, or type assignment changes.**
-Last updated: 2026-06-01 (subcategory violations fixed, in_budget corrections, Travel cleanup)
+Last updated: 2026-07-01 (Interest reclassification, subcategory-mirror recurrence fixed, taxonomy drift flagged as ISSUE-012)
 
 ---
 
@@ -57,6 +57,8 @@ Last updated: 2026-06-01 (subcategory violations fixed, in_budget corrections, T
 | 2026-06-01 | Payment: in_budget → 0 (stragglers — double counts underlying spend) | 3 |
 | 2026-06-01 | category_map: Large Purchases in_budget → 1 (6 entries synced) | 6 |
 | 2026-06-01 | category_map: HSA Deposit subcategory → EFT (was HSA Deposit — mirrored category name) | 2 |
+| 2026-07-01 | Other Income: added subcategory `Interest` for INCOME_INTEREST_EARNED (was invalid standalone 'Interest' category) | 2 (category_map) + 0 (transactions) |
+| 2026-07-01 | Dining Out/Groceries/Clothing/Payment/Car/Property Tax: subcategory-mirror violations fixed (recurrence of 2026-06-01 issue — see ISSUE-014) | 294 (merchant_patterns) + 11 (category_map) + 2,889 (transactions) |
 
 ---
 
@@ -239,6 +241,7 @@ Other Income
      Customer Deposit
      Deposit
      General
+     Interest
      PayPal
      Rewards Points
      Venmo

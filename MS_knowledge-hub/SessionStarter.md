@@ -1,5 +1,5 @@
 # SessionStarter — knowledge-hub
-Last updated: 2026-06-09 (end of session 2)
+Last updated: 2026-06-30 (end of session 3)
 
 ---
 
@@ -18,21 +18,19 @@ Both modules share one Express server, one repo, one Railway deployment.
 
 ## Current Status
 
-**Ask the Docs — Phase 1 built and deployed to Railway.** Basic Auth added. Custom domain `hub.microsynergies.com` configured — awaiting CNAME setup by MicroSynergies IT. Brad has instructions to create Anthropic API key and set $50 usage cap.
+**Inactive — client opted to build in-house.** Brad (CTO) replied on 2026-06-30 declining to move forward with the proposal. After reviewing the demos (Wiki + Ask the Docs), MicroSynergies determined they are farther along internally than initially thought and want to give their own team the opportunity to build these capabilities over the coming months. This was a build-vs-buy decision, not a budget rejection — the demo set their internal bar for "what good looks like."
 
-**Tech Team Wiki — Pre-build.** Kickoff meeting held 2026-06-10 with Brad and Dale. Follow-up session needed to capture decisions from that meeting and begin build.
+Brad explicitly left the relationship open:
+- Will reach back out if internal progress stalls or another project is a better fit for outside collaboration
+- Offered to make introductions to other companies who could benefit from DataForge's approach
 
-**Repo consolidated** — `ask-the-docs` and `tech-team-wiki` merged into single `knowledge-hub` repo.
+No further build work is planned unless MicroSynergies re-engages. See DecisionLog.md MS-007 for full decision record.
 
 ---
 
 ## Next Priorities
 
-1. **Capture kickoff decisions** — hosting, auth, Dale's progress, OneDrive PDF library, wiki stack
-2. **MicroSynergies IT** — confirm CNAME record added for `hub.microsynergies.com`
-3. **Brad's Anthropic API key** — confirm created and sent securely
-4. **Begin wiki Phase 1 build** — scaffold structure, populate content from FAQ doc
-5. **Test Ask the Docs on Railway** — upload a white paper, confirm end-to-end flow
+None — project inactive pending client re-engagement or referral follow-through. No action items at this time.
 
 ---
 
@@ -49,7 +47,10 @@ Both modules share one Express server, one repo, one Railway deployment.
 - [x] Railway deployment configured — env vars set, custom domain added
 - [x] GitHub personal access token approach documented for wiki commits
 - [x] Brad's API key setup instructions prepared
-- [x] Kickoff meeting held with Brad and Dale (2026-06-10) — decisions TBC next session
+- [x] Kickoff meeting held with Brad and Dale (2026-06-10)
+- [x] Merged Technical Architecture doc produced (covers both modules, MS365/OneDrive corrected)
+- [x] Quote sent to Brad; Brad's reply received and reviewed (2026-06-30)
+- [x] Reply drafted and sent to Brad acknowledging the decision, offering ad-hoc help, thanking him for referral interest
 
 ---
 
@@ -69,12 +70,12 @@ Both modules share one Express server, one repo, one Railway deployment.
 > See IssuesTracker.md
 
 - KH-001 — In-memory sessions reset on server restart (deferred to Phase 2)
-- KH-002 — Dale's wiki progress — to be confirmed next session
-- KH-003 — Wiki hosting and stack — to be confirmed next session
-- KH-004 — Auth requirement — to be confirmed next session
+- KH-002 — Dale's wiki progress — moot, project inactive
+- KH-003 — Wiki hosting and stack — moot, project inactive
+- KH-004 — Auth requirement — moot, project inactive
 - KH-005 — Quote scope bullet needs correction before sending
-- KH-006 — CNAME record pending — MicroSynergies IT needs to add DNS record
-- KH-007 — Brad's Anthropic API key — not yet received
+- KH-006 — CNAME record pending — left open per Tom's preference
+- KH-007 — Brad's Anthropic API key — left open per Tom's preference
 
 ---
 
@@ -110,8 +111,8 @@ npm start
 
 | Name | Role | Notes |
 |------|------|-------|
-| Brad | CTO | Primary champion. Decision-maker. |
-| Dale | Tech team | Wiki is his 2026 incentive goal — collaborate, don't replace |
+| Brad | CTO | Primary champion. Decided to build in-house (2026-06-30). Open to future re-engagement or referrals. |
+| Dale | Tech team | Wiki was his 2026 incentive goal — now an internal build |
 | TC | Leadership | Budget approvals |
 | Roy | Operations / Sourcing | RFQ process sign-off |
 

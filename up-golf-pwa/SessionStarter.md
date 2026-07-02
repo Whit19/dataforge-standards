@@ -19,45 +19,85 @@ GoDaddy CNAME subdomain.
 ---
 
 ## Current Status
-**Phase 8A** is underway. Historical data (2011–2025) imported to Firestore history_ collections. History browser (Tournaments + Players tabs) live at /history. Off-season 3-tab nav (Home | History | Info) implemented. App renamed to Tourney Golf. Archive Tournament admin function built.
+**Phase 8A** is underway. outing_2026 successfully archived to history_ collections with correct purse/location/format/winnings data (was broken — see last session). functions/prizes.js rewritten to persist match/scramble/skins winnings to Firestore instead of only computing them live; AdminPayments.jsx now reads those persisted values. TournamentResultsPDF.jsx now supports viewing archived years via /history/:year (tested against 2025), with a new full payout-breakdown-by-category table. Historical data (2011–2025) imported to Firestore history_ collections. History browser (Tournaments + Players tabs) live at /history. Off-season 3-tab nav (Home | History | Info) implemented. App renamed to Tourney Golf.
 
 ---
 
-## Last Session — June 29, 2026
+## Last Session — June 30, 2026
 
 ### Completed
-- **Historical data import** — `UP_Golf_Historical_Import_v3.xlsx` imported via Node.js Admin SDK scripts (`fetch-uids.js` + `import-history.js`) into 4 Firestore collections:
-  - `history_tournaments` (14 docs, 2011–2025)
-  - `history_rounds` (53 docs)
-  - `history_results` (1,151 docs)
-  - `history_standings` (303 docs)
-  - Active players linked by UID; historical-only players stored by name only
-- **Off-season nav** — `useOutingStatus.js` hook; 3-tab nav (Home | History | Info + Admin) when `outing.status === 'complete'`; 5-tab nav during active tournament
-- **History screen** (`/history`) — Tournaments tab (year picker → tournament detail with rounds table + standings table + per-round scores) + Players tab (alphabetical list + search + career stats: years played, total earned, best finish, top 3, course history, year-by-year)
-- **Tabler Icons** — added via CDN in index.html; `ti ti-history` used for nav and header icons
-- **App renamed** — "UP Golf" → "Tourney Golf" in index.html title and apple-mobile-web-app-title
-- **Firestore rules** — added read (isSignedIn) + write (isAdmin) for all 4 history_ collections
-- **Composite indexes** — created for history_standings (year+finalRank) and history_rounds (year+roundNumber)
-- **Course name fix** — "Grey Walls" corrected to "Greywalls" in 5 Firestore docs (2012–2016 R2)
-- **2011 standings** — added history_standings docs for Tom Junker, Brad Pietz, Mike Dethloff with finalRank: null
-- **Archive Tournament** — `AdminArchiveTournament.jsx` admin component; reads live outing data, writes to history_ collections; only visible when outing.status === 'complete'
-- **"Full Results" button** — in History tournament detail view; navigates to /results-pdf; only shows for current active outing (matched by outingId)
+- **outing_2026 archive fixed and re-run** — `AdminArchiveTournament.jsx` was
+  reading three fields that don't exist on live docs (`payments.prizeWon`/
+  `skinsWon`, `outing.location`/`startDate`/`endDate`, `rounds.gameFormat`).
+  All fixed (DEC-155, ISS-141). Archive re-run successfully — History screen
+  now shows correct format/course/dates/standings/$4,320 total purse for 2026.
+- **functions/prizes.js rewritten** — the Cloud Function was running
+  successfully on every round lock (confirmed via Cloud Run logs) but two of
+  its four internal write steps were silently producing zero results despite
+  logging success and permanently setting the idempotency guard
+  (`prizesCalculatedAt`). Root caused and fixed:
+  - Match results (R2/R4): batch updates now counted; throws if matches exist
+    but none could be scored, instead of committing an empty batch (DEC-156)
+  - Scramble results (R3): place-assignment tie-detection only compared
+    `totalGross`, ignoring the `backNine`/`lastThree` tiebreakers the sort
+    above it already used — collapsed 3 distinctly-ranked tied teams into one
+    shared place, paying the wrong prize tier. Fixed to use the full
+    tiebreaker chain (DEC-157)
+  - `prizePerPlayer` now written directly onto `matches` docs; hardcoded
+    `/8` match count replaced with actual per-round count (DEC-156)
+  - `prizesCalculatedAt` idempotency write now gated on real results existing,
+    so a future failure can retry instead of being permanently skipped
+- **AdminPayments.jsx switched to reading persisted data** — `CollectPaySection`
+  no longer recomputes match winners/prizes/scramble winnings live client-side;
+  reads `matches.winner`/`prizePerPlayer` and `payments.scrambleWinnings`
+  directly (DEC-158). This pattern (live recompute as a fallback for a
+  disabled Cloud Function, never reverted after the function was fixed) had
+  been silently diverging from Firestore for ~3 months with no visible symptom
+  — only discovered because the archive script read the wrong data while the
+  UI kept showing the right numbers.
+- **Verification process** — one-time snapshot script captured live UI
+  winnings as ground truth before any code changed; backfill script manually
+  invoked the new calculation logic against the already-locked outing_2026
+  and diffed against the snapshot. Final result: 32/32 players matched exactly.
+  Both one-time scripts deleted after use per convention.
+- **TournamentResultsPDF.jsx: historical mode** — new `useHistoricalResults.js`
+  hook reads `history_` collections and reshapes them to match
+  `useLeaderboard`'s output shape. Component now branches on whether the
+  `:year` URL param matches the currently active outing; if not, reads
+  archived data instead of always defaulting to `ACTIVE_OUTING_ID`. Cover
+  header/print bar/footer year display also fixed to match (was hardcoded to
+  `ACTIVE_OUTING_YEAR` even in historical mode). Tested against `/history/2025`.
+- **Payout Breakdown table added** — new section in TournamentResultsPDF
+  showing every player's winnings broken out by category (R1/R2/R4 skins, R2/R4
+  match, R3 scramble in live mode; R1–R4 totals in historical mode, since
+  `history_results` doesn't store category-level detail within a round) (DEC-160).
 
 ### Deferred to Phase 8B
 - `config/active` Firestore doc + dynamic outingId (currently hardcoded as ACTIVE_OUTING_ID)
-- `TournamentResultsPDF` reading outingId from URL param (currently always uses ACTIVE_OUTING_ID)
 - History doc ID migration: year-based ("2025") → outingId-based ("outing_2025")
 - Tournament creation wizard
 - Off-season Home screen redesign
 - "Create New Tournament" admin form
 - Multiple tournaments per year support
+- TournamentResultsPDF historical mode: per-round leaderboard detail tables
+  and hole-by-hole skins grids not yet built for archived years (ISS-148)
+- ageGroup not present in history_standings schema — Grp column shows '—'
+  for archived years until added to the import/archive schema
 
 ### Known Issues / Notes
 - BestMethods.md raw URL must use `refs/heads/main` not `main`:
   `https://raw.githubusercontent.com/Whit19/dataforge-standards/refs/heads/main/up-golf-pwa/BestMethods.md`
-- history_tournaments docs for 2011–2025 use year as doc ID ("2025"); future tournaments will use outingId ("outing_2026") — migration needed in Phase 8B
-- TournamentResultsPDF always loads ACTIVE_OUTING_ID regardless of URL — Phase 8B fix
-- 2026 outing not yet archived to history (Archive button built, ready to run when confirmed)
+- history_tournaments docs for 2011–2025 use year as doc ID ("2025"); future
+  tournaments will use outingId ("outing_2026") — migration needed in Phase 8B
+- The original cause of why functions/prizes.js's first invocation silently
+  wrote zero match results (before the loud-failure fix) was never fully
+  root-caused — the fix prevents recurrence but the historical mechanism
+  remains unknown (ISS-149, logged for awareness only)
+- DEC-136 flagged a citation error: SessionStarter previously cited "DEC-122"
+  for a code-freeze decision that doesn't match DEC-122's actual content
+  (r3Leaderboard derivation). No dedicated DecisionLog entry for the freeze
+  itself was ever found. This reference has now been removed from this file
+  since the freeze it described is no longer current/relevant context.
 
 ---
 
@@ -86,10 +126,17 @@ Import script writes to these Firestore collections:
 - `courses/{courseName}_{tees}` — slope/rating per tee per course (already in import file)
 Source: `UP_Golf_Historical_Import_v3.xlsx` (6-sheet Excel, Tom has audited/finalized)
 
-### Tournament Results PDF (DEC-140)
+### Tournament Results PDF (DEC-140, DEC-159, DEC-160)
 - Component: `src/components/TournamentResultsPDF.jsx`
-- Routes: `/results-pdf` (AdminGuard) and `/history/:year` (player-accessible)
-- Data sources: `useLeaderboard`, `useSkins`, `useOutingSetup`, round docs, score docs
+- Routes: `/results-pdf` (AdminGuard, always live data) and `/history/:year`
+  (player-accessible — live data if :year matches the active outing's year,
+  otherwise reads archived history_ collections via `useHistoricalResults.js`)
+- Live mode data sources: `useLeaderboard`, `useSkins`, `useOutingSetup`,
+  round docs, score docs, payments docs
+- Historical mode data source: `useHistoricalResults.js` (reads
+  history_tournaments/history_rounds/history_results/history_standings)
+- Includes a Payout Breakdown table (per-player, per-category in live mode;
+  per-player, per-round in historical mode)
 - Skins table: transposed (players as rows, holes 1–18 as columns, skins won count last)
 - Skins participants: opted-in players only (from payments collection skinsOptIns)
 - Print CSS: hides `.bottom-nav`, `.sync-bar`, `.app__main` padding
@@ -148,6 +195,8 @@ BLcR9lmWMj4kPIpMoo-jT88mu9ZoBO6dIGeGcjmhiNXhLhc0f8Oat8HaLGaxc1x03_p8Ji8EhJFb_arY
 
 ## Open Issues Summary
 - **ISS-010** Emoji picker (deferred — post Phase 8)
+- **ISS-148** TournamentResultsPDF historical mode missing per-round/skins detail (deferred — Phase 8B)
+- **ISS-149** Original cause of prizes.js silent empty-batch writes never fully root-caused (logged for awareness, not blocking)
 
 ---
 

@@ -7,9 +7,9 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total Hours** | ~72h |
-| **Sessions** | 31 |
-| **Last Updated** | 6/19/26 |
+| **Total Hours** | ~72.5h |
+| **Sessions** | 32 |
+| **Last Updated** | 6/30/26 |
 
 ---
 
@@ -47,6 +47,7 @@
 | 29 | 6/13/26 | ~0.5h | UX | Home screen live game rows now show current hole + running score (Hole {n} · A-B · date) via new getLiveGameStatus() helper, no new reads. Added back navigation to ViewerPage (read-only viewer): rp-back-btn in portrait header, sc-back-btn in ScorecardView landscape via optional onBack prop — ScoreEntryPage's ScorecardView usage unaffected. CGI-082/083 resolved. |
 | 30 | 6/18/26 | ~2h | 2I — GHIN Sync | Designed and built admin-triggered GHIN handicap sync: syncHandicaps onCall Cloud Function (GHIN login, member iteration, HI writes, lastHiSync summary), sendHiSyncReminder scheduled function (Monday 8 AM Central), admin sync modal on GamesPage, NOT FOUND/ERROR badges in RosterPage. Fixed timeout (180s) and profile doc path (4-segment) bugs during live testing. 49/50 members resolved; Jon Cyganiak unresolvable via API. |
 | 31 | 6/19/26 | ~5h | Game Setup Redesign + Per-Game GHIN Sync | Redesigned NewGamePage as 4-step wizard (Setup/Teams/Settings/Review): compact player rows with inline HI editing, tee dropdowns defaulting to creator's tees, guest name input, team assignment step with PH display and team colors, per-game GHIN sync with cascading search, guest state picker, disambiguation picker, and parseGhinHI NH handling. |
+| 32 | 6/30/26 | ~0.5h | Bug fix | Diagnosed and fixed CGI-093: NewGamePage Review step was displaying team assignments by slot order instead of actual user selection. Root cause: Review step filtered on stale `s.team` slot property instead of `teamForSlot(s.slotId)`, which reads the live `teamAssignment` state already used correctly by handleCreate/handleUpdate. Confirmed actual saved games were unaffected — display-only bug. One-line fix applied. |
 
 ---
 

@@ -128,6 +128,11 @@
 - [x] Historical data Excel — `UP_Golf_Historical_Import_v3.xlsx` audited and finalized (DEC-142) ✅
 - [x] Session docs moved to public dataforge-standards GitHub repo (DEC-144) ✅
 - [x] CC prompts now always delivered as downloadable MD files (DEC-143) ✅
+- [x] outing_2026 archived to history_ collections with correct data — original
+      archive run was blocked by three separate field-name bugs in
+      AdminArchiveTournament.jsx and a deeper root cause in functions/prizes.js
+      silently failing to persist match/scramble winnings; both fixed and
+      verified before re-running the archive (DEC-155–158, ISS-141–145) ✅
 
 ## Phase 8B — Tournament Lifecycle & Multi-Tournament Support (NEXT)
 
@@ -135,12 +140,16 @@
 - [ ] config/active Firestore doc — dynamic active tournament ID
 - [ ] useActiveTournament hook — replaces ACTIVE_OUTING_ID hardcoding
 - [ ] History doc ID migration — year-based → outingId-based ("outing_2025")
-- [ ] TournamentResultsPDF reads outingId from URL param
+- [x] TournamentResultsPDF reads :year URL param and branches to historical
+      data when viewing an archived (non-active) year — done ahead of
+      schedule 2026-06-30 (DEC-159). Remaining gap: per-round leaderboard
+      detail tables and hole-by-hole skins grids still render empty in
+      historical mode (ISS-148) — full parity not yet built
 - [ ] Create Tournament admin form (name, year, dates, location, round count)
 - [ ] Tournament states: Scheduled → Active → Locked
 - [ ] Off-season Home screen redesign (teaser card for scheduled tournament)
 - [ ] Multiple tournaments per year support
-- [ ] Archive outing_2026 to history (run AdminArchiveTournament)
+- [x] Archive outing_2026 to history (run AdminArchiveTournament) ✅ 2026-06-30
 
 ## Phase 8C — Career Stats & Net Scoring
 - [ ] Net scoring engine (WHS Course Handicap calculation)

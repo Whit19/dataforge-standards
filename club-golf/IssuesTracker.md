@@ -145,10 +145,11 @@ Each entry includes: ID, title, type, priority, status, description, and resolut
 | CGI-091 | Multiple guests showing duplicate names in updated list | allUpdates now uses updates array only (guestUpdates is a subset — was double-counted). Resolved 6/19/26. |
 | CGI-092 | Second guest silently dropped from GHIN sync | Guest catch block now pushes to ambiguousEntries with empty candidates so client surfaces "could not look up" message. Resolved 6/19/26. |
 | CGI-093 | NewGamePage Review step showed wrong team grouping | Review step Teams filter read the stale `s.team` slot property (set once at slot creation, never updated) instead of `teamForSlot(s.slotId)`, which reads the live `teamAssignment` state. Actual saved games were unaffected — `handleCreate`/`handleUpdate` already used `teamForSlot`. Fixed Review step filter to match. Resolved 6/30/26. |
+| CGI-094 | Android landscape scorecard view unreachable | **Fix Applied — Pending Android Verification.** Root cause: `vite.config.js` VitePWA manifest had `orientation: 'portrait'` hardcoded. iOS ignores this field on standalone PWAs, but Android's Screen Orientation API enforces it, permanently locking the viewport to portrait regardless of physical rotation — so the `matchMedia('orientation: landscape')` listener in ResultsPage.jsx never fired. Fix: removed `orientation` key from manifest in vite.config.js; rebuilt and redeployed 7/3/26. Verification needed: confirm on a physical Android device (post-reinstall — manifest changes require full PWA reinstall on Chrome) that rotating to landscape on the Results page correctly displays ScorecardView. Not present in UP Golf — landscape scorecard is Club Golf-specific. |
 
 ---
 
 ## Issue ID Sequence
-Next open issue: **CGI-094**
+Next open issue: **CGI-095**
 Next bug: **CGI-B047**
 Next deferred item: **CGI-D025**

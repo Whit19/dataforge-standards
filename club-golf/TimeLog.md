@@ -7,9 +7,9 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total Hours** | ~72.5h |
-| **Sessions** | 32 |
-| **Last Updated** | 6/30/26 |
+| **Total Hours** | ~74.5h |
+| **Sessions** | 33 |
+| **Last Updated** | 7/23/26 |
 
 ---
 
@@ -48,6 +48,7 @@
 | 30 | 6/18/26 | ~2h | 2I — GHIN Sync | Designed and built admin-triggered GHIN handicap sync: syncHandicaps onCall Cloud Function (GHIN login, member iteration, HI writes, lastHiSync summary), sendHiSyncReminder scheduled function (Monday 8 AM Central), admin sync modal on GamesPage, NOT FOUND/ERROR badges in RosterPage. Fixed timeout (180s) and profile doc path (4-segment) bugs during live testing. 49/50 members resolved; Jon Cyganiak unresolvable via API. |
 | 31 | 6/19/26 | ~5h | Game Setup Redesign + Per-Game GHIN Sync | Redesigned NewGamePage as 4-step wizard (Setup/Teams/Settings/Review): compact player rows with inline HI editing, tee dropdowns defaulting to creator's tees, guest name input, team assignment step with PH display and team colors, per-game GHIN sync with cascading search, guest state picker, disambiguation picker, and parseGhinHI NH handling. |
 | 32 | 6/30/26 | ~0.5h | Bug fix | Diagnosed and fixed CGI-093: NewGamePage Review step was displaying team assignments by slot order instead of actual user selection. Root cause: Review step filtered on stale `s.team` slot property instead of `teamForSlot(s.slotId)`, which reads the live `teamAssignment` state already used correctly by handleCreate/handleUpdate. Confirmed actual saved games were unaffected — display-only bug. One-line fix applied. |
+| 33 | 7/23/26 | ~2h (estimate — confirm) | Roster + GHIN fixes | Added "Resend All Expired" bulk invite resend to RosterPage Pending tab (sequential, existing sendInvite callable, inline confirm/progress/summary). Fixed GHIN sync timeout for full roster: raised Cloud Function timeoutSeconds 180→540 and separately raised the client-side httpsCallable timeout (independent 70s default) to match, at both call sites. Built full decline/opt-out flow: new public declineInvite Cloud Function, opt-out link in invite email, new DeclinePage.jsx + /decline route, "Declined" badge and "Move to To Invite" action in RosterPage Not Active tab (declinedInvite flag distinguishes opt-outs from admin-deactivated members). Discovered and fixed a pre-existing bug from CGI-077: inviteUrl was never actually migrated to the custom domain (only the email logo was) — consolidated inviteUrl and declineUrl to build from one APP_BASE_URL constant, now club-golf.app. Verified /join and /decline both load correctly on the custom domain. CGAD-055/056 added; CGI-095/096 resolved. |
 
 ---
 

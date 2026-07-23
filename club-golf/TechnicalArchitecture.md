@@ -165,8 +165,19 @@ function hiAgeDays(updatedAt) {
 | `deleteMember` | onCall | Yes | Deletes Auth account + Firestore member doc |
 | `deactivateMember` | onCall | Yes | Disables Firebase Auth account; sets inviteStatus:'skip' on member doc |
 | `reactivateMember` | onCall | Yes | Re-enables Firebase Auth account; sets inviteStatus:'accepted' on member doc |
+| `declineInvite` | onCall | No (public) | Validates decline token, sets member `inviteStatus:'skip'` + `declinedInvite:true` + `declinedAt`, clears `inviteToken` |
 
 **After every new function deploy:** Set "Allow public access" manually in Cloud Run console
+
+## Email Link Domain
+
+All outbound email links (invite, join, decline) build from a single
+`APP_BASE_URL` constant in `functions/index.js` — never hardcode a
+domain inline per-link. This constant is currently set to
+`https://club-golf.app`. (CGI-096 — a prior fix that only updated the
+email logo image but not the actual link left `inviteUrl` on the raw
+Firebase domain for months undetected; consolidating to one constant
+prevents links from silently drifting to different domains again.)
 
 ---
 
@@ -235,6 +246,8 @@ clubs/
   inviteExpiresAt: timestamp | null,
   inviteSentAt: timestamp | null,
   accountCreatedAt: timestamp | null,
+  declinedInvite: boolean,        // true if member opted out via decline link (CGAD-056)
+  declinedAt: timestamp | null,   // set when declinedInvite becomes true
 
   favorites: string[],
   tnmlTeam: string | null,
@@ -483,6 +496,7 @@ service cloud.firestore {
 /                           → redirect to /games
 /login                      → LoginPage (public)
 /join                       → JoinPage (public — invite claim)
+/decline                    → DeclinePage (public — invite opt-out)
 /games                      → GamesPage (protected)
 /games/new                  → NewGamePage (protected)
 /games/:gameId              → ScoreEntryPage (protected)
@@ -554,6 +568,7 @@ club-golf/
 │   ├── pages/
 │   │   ├── LoginPage.jsx
 │   │   ├── JoinPage.jsx
+│   │   ├── DeclinePage.jsx        ← public opt-out landing page (mirrors JoinPage)
 │   │   ├── GamesPage.jsx
 │   │   ├── NewGamePage.jsx         ← HI Age badge; auto-fill slot 0 writes handicapUpdatedAt
 │   │   ├── ScoreEntryPage.jsx
@@ -602,8 +617,10 @@ club-golf/
 | ProfilePage saveHI — plus handicaps | Valid range is -10 to 54, not 0 to 54 |
 | useRoster addMember — null HI | Store null when blank, never default to 0 (CGAD-041) |
 | NewGamePage auto-fill slot 0 | Must include handicapUpdatedAt in the setSlots patch |
+| `httpsCallable` client-side timeout | Defaults to ~70s, independent of the Cloud Function's own `timeoutSeconds` — must be set explicitly via the `timeout` option on the client call to match the server config |
+| Email/link domains | Must share one constant (`APP_BASE_URL`) — otherwise individual links can silently drift to different domains over time (CGI-096) |
 
 ---
 
-*Last updated: Session 24 complete — May 2026*
+*Last updated: Session 33 complete — July 2026 (this update layers in CGAD-055/056 only; the doc has known gaps predating this session — no `syncHandicaps` Cloud Function entry, no GHIN-related member fields like `hiSyncStatus`, no 4-step NewGamePage wizard section — flagged for a future dedicated refresh, not addressed here)*
 *Next: Begin sending member invites, Phase 3 TNML planning*

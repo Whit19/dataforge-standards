@@ -43,6 +43,8 @@ These are not suggestions — they are proven fixes to real bugs that cost hours
 | Firestore path cleanup is non-negotiable | Every file that reads Firestore must go through `firestorePaths.js` — do a full audit before each phase ships |
 | Every new Cloud Function needs "Allow public access" in Cloud Run | Not set automatically — must be done manually in Cloud Run console after first deploy |
 | `functions/.env` is never committed | Gmail credentials, API keys — always in `.env`, always in `.gitignore` |
+| `httpsCallable` has TWO timeout ceilings, not one | The client SDK defaults to a ~70s timeout independent of the Cloud Function's own `timeoutSeconds` config. Raising the server-side timeout alone does not fix a client-perceived timeout — pass `{ timeout: Xms }` explicitly on the client `httpsCallable(...)` call to match the server value |
+| Route all outbound link domains through one constant | e.g. `APP_BASE_URL` in `functions/index.js`. A prior "fix" (CGI-077) updated an email's logo image src but not the actual CTA link, because the two were separate literals — the bug went undetected for months. One shared constant makes that class of drift impossible |
 
 ---
 
@@ -170,9 +172,10 @@ These are not suggestions — they are proven fixes to real bugs that cost hours
 | Upload relevant files when debugging logic bugs | Don't ask CC to guess at root causes for data-critical fixes |
 | Update all docs at session end | SessionStarter is the most critical — it's the only context that carries forward |
 | TimeLog: update at session end | Duration + one-sentence summary — invaluable for estimating future phases |
-| Next available decision ID | Check DecisionLog before adding — `CGAD-045` is next for Club Golf |
-| Next available issue ID | Check IssuesTracker — `CGI-054` / `CGI-B046` / `CGI-D023` are next for Club Golf |
+| When a "resolved" issue references a URL/domain change | Verify every link in the affected template independently, not just the one that was visibly tested — a commit message can accurately describe intent while the diff only partially executes it (CGI-096) |
+| Next available decision ID | Check DecisionLog before adding — `CGAD-057` is next for Club Golf |
+| Next available issue ID | Check IssuesTracker — `CGI-097` / `CGI-B047` / `CGI-D025` are next for Club Golf |
 
 ---
 
-*Last updated: May 2026 — synthesized from UP Golf (Phase 7 complete) + Club Golf (Session 20 complete)*
+*Last updated: July 2026 — Session 33 complete*

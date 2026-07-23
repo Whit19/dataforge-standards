@@ -146,10 +146,12 @@ Each entry includes: ID, title, type, priority, status, description, and resolut
 | CGI-092 | Second guest silently dropped from GHIN sync | Guest catch block now pushes to ambiguousEntries with empty candidates so client surfaces "could not look up" message. Resolved 6/19/26. |
 | CGI-093 | NewGamePage Review step showed wrong team grouping | Review step Teams filter read the stale `s.team` slot property (set once at slot creation, never updated) instead of `teamForSlot(s.slotId)`, which reads the live `teamAssignment` state. Actual saved games were unaffected — `handleCreate`/`handleUpdate` already used `teamForSlot`. Fixed Review step filter to match. Resolved 6/30/26. |
 | CGI-094 | Android landscape scorecard view unreachable | **Fix Applied — Pending Android Verification.** Root cause: `vite.config.js` VitePWA manifest had `orientation: 'portrait'` hardcoded. iOS ignores this field on standalone PWAs, but Android's Screen Orientation API enforces it, permanently locking the viewport to portrait regardless of physical rotation — so the `matchMedia('orientation: landscape')` listener in ResultsPage.jsx never fired. Fix: removed `orientation` key from manifest in vite.config.js; rebuilt and redeployed 7/3/26. Verification needed: confirm on a physical Android device (post-reinstall — manifest changes require full PWA reinstall on Chrome) that rotating to landscape on the Results page correctly displays ScorecardView. Not present in UP Golf — landscape scorecard is Club Golf-specific. |
+| CGI-095 | GHIN sync still timing out on full ~183-member roster despite CGI-084's 180s fix | Raised `timeoutSeconds` 180→540 in `functions/index.js`. Also discovered and fixed a second, independent ceiling: the Firebase client SDK's `httpsCallable` defaults to a 70s client-side timeout regardless of the server's `timeoutSeconds` — added explicit `timeout: 540000` to both call sites (GamesPage.jsx admin sync modal, NewGamePage.jsx per-game sync). Resolved 7/23/26. |
+| CGI-096 | Invite/join link never actually migrated to custom domain — pre-existing since CGI-077 | CGI-077 (resolved 5/31/26) was documented as switching the invite email URL to club-golf.app, but the actual diff only updated the email's logo `<img>` src — `inviteUrl` itself remained on `club-golf-9f946.web.app` in every version of the file since. Discovered while adding the new decline link (CGAD-056). Consolidated `inviteUrl` and the new `declineUrl` to build from a single `APP_BASE_URL` constant, set to `https://club-golf.app`. Verified both `/join` and `/decline` load correctly on the custom domain. Resolved 7/23/26. |
 
 ---
 
 ## Issue ID Sequence
-Next open issue: **CGI-095**
+Next open issue: **CGI-097**
 Next bug: **CGI-B047**
 Next deferred item: **CGI-D025**

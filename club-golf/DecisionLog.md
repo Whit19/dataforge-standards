@@ -279,7 +279,45 @@ Each entry includes: ID, title, decision made, rationale, date, and status.
 - **Date:** 6/19/26
 - **Status:** Final
 
+### CGAD-055 — Bulk Resend All Expired Invites
+- **Decision:** Added a "Resend All Expired (N)" button to the Pending
+  tab in RosterPage. It sequentially resends invites via the existing
+  `sendInvite` callable to every pending member whose invite has expired,
+  behind an inline confirm panel, with a live progress state and a final
+  success/failure summary (failed names listed).
+- **Rationale:** Manual one-at-a-time resending didn't scale once the
+  first invite wave started expiring in bulk.
+- **Alternatives considered:** A new dedicated bulk-resend Cloud
+  Function — rejected as unnecessary; sequentially reusing the existing
+  per-member `sendInvite` callable was simpler and avoided a new endpoint.
+- **Date:** 7/23/26
+- **Status:** Final
+
+### CGAD-056 — Member Invite Decline/Opt-Out Flow
+- **Decision:** Invite emails now include a one-click opt-out link (same
+  tokenized pattern as the accept link), hitting a new public
+  `declineInvite` Cloud Function. Declining sets `inviteStatus: 'skip'`
+  (reusing the existing Not Active bucket) plus a new `declinedInvite:
+  true` / `declinedAt` timestamp to distinguish opt-outs from
+  admin-deactivated members. RosterPage shows a "Declined" badge in the
+  Not Active tab and swaps the Reactivate button for "Move to To Invite"
+  (a plain Firestore update, no Cloud Function) since declined members
+  never had a Firebase Auth account to re-enable.
+- **Rationale:** Members who don't want the app were getting re-invited
+  repeatedly, especially now that bulk resend exists (CGAD-055). A
+  one-click link avoids building inbound email-reply parsing
+  infrastructure while still giving members a clear way to stop future
+  invites.
+- **Alternatives considered:** True email reply parsing — rejected as
+  requiring new inbound email infrastructure (IMAP polling or a parsing
+  service) and being fragile to reply-format variance. A dedicated new
+  `inviteStatus` value for declined members — rejected in favor of
+  reusing `'skip'` plus a boolean flag, keeping the Not Active tab as the
+  single home for both cases.
+- **Date:** 7/23/26
+- **Status:** Final
+
 ---
 
 ## Decision ID Sequence
-Next available ID: **CGAD-055**
+Next available ID: **CGAD-057**

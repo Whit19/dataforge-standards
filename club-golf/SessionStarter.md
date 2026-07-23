@@ -2,7 +2,7 @@
 **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 Repo: github.com/Whit19/dataforge-standards
 **Load this at the start of every session to restore full context.**
-*Updated June 2026 — Session 32 complete (Review step team display bug fixed — CGI-093)*
+*Updated July 2026 — Session 33 complete (bulk resend, GHIN sync timeout fix, decline/opt-out flow, invite link domain fix)*
 
 ---
 
@@ -33,9 +33,9 @@ Built by Tom Junker, who also built UP Golf PWA (fully deployed, 32 players, Pha
 ---
 
 ## Current Status
-**Session 32 complete. ~72h invested.**
+**Session 33 complete. ~74.5h invested.**
 
-### What's working (all prior sessions + Session 31):
+### What's working (all prior sessions):
 - Full 6-Point Game scoring flow
 - Read-only viewer link
 - ResultsPage + HistoryPage + statsUtils
@@ -85,6 +85,11 @@ Built by Tom Junker, who also built UP Golf PWA (fully deployed, 32 players, Pha
   - Roster member writes: `handicapIndex` + `handicapUpdatedAt` to member doc
   - Guest writes: local slot state only, not saved to Firestore
   - Full-roster summary (`lastHiSync`) only written for admin sync, not per-game sync
+- **Session 33 — Roster + GHIN fixes**
+  - "Resend All Expired (N)" bulk action in RosterPage Pending tab — sequential resend via existing sendInvite callable, inline confirm/progress/summary, no new Cloud Function
+  - GHIN sync timeout fixed for full roster: Cloud Function timeoutSeconds 180→540; client-side httpsCallable timeout (independent 70s default) also raised to 540000ms at both call sites (GamesPage admin sync, NewGamePage per-game sync)
+  - Member decline/opt-out flow: new public `declineInvite` Cloud Function, opt-out link in invite email, new `/decline` route + `DeclinePage.jsx`, "Declined" badge + "Move to To Invite" action in RosterPage Not Active tab (`declinedInvite` flag distinguishes opt-outs from admin-deactivated members, since declined members never had a Firebase Auth account to reactivate)
+  - Fixed pre-existing CGI-077 gap: `inviteUrl` had never actually migrated to the custom domain (only the email logo had) — `inviteUrl` + `declineUrl` now build from one `APP_BASE_URL` constant, set to `club-golf.app`
 
 ### Known remaining items:
 - [ ] Jon Cyganiak — GHIN name is "Jon I. Cyganiak"; CF splits to last="I. Cyganiak" → not found. Update HI manually in RosterPage or rename member doc to "Jon I. Cyganiak"
@@ -141,8 +146,10 @@ Built by Tom Junker, who also built UP Golf PWA (fully deployed, 32 players, Pha
 | CGAD-052 | NewGamePage redesigned as 4-step wizard: Setup / Teams / Settings / Review |
 | CGAD-053 | Inline HI editing with immediate Firestore write-back; guests local only |
 | CGAD-054 | Per-game GHIN sync scoped to 4 players; cascading search; guest state picker; disambiguation |
+| CGAD-055 | Bulk "Resend All Expired" invite action in RosterPage |
+| CGAD-056 | Member invite decline/opt-out flow — one-click link, reuses inviteStatus:'skip' + declinedInvite flag |
 
-Full rationale in DecisionLog.md. Next available ID: **CGAD-055**
+Full rationale in DecisionLog.md. Next available ID: **CGAD-057**
 
 ---
 
@@ -153,7 +160,8 @@ Full rationale in DecisionLog.md. Next available ID: **CGAD-055**
 - `npm install --legacy-peer-deps` always
 - PowerShell: no `&&` chaining
 - All Firestore refs through `firestorePaths.js`
-- Cloud Functions: `syncHandicaps` timeout 180s; `sendHiSyncReminder` scheduled every monday 13:00 UTC
+- Cloud Functions: `syncHandicaps` timeout 540s; `sendHiSyncReminder` scheduled every monday 13:00 UTC; `declineInvite` (public, no auth) added for member opt-out
+- All outbound email links build from a single `APP_BASE_URL` constant (`https://club-golf.app`) in functions/index.js — never hardcode a domain per-link (CGI-096)
 - Club profile doc path: `clubs/{clubId}/profile/profile` (4 segments)
 - GHIN API: unofficial consumer API — credentials passed at call time, never stored
 - GHIN `parseGhinHI` helper: treats "NH" and non-numeric values as null

@@ -82,3 +82,11 @@ Last updated: 2026-06-30
 **Rationale:** Per Brad (CTO, email 2026-06-30): after reviewing the demos (Wiki + White Paper AI Chat), the team realized they were farther along internally than initially thought and want to give their own team the opportunity to build these capabilities over the coming months. This was a build-vs-buy decision, not a budget objection — Brad noted the demo was valuable specifically because it "helped clarify what 'good' looks like." Brad explicitly left the relationship open: he will reach back out if internal progress stalls or if another project arises that's a better fit for outside collaboration, and offered to make referral introductions to other companies that could benefit from DataForge's work.
 **Alternatives considered:** Phased delivery starting with Ask the Docs only, retainer renegotiation, full approval at original quote — none of these were the actual blocker; client chose in-house build over all three.
 **Status:** Active — project status set to Inactive in SessionStarter.md. Revisit if MicroSynergies re-engages or a referral materializes.
+
+---
+
+### MS-008 — Delete Railway demo service (project inactive)
+**Decision:** Delete the `knowledge-hub` Railway service, including the custom domain `hub.microsynergies.com`, removing MicroSynergies' access to the Ask the Docs and Wiki demos.
+**Rationale:** Brad declined the proposal in favor of building the capabilities in-house after seeing the demos. With the engagement inactive, there is no reason to keep the demo live or reachable. The GitHub repo and code are unaffected — a new service can be redeployed from the repo if the engagement resumes, but env vars and the SQLite volume are not preserved.
+**Alternatives considered:** Leave the service running but revoke Basic Auth credentials (rejected — auth alone doesn't fully prevent access if credentials leak or are already known); pause without deleting (Railway plan didn't offer a clean pause/sleep option at the project level, so full removal was used instead).
+**Status:** Active

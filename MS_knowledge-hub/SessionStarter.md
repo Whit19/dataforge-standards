@@ -1,5 +1,5 @@
 # SessionStarter — knowledge-hub
-Last updated: 2026-06-30 (end of session 3)
+Last updated: 2026-07-23 (end of session 3)
 
 ---
 
@@ -18,19 +18,19 @@ Both modules share one Express server, one repo, one Railway deployment.
 
 ## Current Status
 
-**Inactive — client opted to build in-house.** Brad (CTO) replied on 2026-06-30 declining to move forward with the proposal. After reviewing the demos (Wiki + Ask the Docs), MicroSynergies determined they are farther along internally than initially thought and want to give their own team the opportunity to build these capabilities over the coming months. This was a build-vs-buy decision, not a budget rejection — the demo set their internal bar for "what good looks like."
+**Project status: Inactive — client building in-house.** Brad declined the proposal after seeing the Ask the Docs and Wiki demos, opting to build these capabilities internally at MicroSynergies rather than engage DataForge. Two re-engagement paths remain open: (1) if MicroSynergies' internal build stalls, or (2) via referral introductions Brad offered to other companies.
 
-Brad explicitly left the relationship open:
-- Will reach back out if internal progress stalls or another project is a better fit for outside collaboration
-- Offered to make introductions to other companies who could benefit from DataForge's approach
+**Railway service deleted (2026-07-23).** The `knowledge-hub` Railway service (Ask the Docs + Wiki demo, custom domain `hub.microsynergies.com`) has been removed so MicroSynergies can no longer access the demo. The GitHub repo and all code remain intact — a new Railway service can be spun up from the repo at any time if the engagement resumes. Env vars (`ANTHROPIC_API_KEY`, `BASIC_AUTH_USER`/`BASIC_AUTH_PASS`, `GITHUB_TOKEN`, etc.) and the SQLite persistent volume were not preserved and would need to be re-created on redeploy.
 
-No further build work is planned unless MicroSynergies re-engages. See DecisionLog.md MS-007 for full decision record.
+KH-006 (CNAME record) and KH-007 (Brad's API key) remain open in the tracker rather than resolved, since they are moot pending any re-engagement rather than genuinely closed.
 
 ---
 
 ## Next Priorities
 
-None — project inactive pending client re-engagement or referral follow-through. No action items at this time.
+1. **Monitor for re-engagement signals** — internal build stalling, or referral leads from Brad materializing
+2. **If re-engaged:** re-deploy Railway service from existing repo, re-create env vars, re-confirm CNAME with MicroSynergies IT
+3. **Develop referral pipeline** — follow up on Brad's offer to introduce DataForge to other companies
 
 ---
 

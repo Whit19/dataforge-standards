@@ -107,7 +107,7 @@ Last updated: 2026-07-01 (Interest reclassification, subcategory-mirror recurren
 
 ---
 
-## Full Taxonomy (29 categories, 136 subcategories)
+## Full Taxonomy (29 categories, 137 subcategories)
 
 ```
 ATM / Cash Spending

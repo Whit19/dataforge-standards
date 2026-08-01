@@ -1,6 +1,6 @@
 # AFAS Project — Roadmap
 **Living document. Update status and tasks as work completes.**
-Last updated: 2026-06-15
+Last updated: 2026-08-01
 
 ---
 
@@ -84,6 +84,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ Manual review of 46 Uncategorized/VENMO-Review transactions complete (ISSUE-004 closed)
 - ⏳ Review 8 intentionally parked Apple Uncategorized rows
 - ⏳ Baird Plaid connection failed — Baird support replied 2026-06-15 (expected fix did not resolve issue); second email sent, awaiting response (ISSUE-008)
+- ⚠️ 2026-08-01: discovered the deployed Function App had been silently crash-looping for 6+ weeks due to a missing python-dotenv dependency in requirements.txt — all timer-based sync was effectively dead during that window despite appearing operational in some tables. Fixed; see DecisionLog and BestMethods for full detail.
 
 ### 7. Power BI Reporting Layer
 - ✅ Azure SQL connection established in Power BI (Import mode)
@@ -117,7 +118,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ accounts backfilled: 10 known accounts inserted
 - ✅ Associated balance pull live — 7 accounts, monthly sync via monthly_sync.py (ISSUE-010 resolved)
 - ✅ NWM balance pull live → insurance_asset_valuations via monthly_sync.py
-- ⏳ Principal Financial 401k Plaid token (ISSUE-009)
+- ✅ Principal Financial 401k Plaid token — connected 2026-08-01 (ISSUE-009 resolved)
 - ⚠️ Baird Plaid connection (ISSUE-008) — CSV fallback operational
 
 ### 9. Investments / Holdings
@@ -129,8 +130,9 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ Phase 4 Power BI views created: vw_net_worth, vw_holdings_summary, vw_asset_allocation, vw_liability_summary, vw_budget_vs_actual
 - ⏳ Connect Phase 4 views to Power BI — add Net Worth, Holdings, Allocation report pages
 - ⏳ Seed budget_targets table with initial annual targets
-- ⏳ Principal Financial 401k Plaid Investments (when token acquired)
+- ✅ Principal Financial 401k Plaid Investments — connected 2026-08-01. Real account: Baird Profit Sharing and Savings Plan (401k), owner Amy. principal_sync.py created, confirmed live: $2,096,195.86 total value across 11 holdings. Not yet wired into automated pipeline (Pick Up Here item).
 - ⏳ Plaid Investments for Baird (when ISSUE-008 resolves)
+- ⏳ HSA-Baird and other non-canonical Baird accounts — confirmed never included in any monthly CSV import (new finding, 2026-08-01).
 
 ---
 
@@ -141,6 +143,8 @@ Serverless financial data pipeline feeding AI agents that recommend:
 4. Monthly Baird CSV procedure — export, add Account Name + Date, run import_baird_holdings.py
 5. Update physical asset valuations monthly (Zillow + KBB)
 6. Review 8 intentionally parked Apple Uncategorized rows
+7. Wire principal_sync.py into automated pipeline (currently standalone local script only)
+8. Add run_log logging to plaid_sync.py's daily transaction sync (gap discovered 2026-08-01)
 
 ---
 

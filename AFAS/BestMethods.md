@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-06-29
+Last updated: 2026-08-01
 
 ---
 
@@ -212,6 +212,17 @@ increment. Current high watermark after Session 10: **42**.
 
 ---
 
+### Don't assume a documented table's column list is what's actually deployed
+DB_Schema.md documented dbo.holdings with 10 columns including cost_basis and
+updated_at; the live table only had 8 — both were simply never added when the
+table was created (likely Phase 1-2, before updated_at became a project-wide
+convention). Query INFORMATION_SCHEMA.COLUMNS directly against the live
+database before writing code that assumes a documented schema is accurate,
+especially for older tables that predate more recent conventions.
+*Source: Session 12 — principal_sync.py / dbo.holdings*
+
+---
+
 ## Baird Holdings CSV Pipeline
 
 ### Holdings CSV is lot-level — one row per purchase lot, not per position
@@ -307,6 +318,19 @@ Do not use `varchar(20)` — options will be silently truncated.
 
 ---
 
+### When a bug produces the right outcome for the wrong reason, it's still worth fixing
+import_baird_holdings.py's Total-row detection checked the wrong CSV column
+(Security Name instead of Account Name) for this month's export format. The
+Total row still got excluded from the data — it fell through to the
+CASH-with-unparseable-date path and was skipped there instead, purely by
+coincidence of both cells being blank on that particular row. A future export
+where the coincidence doesn't hold (e.g. the Total row has a value in the
+Security Name column) would let a fake CASH holding slip through. Verify the
+*mechanism* behind a correct-looking result, not just the result.
+*Source: Session 12*
+
+---
+
 ## Azure SQL Infrastructure
 
 ### Azure SQL Free tier Serverless auto-pauses — resume manually on the 1st
@@ -324,6 +348,50 @@ This is a monthly maintenance step, not an intermittent bug.
 Do not configure Managed Identity until explicitly planned — it requires coordinated
 changes to both the Function App and the SQL firewall rules.
 *Source: TechnicalArchitecture security notes*
+
+---
+
+## Azure Functions Deployment
+
+### requirements.txt must include every dependency actually used — local success does not guarantee deployed success
+A dependency can be installed in your local Python environment (making local
+script runs succeed) without ever being added to requirements.txt. On Azure
+Functions, this means the deployed app silently fails to import at all —
+the trigger indexer finds 0 functions with no error visible anywhere in the
+Portal UI, only in Application Insights traces (ModuleNotFoundError).
+This exact failure mode killed all automated syncing for 6+ weeks before
+being discovered, because "0 functions" in the Portal Functions blade looks
+identical to a display/caching bug, not a crash.
+
+**Check:** after adding any new import to a script that runs in Azure,
+immediately verify it's in requirements.txt — don't wait for a deploy to
+surface the gap.
+*Source: Session 12 — dotenv/requirements.txt outage*
+
+---
+
+### Application Insights traces are the ground truth for deployed function health — the Portal Functions blade can be misleading
+On Flex Consumption plans especially, the Functions list in the Azure Portal
+can appear empty even when functions are actually registered, and can also
+genuinely be empty when a crash is silently killing every cold start. VS
+Code's Azure extension queries a different API path and can also show a
+stale/cached tree. When function registration is in doubt, query Application
+Insights traces directly for "Found the following functions" or "X functions
+loaded" log lines — that's the actual host state, not a UI's interpretation
+of it.
+*Source: Session 12*
+
+---
+
+### Config loading is split between .env and local.settings.json in this project — know which one a new script needs
+DB credentials (DB_USERNAME, DB_PASSWORD) load via load_dotenv() reading
+.env. Plaid access tokens and other App-Settings-equivalent values load via
+each script's own __main__ block manually reading local.settings.json (see
+import_baird_holdings.py for the reference pattern). A new script that only
+calls load_dotenv() will fail to find any Plaid token even if it's correctly
+present in local.settings.json — this happened when principal_sync.py was
+first created and had to be fixed.
+*Source: Session 12 — principal_sync.py config bug*
 
 ---
 
@@ -392,6 +460,32 @@ Plaid's supported institution list. Update `liability_balances` manually.
 
 ---
 
+### ITEM_LOGIN_REQUIRED means the Item's credentials need Plaid Link update mode — not a token replacement
+When a Plaid API call fails with error_code ITEM_LOGIN_REQUIRED, the fix is
+re-authenticating through Plaid Link in **update mode** (passing the existing
+access_token into LinkTokenCreateRequest, omitting products), not creating a
+brand-new connection. A brand-new connection creates a second, separate
+Plaid Item — since transaction_ids are Item-scoped, this causes the full
+historical sync window to re-insert under new IDs alongside existing data,
+double-counting months of transactions. get_plaid_tokens.py was extended
+2026-08-01 to support this via an optional existing-token input per
+institution card.
+*Source: Session 12 — Amex, NWM Tom, NWM Amy reauths*
+
+---
+
+### Distinguish transient API errors from stable credential errors before treating either as "the" root cause
+Not every failed sync attempt has the same cause even when it recurs. Chase
+threw a one-time INTERNAL_SERVER_ERROR that resolved cleanly on retry with no
+code change — a transient Plaid-side blip, not worth chasing. Amex's
+ITEM_LOGIN_REQUIRED was identical and stable across multiple independent
+retries — a real, fixable condition. Treat a single occurrence of an error as
+provisional until confirmed by at least one retry; don't assume every error
+in a batch shares one root cause.
+*Source: Session 12*
+
+---
+
 ## CC Prompt Delivery (Claude → Claude Code)
 
 ### Never combine multiple full-file rewrites into one CC prompt
@@ -452,3 +546,14 @@ positive due to Plaid sign convention mishandling. Run periodic sign audits filt
 by `amount > 0 AND type = 'Expense'` across all sources. The 2026-06-01 audit
 caught and corrected 235 rows.
 *Source: ISSUE-007 / Sessions 3, 4*
+
+---
+
+### KBB/Edmunds "typical mileage" valuations can be significantly wrong for high-mileage vehicles
+Web-searched KBB/Edmunds figures are usually based on average mileage for a
+vehicle's age, not the actual vehicle's mileage. For a 9-year-old car with
+126,000+ miles (well above typical), these figures run meaningfully high.
+Get actual VIN/mileage-specific values from kbb.com directly for any vehicle
+whose mileage is notably above or below what's typical for its age, rather
+than treating a general web search result as authoritative.
+*Source: Session 12 — Tesla Trinity valuation*

@@ -1,6 +1,6 @@
 # AFAS Project — Database Schema Reference
 **Update this file when any table, view, or column changes.**
-Last updated: 2026-06-01 (Phase 4 tables created in Azure; accounts backfilled; liabilities seeded)
+Last updated: 2026-08-01 (dbo.holdings missing columns discovered and added; SQL script log extended through 51)
 
 ---
 
@@ -13,6 +13,7 @@ Last updated: 2026-06-01 (Phase 4 tables created in Azure; accounts backfilled; 
 | 2026-03-10 | All `category_confidence` set to HIGH across all 14,730 rows |
 | 2026-03-10 | All 6 Power BI views created and validated (16_powerbi_views.sql) |
 | 2026-03-12 | Phase 4 table definitions designed: securities, account_balances, liabilities, liability_balances, physical_assets, physical_asset_valuations, insurance_assets — **pending Azure creation** |
+| 2026-08-01 | dbo.holdings discovered missing cost_basis and updated_at columns despite being documented — added via ALTER TABLE (script 51). Table was apparently created early (Phase 1-2) before updated_at became a project-wide convention. |
 
 ---
 
@@ -118,6 +119,8 @@ One row per Plaid account. Covers all bank, brokerage, and credit accounts conne
 ### `holdings`
 Investment holdings snapshots from Plaid Investments endpoint. One row per account/security/date combination.
 
+**Status:** ✅ Live as of 2026-08-01 — actively populated by `principal_sync.py` (11 rows, Principal/Baird 401k). `cost_basis` and `updated_at` were documented here from the start but were only actually added to the live table on 2026-08-01 (script 51) — see Schema Version History.
+
 | Column | Type | Notes |
 |--------|------|-------|
 | holding_id | varchar(100) PK | Composite: account_id + security_id + date |
@@ -191,12 +194,14 @@ Individual error records linked to a run.
 
 ---
 
-## Phase 4 Tables ⏳ Designed — Not Yet Created in Azure
+## Phase 4 Tables ✅ Live in Azure (created 2026-06-01, expanded through Session 12)
 
 ---
 
 ### `securities`
 One row per unique security. Referenced by `holdings`. Populated via Plaid Investments endpoint.
+
+**Status:** ✅ Live as of 2026-08-01 — 11 rows, populated via `principal_sync.py` (Principal/Baird 401k securities).
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -496,3 +501,12 @@ Phase 4 (complete 2026-06-01):
   21_phase4_tables.sql              ← 9 new tables + 4 accounts columns (holdings already existed)
   22_phase4_seed_data.sql           ← physical_assets, insurance_assets, valuations, liabilities, liability_balances
   23_phase4_accounts_backfill.sql   ← 10 accounts inserted, US Bank LOC liability added
+
+Session 12 (2026-08-01):
+  46_physical_asset_valuations_august2026.sql   ← house + 3 Teslas revaluation
+  47_us_bank_loc_balance_august2026.sql          ← LOC balance verification snapshot
+  48_mortgage_rate_correction_and_backfill.sql   ← rate 2.65%→2.625% fix, origination_principal backfill
+  49_mortgage_balance_august2026.sql             ← mortgage balance + first-ever YTD interest/principal snapshot
+  50_baird_main_brokerage_rename_fix.sql         ← MAIN - Brokerage → MAIN - BKG consolidation
+  51_holdings_table_add_missing_columns.sql      ← ALTER TABLE, cost_basis + updated_at
+```

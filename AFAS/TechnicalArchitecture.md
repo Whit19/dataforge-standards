@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-06-15 (Session 9 sync: balance_sync.py + plaid_client.py added, project root path corrected, ISSUE-010 opened)
+Last updated: 2026-08-01
 
 ---
 
@@ -89,12 +89,12 @@ AI Agent Layer (Phase 5)
 |---------|-------|
 | Environment | Production |
 | Endpoints — Phase 3 | /transactions/sync |
-| Endpoints — Phase 4 | /accounts/balance/get (blocked — ISSUE-010, Balance product not authorized in Production), /investments/holdings/get, /investments/transactions/get, /liabilities/get |
+| Endpoints — Phase 4 | /accounts/balance/get (blocked — ISSUE-010, Balance product not authorized in Production), /investments/holdings/get (✅ Live for Principal/Baird 401k as of 2026-08-01 via principal_sync.py. Still blocked for Baird's other accounts (ISSUE-008, CSV fallback in use)), /investments/transactions/get, /liabilities/get |
 | Sync method | Incremental via cursor (/transactions/sync) |
-| Tokens — Live | Chase (ins_56), Associated Personal (ins_116823), Amex (ins_10), NWM Tom, NWM Amy |
+| Tokens — Live | Chase (ins_56), Associated Personal (ins_116823), Amex (ins_10), NWM Tom, NWM Amy, Principal Financial 401k (connected 2026-08-01, real account = Baird Profit Sharing and Savings Plan (401k), owner Amy) |
 | Tokens — Blocked | Baird (ins_117067) — INTERNAL_SERVER_ERROR, Baird-side issue (ISSUE-008) |
 | Tokens — Unsupported | Rocket Mortgage — confirmed not supported by Plaid (manual liability updates only) |
-| Tokens — Pending | Principal Financial 401k (ISSUE-009) |
+| Tokens — Pending | None |
 | Token storage | Environment variables in local.settings.json (local) and Azure Function App Settings (cloud) |
 
 ---
@@ -130,6 +130,7 @@ AI Agent Layer (Phase 5)
 | nwm_sync.py | Phase 4 — sync_nwm_valuations(): NWM Tom + Amy cash values → insurance_asset_valuations. Fixed account_id→insurance_id map. Created 2026-06-17. | ✅ Live |
 | monthly_sync.py | Monthly timer (1st of month 03:00 UTC) — runs balance_sync + nwm_sync. Created 2026-06-17. | ✅ Deployed |
 | import_baird_holdings.py | Phase 4 — Baird holdings CSV import → baird_holdings. Lot-level holding_id (account+symbol+date+lotN). Created 2026-06-17. | ✅ Ready |
+| principal_sync.py | Phase 4 — Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Created 2026-08-01. Standalone local script — not wired into http_ingest.py or any timer trigger yet. | ✅ Working — confirmed live |
 | db.py | DB connection — username/password local, Managed Identity in Azure | ✅ Ready |
 | timer_sync.py | Daily timer trigger | ✅ Ready |
 | http_ingest.py | Manual HTTP trigger — added http_balance_ingest route 2026-06-15 (/api/balance_ingest) | ✅ Ready |
@@ -154,6 +155,8 @@ AI Agent Layer (Phase 5)
 | PLAID_ACCESS_TOKEN_PRINCIPAL | Principal Financial 401k token (pending — ISSUE-009) |
 | ZILLOW_API_KEY | Zillow API key for real estate valuations (Phase 4 — pending) |
 | KBB_API_KEY | KBB API key for vehicle valuations (Phase 4 — pending) |
+
+**Note:** Local scripts split configuration loading between `.env` (DB credentials, via `load_dotenv()`) and `local.settings.json` (Plaid tokens and other App-Settings-equivalent values, loaded manually in each script's `__main__` block). This split is a real source of confusion — a new script (`principal_sync.py`) was initially built using only `load_dotenv()` and failed to find a token that was correctly present in `local.settings.json`.
 
 ---
 
@@ -309,6 +312,14 @@ Three agents, each reading from FinanceDB views and external inputs:
 | Plaid product authorization | Balance product requested 2026-06-15 (Production, use case: Other / account aggregation) | Pending Plaid approval (ISSUE-010) |
 | Function auth | Default (function key) | Review before Phase 5 |
 | Power BI | Scheduled refresh live (4:00 AM CT) | Service principal auth (future) |
+
+---
+
+## Incident History
+
+### 2026-08-01 — Silent production outage (dotenv)
+python-dotenv was added to db.py's local dependencies during the July session but never added to requirements.txt. The deployed Function App crashed on every cold start (ModuleNotFoundError: No module named 'dotenv'), causing the trigger indexer to find 0 functions — not a portal display quirk, a genuine failure. This silently killed all automated syncing (daily transactions, monthly balance/NWM sync) for at least 6 weeks, discovered only when investigating an apparently-isolated Amex sync failure. Fixed by adding python-dotenv to requirements.txt, reinstalling into .python_packages\lib\site-packages, and redeploying.
+**Lesson: local script success does not guarantee deployed Function App success — .env and local.settings.json can mask a dependency gap that only surfaces in the deployed environment.**
 
 ---
 

@@ -395,6 +395,20 @@ first created and had to be fixed.
 
 ---
 
+### Standalone local-only scripts can hide security debt that deployment reviews won't catch
+
+get_plaid_tokens.py hardcoded production PLAID_CLIENT_ID/PLAID_SECRET as
+plain-text literals for an unknown period, in direct violation of Master
+Protocol section 6 — but because this script never gets deployed to
+Azure, none of the deployment-focused review that caught the dotenv
+outage would ever have surfaced it. Any script living outside the Function
+App's deploy path needs its own periodic check against the project's
+security rules; "it's never deployed" is not the same as "it's not a
+risk."
+*Source: Session 13 — get_plaid_tokens.py hardcoded credentials*
+
+---
+
 ## Power BI
 
 ### COALESCE merchant_normalized with merchant_name_raw in all views
@@ -557,3 +571,38 @@ Get actual VIN/mileage-specific values from kbb.com directly for any vehicle
 whose mileage is notably above or below what's typical for its age, rather
 than treating a general web search result as authoritative.
 *Source: Session 12 — Tesla Trinity valuation*
+
+---
+
+### When building an import pipeline for an account with unknown history, default unrecognized activity to "real," not "needs review"
+
+import_hsa_transactions.py's first version whitelisted a small set of
+known transaction types and defaulted everything else to type=NULL,
+"flag for manual review" — reasonable for an account believed to be
+investment-only going forward. But the actual CSV export covered the
+account's full history back to 2014, including years of genuine
+medical-spending activity the whitelist had never seen. 194 of 456 rows
+came back type=NULL on the first run. The fix: whitelist only the small,
+truly fixed set of *non-spending* description types (contributions,
+transfers, interest), and treat literally everything else as real
+spending/income, typed by amount sign. When an account has any real
+transactional history — not just a handful of recurring internal
+transfers — assume unknown activity is real until proven otherwise, not
+the reverse.
+*Source: Session 13 — import_hsa_transactions.py _classify() redesign*
+
+---
+
+### A merchant_patterns insert that "conflicts" on a case-insensitive duplicate key is a no-op, not a failure — check what it collided with before assuming a gap exists
+
+Two separate attempts to seed new HSA-related merchant_patterns rows this
+session (Payroll Deduction, Employer Contribution) both hit the table's
+case-insensitive PK collision with patterns already present from
+2026-03-05/07 — from before this session's HSA reconnection work even
+began. The inserts correctly did nothing (per the project's own
+stop-and-flag rule), and the *pre-existing* rows kept doing their job.
+Before writing a new merchant_patterns entry, it's worth checking whether
+one already exists under a different case rather than assuming a gap —
+this project's collation is case-insensitive on that table's PK, so
+'%Foo%' and '%FOO%' are the same row.
+*Source: Session 13 — scripts 56/57 collisions*

@@ -101,6 +101,8 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ Scheduled refresh live: daily 4:00 AM CT
 - ✅ vw_top_merchants: COALESCE(merchant_normalized, merchant_name_raw, 'Unknown')
 - ✅ vw_transactions_clean: same COALESCE applied
+- ✅ Data Health page added (Session 13) — vw_source_freshness + vw_category_health, self-serve per-source freshness/categorization check, conditional formatting flags stale sources and taxonomy drift without needing ad-hoc SQL
+- ⚠️ ISSUE-019 opened (Session 13): Monthly Spend page showing Apple-only data for June/July 2026 despite underlying data confirmed current — not yet diagnosed
 
 ---
 
@@ -131,6 +133,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ⏳ Connect Phase 4 views to Power BI — add Net Worth, Holdings, Allocation report pages
 - ⏳ Seed budget_targets table with initial annual targets
 - ✅ Principal Financial 401k Plaid Investments — connected 2026-08-01. Real account: Baird Profit Sharing and Savings Plan (401k), owner Amy. principal_sync.py created, confirmed live: $2,096,195.86 total value across 11 holdings. Not yet wired into automated pipeline (Pick Up Here item).
+- ✅ HSA (Bank of America) added as a manual CSV-tracked account (Session 13) — Plaid confirmed unsupported for this institution outright ("Connectivity not supported"), not a stale-credential issue. import_hsa_transactions.py + enrich_hsa_csv.py + import_hsa_holdings.py built and live: 457 transactions imported (full account history back to 2014, not just recent activity), 2 holdings (both mutual funds), $24,163.69 tracked value. Same permanent-CSV-fallback model as Baird.
 - ⏳ Plaid Investments for Baird (when ISSUE-008 resolves)
 - ⏳ HSA-Baird and other non-canonical Baird accounts — confirmed never included in any monthly CSV import (new finding, 2026-08-01).
 
@@ -145,6 +148,8 @@ Serverless financial data pipeline feeding AI agents that recommend:
 6. Review 8 intentionally parked Apple Uncategorized rows
 7. Wire principal_sync.py into automated pipeline (currently standalone local script only)
 8. Add run_log logging to plaid_sync.py's daily transaction sync (gap discovered 2026-08-01)
+9. Investigate ISSUE-019 (Power BI Monthly Spend Apple-only data)
+10. Run ISSUE-022 diagnostic query — confirm extent of pre-existing March 2026 HSA merchant_patterns coverage
 
 ---
 

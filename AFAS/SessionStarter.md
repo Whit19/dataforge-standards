@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-08-01 (Session 12 sync)
+Last updated: 2026-08-01 (Session 13 sync)
 
 ---
 
@@ -46,6 +46,21 @@ MAX(date) against today, not just against the last known-good session.**
 
 ---
 
+## ⚠️ Known Issue — Power BI Monthly Spend shows Apple-only data (2026-08-01)
+
+The Monthly Spend report page currently shows no June/July 2026 data for
+any source except Apple, despite Chase, Associated Personal, and Amex all
+confirmed current and present in dbo.transactions for those months (see
+vw_source_freshness — all three show max_date in late July/August 2026).
+This is very likely a Power BI-side issue (stale refresh, a leftover
+slicer/filter, or a Calendar relationship gap) rather than a data gap —
+but not yet diagnosed. See ISSUE-019.
+
+**Do not assume this means transactions are missing** — the SQL-level data
+is confirmed present. Investigate the report/dataset side first.
+
+---
+
 ## Phase Status
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -58,17 +73,39 @@ MAX(date) against today, not just against the last known-good session.**
 ---
 
 ## Pick Up Here — Next Session
-1. **Wire principal_sync.py into the automated pipeline** — currently a standalone local script only, not called from http_ingest.py or any timer. Decide on cadence (likely monthly, alongside NWM/balance sync).
-2. **HSA - Baird and any other non-canonical Baird accounts** — confirmed never present in any Baird CSV import, ever. Not a Plaid gap — these accounts simply aren't part of what gets exported/tagged each month. Needs a decision: add to monthly export procedure, or confirm intentionally excluded.
-3. **run_log gap for CHASE/AMEX/ASSOCIATED_PERSONAL** — plaid_sync.py's daily transaction sync never writes to run_log (confirmed empty for all three sources despite plaid_sync_state showing successful syncs). Only BAIRD_HOLDINGS/ASSOCIATED_PERSONAL_BALANCE/NWM_SYNC/PRINCIPAL_401K write to run_log. Worth adding for consistency and future debugging — this gap is partly why today's outage took so long to diagnose.
-4. **ISSUE-012 — Category_Taxonomy audit** (carried over, not touched this session)
-5. **ISSUE-014 — subcategory-mirror recurrence root cause** — the symptom was fixed (per Category_Taxonomy.md 2026-07-01 entry) but why it recurred was never investigated. Carried over.
-6. **Baird activity/dividend/fee ingestion** (carried over, not touched this session)
-7. **HONA security_sectors entry** (carried over, not touched this session)
-8. **Total-row detection bug in import_baird_holdings.py** — fixed 2026-08-01 (was checking Security Name column for "Total"; Baird put it in Account Name column instead for this export). Watch next month's import for any recurrence in case Baird's format shifts again.
-9. **Verify next Baird CSV export uses "MAIN - BKG" consistently** — August 2026 export used "MAIN - Brokerage" for all securities instead of canonical name; corrected via SQL this session (script 50), but the source habit that caused it hasn't been addressed.
-10. **budget_targets table** — still not seeded. Still blocking vw_budget_vs_actual and the Budget vs Actual Power BI page.
-11. **Connect Phase 4 views to Power BI** (Net Worth, Holdings Summary, Asset Allocation, Liability Summary) — still not done.
+
+1. **Investigate ISSUE-019** — Power BI Monthly Spend page showing
+   Apple-only data for June/July 2026. Start with a manual dataset
+   refresh and check for a stuck slicer/filter before assuming a deeper
+   issue with vw_monthly_spend or the Calendar relationship.
+2. **Run the ISSUE-022 diagnostic query** — confirm what the pre-existing
+   2026-03-05/07 HSA merchant_patterns batch actually covers, to know
+   whether this session's HSA categorization work filled real gaps or was
+   mostly redundant with earlier (undocumented) work on this account.
+3. **Investigate ISSUE-020** — category_confidence not populated for
+   CHASE/ASSOCIATED_PERSONAL/AMEX (Plaid-synced) rows the way it is for
+   APPLE/HSA (CSV-imported) rows. Check enrich_transactions.py directly
+   rather than continuing to infer from the symptom.
+4. **Wire principal_sync.py into the automated pipeline** (carried over
+   from Session 12) — still a standalone local script only.
+5. **ISSUE-012 — Category_Taxonomy audit** (carried over, not touched this
+   session).
+6. **ISSUE-014 — subcategory-mirror recurrence root cause** (carried
+   over, not touched this session).
+7. **ISSUE-016 — add run_log writes to plaid_sync.py's daily sync**
+   (carried over, not touched this session).
+8. **ISSUE-017 — HSA-Baird and other non-canonical Baird accounts never
+   imported** (carried over — distinct from the new Bank of America HSA
+   built this session; HSA-Baird is a Baird-administered account tracked
+   via the Baird CSV pipeline, unrelated to HSA-BOFA-MANUAL).
+9. **ISSUE-021 — fix import_baird_holdings.py's broken local.settings.json
+   path** (low priority, currently harmless dead code).
+10. **budget_targets table still not seeded** (carried over).
+11. **Connect Phase 4 Power BI views** (Net Worth, Holdings Summary, Asset
+    Allocation, Liability Summary) (carried over, still not done).
+12. **Decide whether to fetch actual HSA holdings units/price monthly**
+    from the dashboard screenshot, or continue tracking value-only from
+    the Fund Summary export (current approach).
 
 ---
 
@@ -101,7 +138,10 @@ MAX(date) against today, not just against the last known-good session.**
 | plaid_client.py | Plaid SDK wrapper | ✅ Ready |
 | balance_sync.py | Associated balance pull | ✅ Live |
 | nwm_sync.py | NWM Tom + Amy cash value sync | ✅ Live — both Items reconnected 2026-08-01 |
-| principal_sync.py | **NEW 2026-08-01** — Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Standalone local script only — not wired into http_ingest.py or any timer yet (see Pick Up Here #1). | ✅ Working — confirmed live: 1 account, 11 securities, 11 holdings, $2,096,195.86 total value |
+| principal_sync.py | **NEW 2026-08-01** — Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Standalone local script only — not wired into http_ingest.py or any timer yet (see Pick Up Here #4). | ✅ Working — confirmed live: 1 account, 11 securities, 11 holdings, $2,096,195.86 total value |
+| import_hsa_transactions.py | Imports Bank of America HSA cash-ledger CSV (Run_Monthly/imports/HSA/HSA_Transactions_*.csv) into dbo.transactions. type/in_budget set deterministically at import (not enrichment-dependent) — 4 known non-spending description types whitelisted, everything else treated as real spending/income typed by amount sign. Created 2026-08-01. | ✅ Live — 457 rows imported, 0 uncategorized, 0 untyped |
+| enrich_hsa_csv.py | Enrichment for HSA CSV import — mirrors enrich_apple_csv.py's pattern/historical fallback chain, scoped to source='HSA'. Created 2026-08-01. | ✅ Live |
+| import_hsa_holdings.py | Imports Bank of America HSA "Fund Summary" CSV (value-only, no units/price available in this export) into dbo.holdings. Snapshot date parsed from filename. Created 2026-08-01. | ✅ Live — 2 holdings, $24,163.69 total |
 | import_baird_holdings.py | Baird holdings CSV → baird_holdings | ✅ Ready — Total-row detection bug fixed 2026-08-01 (was checking wrong column) |
 | monthly_sync.py | Monthly timer (1st of month, 03:00 UTC) — balance_sync + nwm_sync | ✅ Deployed — did not actually run successfully for at least 6 weeks prior to 2026-08-01 due to the dotenv outage; now fixed |
 | enrich_transactions.py | Enrichment engine (Plaid transactions) | ✅ Ready |
@@ -168,7 +208,7 @@ Current high watermark: **51**
 | Table | Status | Notes |
 |-------|--------|-------|
 | securities | ✅ Live | Now populated via principal_sync.py (11 securities as of 2026-08-01) |
-| holdings | ✅ Live | Was missing cost_basis and updated_at columns despite being documented — added 2026-08-01 (script 51). Now populated via principal_sync.py (11 rows). |
+| holdings | ✅ Live | Was missing cost_basis and updated_at columns despite being documented — added 2026-08-01 (script 51). Populated via principal_sync.py (11 rows, Principal 401k) and import_hsa_holdings.py (2 rows, HSA Bank of America, value-only — no units/price in that export). |
 | account_balances | ✅ Live | Associated 7 accounts |
 | liabilities | ✅ Live | Rocket Mortgage (rate corrected to 2.625%, origination_principal backfilled), US Bank LOC |
 | liability_balances | ✅ Live | Mortgage: $162,472 as of 2026-08-01 (YTD interest $2,636.93, YTD principal $16,998.91). US Bank LOC: $500,000, confirmed unchanged from 2026-06-01. |
@@ -179,6 +219,19 @@ Current high watermark: **51**
 | baird_holdings | ✅ Live | 737 rows as of 2026-08-01 snapshot ($7,364,285.34 total, reconciled to Baird's own CSV total + manual cash row to the penny). MAIN - Brokerage naming corrected to MAIN - BKG. |
 | security_sectors | ✅ Live | 115 tickers mapped |
 | budget_targets | ✅ Created | ⏳ Still not seeded |
+
+---
+
+## Data Health (Power BI)
+
+New self-serve report page (added Session 13) built on two new views:
+vw_source_freshness (row_count/max_date/min_date/days_since_last_transaction
+per source) and vw_category_health (uncategorized/manual_override/
+low_confidence/subcategory_mirror_violation counts per source). Both
+standalone, no Calendar relationship. Conditional formatting (Rules-based
+background color) flags days_since_last_transaction and
+subcategory_mirror_violation_count. Check this page first before running
+ad-hoc SQL to verify a data load — that's what it's for.
 
 ---
 

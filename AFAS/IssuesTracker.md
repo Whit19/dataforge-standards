@@ -57,8 +57,56 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 | Status | Open |
 | Opened | 2026-08-01 |
 | Priority | Medium |
-| Description | Confirmed via SELECT DISTINCT account_name FROM dbo.baird_holdings that HSA-Baird and "401k Baird Profit Share" (as a Baird-CSV-tracked account, separate from the now-connected Principal/Plaid version) have never appeared in a single monthly import. Not a Plaid gap — these accounts simply aren't part of what gets exported/tagged in the monthly CSV procedure. |
+| Description | Confirmed via SELECT DISTINCT account_name FROM dbo.baird_holdings that HSA-Baird and "401k Baird Profit Share" (as a Baird-CSV-tracked account, separate from the now-connected Principal/Plaid version) have never appeared in a single monthly import. Not a Plaid gap — these accounts simply aren't part of what gets exported/tagged in the monthly CSV procedure. (Distinct from the new HSA-BOFA-MANUAL account built in Session 13 — that's a separate Bank of America custodial HSA with its own manual CSV pipeline; this issue is specifically about the Baird-administered HSA-Baird account.) |
 | Next Step | Decide whether HSA-Baird needs to be added to the monthly export procedure, or confirm it's intentionally tracked elsewhere / excluded. |
+
+---
+
+### ISSUE-019 — Power BI Monthly Spend shows Apple-only data for June/July 2026
+
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-08-01 |
+| Priority | High |
+| Description | Monthly Spend report page shows no data from any source other than Apple for June and July 2026, despite Chase/Associated Personal/Amex all confirmed current and present in dbo.transactions for those months (see vw_source_freshness — all three show max_date in late July/August 2026). Very likely a Power BI-side issue (stale refresh, a leftover slicer/filter, or a Calendar relationship gap) rather than a real data gap, but not yet diagnosed. |
+| Next Step | Try a manual dataset refresh first (simplest possible cause). Check for any source/date slicer left applied on the Monthly Spend page before investigating vw_monthly_spend or the Calendar relationship itself. |
+
+---
+
+### ISSUE-020 — category_confidence not populated for Plaid-synced sources
+
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-08-01 |
+| Priority | Low |
+| Description | Data Health page's vw_category_health shows real low_confidence_count for CHASE (318), ASSOCIATED_PERSONAL (193), AMEX (14), while APPLE and HSA (both CSV-imported sources) show 0. Hypothesis, not confirmed: enrich_transactions.py (used for Plaid-synced sources) may not be setting category_confidence='HIGH' on newer rows the way enrich_apple_csv.py/enrich_hsa_csv.py do. |
+| Next Step | Review enrich_transactions.py directly to confirm whether/how it sets category_confidence, rather than continuing to infer from the symptom. |
+
+---
+
+### ISSUE-021 — import_baird_holdings.py has a broken local.settings.json path
+
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-08-01 |
+| Priority | Low |
+| Description | Found while fixing get_plaid_tokens.py's hardcoded credentials: import_baird_holdings.py's local.settings.json path resolution points at Run_Monthly/local.settings.json, which doesn't exist. Currently harmless — that script never actually reads a PLAID_* value from local.settings.json — but would silently break if a future edit added one. |
+| Next Step | Fix the path resolution to match the working pattern used elsewhere (same fix applied to get_plaid_tokens.py this session). Not urgent — dead code path today. |
+
+---
+
+### ISSUE-022 — Extent of pre-existing March 2026 HSA merchant_patterns batch unconfirmed
+
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-08-01 |
+| Priority | Low |
+| Description | Two separate attempts to add new HSA merchant_patterns this session (Payroll Deduction, Employer Contribution) both turned out to be case-insensitive duplicate-key collisions with patterns already created 2026-03-05/07 — before this session's HSA reconnection work began. Suggests a fuller categorization pass was already done on this account at some point while it was still Plaid-connected. A diagnostic query (patterns created 2026-03-04 to 2026-03-08) was given to Tom to confirm the full extent — not yet run. |
+| Next Step | Run the diagnostic query, review results, note in Category_Taxonomy.md or BestMethods whether this session's merchant_patterns additions filled real gaps or were mostly redundant. |
 
 ---
 

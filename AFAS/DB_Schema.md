@@ -1,6 +1,6 @@
 # AFAS Project — Database Schema Reference
 **Update this file when any table, view, or column changes.**
-Last updated: 2026-08-01 (dbo.holdings missing columns discovered and added; SQL script log extended through 51)
+Last updated: 2026-08-01 (dbo.holdings missing columns discovered and added; SQL script log extended through 51), HSA Bank of America holdings added 2026-08-01 (no DDL change — same schema, second data source)
 
 ---
 
@@ -119,7 +119,7 @@ One row per Plaid account. Covers all bank, brokerage, and credit accounts conne
 ### `holdings`
 Investment holdings snapshots from Plaid Investments endpoint. One row per account/security/date combination.
 
-**Status:** ✅ Live as of 2026-08-01 — actively populated by `principal_sync.py` (11 rows, Principal/Baird 401k). `cost_basis` and `updated_at` were documented here from the start but were only actually added to the live table on 2026-08-01 (script 51) — see Schema Version History.
+**Status:** ✅ Live — populated by `principal_sync.py` (11 rows, Principal/Baird 401k, includes quantity/price/cost_basis) and `import_hsa_holdings.py` (2 rows, HSA Bank of America, value-only — no units/price in that CSV export, added 2026-08-01). `cost_basis` and `updated_at` were documented here from the start but were only actually added to the live table on 2026-08-01 (script 51) — see Schema Version History.
 
 | Column | Type | Notes |
 |--------|------|-------|

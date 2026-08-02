@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-08-01
+Last updated: 2026-08-01 (Session 13: HSA Bank of America pipeline added, get_plaid_tokens.py credential fix, Data Health Power BI views)
 
 ---
 
@@ -131,10 +131,13 @@ AI Agent Layer (Phase 5)
 | monthly_sync.py | Monthly timer (1st of month 03:00 UTC) — runs balance_sync + nwm_sync. Created 2026-06-17. | ✅ Deployed |
 | import_baird_holdings.py | Phase 4 — Baird holdings CSV import → baird_holdings. Lot-level holding_id (account+symbol+date+lotN). Created 2026-06-17. | ✅ Ready |
 | principal_sync.py | Phase 4 — Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Created 2026-08-01. Standalone local script — not wired into http_ingest.py or any timer trigger yet. | ✅ Working — confirmed live |
+| import_hsa_transactions.py | Imports Bank of America HSA cash-ledger CSV export into dbo.transactions. type/in_budget set deterministically at import (4 known non-spending description types whitelisted; everything else treated as real spending/income, typed by amount sign). Created 2026-08-01. | ✅ Live — 457 rows |
+| enrich_hsa_csv.py | Enrichment for HSA CSV import — mirrors enrich_apple_csv.py, scoped to source='HSA', category_map step removed (never applicable to this source). Created 2026-08-01. | ✅ Live |
+| import_hsa_holdings.py | Imports Bank of America HSA "Fund Summary" CSV into dbo.holdings — value-only (no units/price in this export). Snapshot date parsed from filename. Created 2026-08-01. | ✅ Live — 2 holdings |
 | db.py | DB connection — username/password local, Managed Identity in Azure | ✅ Ready |
 | timer_sync.py | Daily timer trigger | ✅ Ready |
 | http_ingest.py | Manual HTTP trigger — added http_balance_ingest route 2026-06-15 (/api/balance_ingest) | ✅ Ready |
-| get_plaid_tokens.py | Local Flask tool for Plaid token acquisition | ✅ Ready — located at C:\DEV_Projects\AFAS\scripts |
+| get_plaid_tokens.py | Local Flask tool for Plaid token acquisition | ✅ Ready — located at C:\DEV_Projects\AFAS\scripts — hardcoded PLAID_CLIENT_ID/PLAID_SECRET removed 2026-08-01, now loaded from local.settings.json at module scope |
 | requirements.txt | Pinned dependencies | ✅ Ready |
 
 #### Environment Variables (local.settings.json + App Settings)
@@ -196,6 +199,7 @@ AI Agent Layer (Phase 5)
 | Apple Card | Apple | ✅ Monthly CSV import (no Plaid support) | 3 |
 | House — WFB-Belle | N/A | ❌ Not on Plaid — Zillow API (Phase 4) | 4 |
 | TSLA Nebula / Storm / Trinity | N/A | ❌ Not on Plaid — KBB API (Phase 4) | 4 |
+| HSA (Bank of America) | Bank of America | ❌ Plaid confirmed unsupported for this institution ("Connectivity not supported") — permanent CSV-only pipeline, same model as Baird | 4 |
 | Rocket Mortgage | Rocket | ❌ Confirmed unsupported by Plaid — manual updates only | 4 |
 | US Bank LOC (Baird Stock Loan) | US Bank | ✅ Liabilities endpoint | 4 |
 
@@ -320,6 +324,19 @@ Three agents, each reading from FinanceDB views and external inputs:
 ### 2026-08-01 — Silent production outage (dotenv)
 python-dotenv was added to db.py's local dependencies during the July session but never added to requirements.txt. The deployed Function App crashed on every cold start (ModuleNotFoundError: No module named 'dotenv'), causing the trigger indexer to find 0 functions — not a portal display quirk, a genuine failure. This silently killed all automated syncing (daily transactions, monthly balance/NWM sync) for at least 6 weeks, discovered only when investigating an apparently-isolated Amex sync failure. Fixed by adding python-dotenv to requirements.txt, reinstalling into .python_packages\lib\site-packages, and redeploying.
 **Lesson: local script success does not guarantee deployed Function App success — .env and local.settings.json can mask a dependency gap that only surfaces in the deployed environment.**
+
+### 2026-08-01 — Hardcoded production credentials in get_plaid_tokens.py
+
+get_plaid_tokens.py hardcoded PLAID_CLIENT_ID and PLAID_SECRET as plain-
+text literals rather than loading them from local.settings.json, violating
+Master Protocol section 6. Found and fixed same session it was discovered
+— TechnicalArchitecture.md's own Environment Variables table already
+documented these two keys as expected in local.settings.json, so the fix
+was a straightforward swap to the existing established values rather than
+a new credential to generate. **Lesson: standalone local-only scripts
+(never deployed to Azure) can accumulate security debt that deployment-
+focused reviews won't catch, since they're outside the Function App's own
+audit surface.**
 
 ---
 

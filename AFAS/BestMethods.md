@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-08-01
+Last updated: 2026-08-03
 
 ---
 
@@ -90,6 +90,22 @@ and BANK_FEES are outflows (negative), not inflows.
 
 ---
 
+### When a value looks wrong, diff the deployed code against this file's own documented convention before assuming a data problem
+plaid_sync.py's INFLOW_CATEGORIES set was found to include "BANK_FEES" and
+"LOAN_PAYMENTS" — both already documented in this exact file (see "Plaid
+sign convention" and "INFLOW_CATEGORIES and OUTFLOW_CATEGORIES must be
+explicit sets," above) as outflows, not inflows. The deployed code had
+drifted from its own spec, most likely from a since-unremembered fix for a
+rare BANK_FEES refund case that widened the set too broadly and was never
+caught by a full sign audit afterward. BestMethods entries describe intent;
+they don't guarantee the deployed code still matches that intent. When a
+transaction's sign or category looks wrong, check whether the running code
+still matches what this file says it should do — don't assume the bug is
+new or the data is bad before ruling out code/doc drift.
+*Source: ISSUE-023 / Session 14 — found while investigating a positive-signed BANK_FEES row*
+
+---
+
 ## Python — Enrichment Pipeline
 
 ### enrichment.py retry path must match the happy path parameter count exactly
@@ -143,6 +159,55 @@ priority 10. Specific patterns must always have a lower priority number than bro
 The United Way / United Airlines collision is the canonical example — `%UNITED WAY%`
 must be at priority 3 or lower, before `%UNITED%` at priority 5.
 *Source: Session 4 — United Way pattern fix*
+
+---
+
+### plaid_category_raw must store a single extracted category string, never the raw JSON object
+Plaid's personal_finance_category field is a dict
+({"primary": ..., "detailed": ..., "confidence_level": ..., "version": ...}).
+category_map's plaid_category_raw column is matched with an exact string
+comparison — storing the full dict via json.dumps() guarantees this match
+can never succeed, since every stored value is also subtly unique
+row-to-row (confidence_level varies even for identical categorizations).
+Always extract a single field (detailed, falling back to primary) before
+writing to any column a downstream exact-match lookup depends on.
+
+```python
+# WRONG — category_map can never match this
+plaid_category_raw = json.dumps(pfc_dict)
+
+# CORRECT
+plaid_category_raw = pfc_dict.get("detailed") or pfc_dict.get("primary") or ""
+```
+*Source: ISSUE-019 root cause / Session 14 — plaid_sync.py fix*
+
+---
+
+### A non-NULL fallback sentinel silently breaks isna()-gated retry logic
+enrich_transactions.py's apply_fallback() sets category='Uncategorized' (a
+real string) for unmatched rows — but every enrichment step, including
+apply_fallback() itself, decides whether a row still needs processing by
+checking category.isna(). Once a row has been through fallback, isna() is
+permanently False for it, so --unenriched-only's load filter
+(category_source = 'unmatched') pulls the row in but every processing step
+then silently skips it as "already matched." The fix: when loading rows
+specifically because they were previously unmatched, explicitly reset
+their enrichment fields to NULL before running the pipeline, so the
+isna()-gated logic genuinely re-evaluates them.
+
+```python
+if args.unenriched_only:
+    reset_mask = transactions["category_source"] == "unmatched"
+    reset_cols = ["category", "subcategory", "in_budget", "type",
+                  "category_source", "category_confidence"]
+    transactions.loc[reset_mask, reset_cols] = None
+```
+Confirmed via a real test: re-running --unenriched-only on 64 known
+-unmatched rows produced "category_map filled: 0" and "Fallback applied to
+0 rows" — a clean log with no errors that nonetheless did nothing at all.
+A successful-looking run is not proof of a successful re-enrichment; check
+the actual before/after category_source distribution.
+*Source: ISSUE-019 follow-on / Session 14 — enrich_transactions.py fix*
 
 ---
 
@@ -497,6 +562,39 @@ retries — a real, fixable condition. Treat a single occurrence of an error as
 provisional until confirmed by at least one retry; don't assume every error
 in a batch shares one root cause.
 *Source: Session 12*
+
+---
+
+## Plaid API — Data Quality
+
+### Plaid's transaction object has no `description` field — verify a documented column mapping against the actual API response, not the column's name
+plaid_sync.py has been writing tx.get("description", "") into
+dbo.transactions.description since the ingestion script was first built.
+Plaid's transaction object has no field called description — this line has
+always evaluated to the empty-string default, meaning the column has never
+once been populated. A column's documented purpose ("raw description text")
+is not evidence that the code populating it is correct; check the actual
+upstream API response keys directly, especially for any field whose name
+is a plausible-but-unverified guess at what an external API might call it.
+*Source: ISSUE-024 / Session 14 — found while investigating merchant name truncation*
+
+---
+
+### Plaid's merchant_name resolution for a given vendor can change year over year — a working merchant_pattern can silently stop matching with no code change on your end
+A TradingView subscription charge from 2025 had merchant_name_raw
+"TradingViewV*Product," matched an existing merchant_patterns rule, and
+categorized correctly. The same recurring subscription in 2026 came
+through with merchant_name_raw simply "Product" — Plaid's own
+entity-resolution service re-resolved the identical merchant to a more
+generic name, with no way to detect this from inside the project's own
+pipeline. The existing pattern is not wrong and doesn't need to change for
+2025 data; it just can't match 2026's differently-resolved name. When a
+previously-categorized recurring merchant reappears as Uncategorized, check
+whether Plaid's merchant_name actually changed before assuming the pattern
+itself is broken or was never built. A raw fallback text field (see
+ISSUE-024, description column) would make this kind of drift visible
+without relying on manually recognizing a truncated name in a review query.
+*Source: ISSUE-024 / Session 14 — TradingView "Product" investigation*
 
 ---
 

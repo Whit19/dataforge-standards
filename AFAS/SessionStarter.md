@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-08-01 (Session 13 sync)
+Last updated: 2026-08-03 (Session 14 sync)
 
 ---
 
@@ -46,18 +46,18 @@ MAX(date) against today, not just against the last known-good session.**
 
 ---
 
-## ⚠️ Known Issue — Power BI Monthly Spend shows Apple-only data (2026-08-01)
+## ⚠️ Open — ISSUE-023: BANK_FEES/LOAN_PAYMENTS posting with wrong sign (2026-08-03)
 
-The Monthly Spend report page currently shows no June/July 2026 data for
-any source except Apple, despite Chase, Associated Personal, and Amex all
-confirmed current and present in dbo.transactions for those months (see
-vw_source_freshness — all three show max_date in late July/August 2026).
-This is very likely a Power BI-side issue (stale refresh, a leftover
-slicer/filter, or a Calendar relationship gap) rather than a data gap —
-but not yet diagnosed. See ISSUE-019.
+plaid_sync.py's INFLOW_CATEGORIES incorrectly includes BANK_FEES and
+LOAN_PAYMENTS, causing ~25 historical transactions (~$136K+) to post
+positive instead of negative — contradicts BestMethods.md's own documented
+sign convention. Not yet fixed. See ISSUE-023.
 
-**Do not assume this means transactions are missing** — the SQL-level data
-is confirmed present. Investigate the report/dataset side first.
+ISSUE-019 (Power BI Monthly Spend Apple-only) is now RESOLVED at the root
+-cause level — see DecisionLog 2026-08-03 for the full trail (JSON-vs
+-string category mismatch in plaid_category_raw, plus a retry-logic bug in
+enrich_transactions.py). Do a manual Power BI refresh and confirm the
+Monthly Spend page shows all sources before considering this fully closed.
 
 ---
 
@@ -74,38 +74,44 @@ is confirmed present. Investigate the report/dataset side first.
 
 ## Pick Up Here — Next Session
 
-1. **Investigate ISSUE-019** — Power BI Monthly Spend page showing
-   Apple-only data for June/July 2026. Start with a manual dataset
-   refresh and check for a stuck slicer/filter before assuming a deeper
-   issue with vw_monthly_spend or the Calendar relationship.
-2. **Run the ISSUE-022 diagnostic query** — confirm what the pre-existing
-   2026-03-05/07 HSA merchant_patterns batch actually covers, to know
-   whether this session's HSA categorization work filled real gaps or was
-   mostly redundant with earlier (undocumented) work on this account.
-3. **Investigate ISSUE-020** — category_confidence not populated for
-   CHASE/ASSOCIATED_PERSONAL/AMEX (Plaid-synced) rows the way it is for
-   APPLE/HSA (CSV-imported) rows. Check enrich_transactions.py directly
-   rather than continuing to infer from the symptom.
-4. **Wire principal_sync.py into the automated pipeline** (carried over
-   from Session 12) — still a standalone local script only.
-5. **ISSUE-012 — Category_Taxonomy audit** (carried over, not touched this
-   session).
-6. **ISSUE-014 — subcategory-mirror recurrence root cause** (carried
-   over, not touched this session).
-7. **ISSUE-016 — add run_log writes to plaid_sync.py's daily sync**
-   (carried over, not touched this session).
-8. **ISSUE-017 — HSA-Baird and other non-canonical Baird accounts never
-   imported** (carried over — distinct from the new Bank of America HSA
-   built this session; HSA-Baird is a Baird-administered account tracked
-   via the Baird CSV pipeline, unrelated to HSA-BOFA-MANUAL).
-9. **ISSUE-021 — fix import_baird_holdings.py's broken local.settings.json
-   path** (low priority, currently harmless dead code).
-10. **budget_targets table still not seeded** (carried over).
-11. **Connect Phase 4 Power BI views** (Net Worth, Holdings Summary, Asset
-    Allocation, Liability Summary) (carried over, still not done).
-12. **Decide whether to fetch actual HSA holdings units/price monthly**
-    from the dashboard screenshot, or continue tracking value-only from
-    the Fund Summary export (current approach).
+1. **Confirm ISSUE-019 fully closed** — manual Power BI dataset refresh,
+   verify Monthly Spend page shows CHASE/ASSOCIATED_PERSONAL/AMEX alongside
+   APPLE for June/July.
+2. **Fix ISSUE-023 (sign bug)** — remove BANK_FEES/LOAN_PAYMENTS from
+   plaid_sync.py's INFLOW_CATEGORIES; draft historical correction UPDATE for
+   the 25 affected rows (review individually first — a genuine BANK_FEES
+   refund may be mixed in per the code's own comment).
+3. **Review enrich_apple_csv.py (ISSUE-025)** — confirm/deny whether it has
+   the same type='Other'/in_budget=0 fallback bug found in
+   enrich_transactions.py this session.
+4. **Fix ISSUE-024 (dead description column)** — repurpose to capture
+   Plaid's raw name field, giving a fallback against merchant_name drift
+   like the TradingView case found this session.
+5. **Run scripts 60/61** (category_map generic fallbacks + merchant_patterns
+   for recognized vendors) if not already run — resolves 26 of the 42-row
+   ISSUE-019 backlog.
+6. **ISSUE-026 — identify remaining 14 merchants** (Bizjtix, WISCONSINGOV,
+   Retail x2, Bayshore D, Musa I x2, Shorewood, TEMPORARY FUNDS HOLD,
+   SHEBOYGAN, Google Cloud, Railway) — low priority, not blocking.
+7. **Fix enrich_transactions.py's stale docstring** — module docstring
+   documents the opposite enrichment priority order from what the code
+   actually runs (merchant_patterns first, category_map fallback-only).
+   Quick fix, not urgent.
+8. **Run the ISSUE-022 diagnostic query** (carried over) — confirm what the
+   pre-existing 2026-03-05/07 HSA merchant_patterns batch actually covers.
+9. **Investigate ISSUE-020** — category_confidence not populated for
+   CHASE/ASSOCIATED_PERSONAL/AMEX the way it is for APPLE/HSA (carried over).
+10. **Wire principal_sync.py into the automated pipeline** (carried over).
+11. **ISSUE-012 — Category_Taxonomy audit** (carried over).
+12. **ISSUE-014 — subcategory-mirror recurrence root cause** (carried over).
+13. **ISSUE-016 — add run_log writes to plaid_sync.py's daily sync**
+    (carried over).
+14. **ISSUE-017 — HSA-Baird and other non-canonical Baird accounts**
+    (carried over).
+15. **ISSUE-021 — fix import_baird_holdings.py's broken local.settings.json
+    path** (carried over, low priority).
+16. **budget_targets table still not seeded** (carried over).
+17. **Connect Phase 4 Power BI views** (carried over).
 
 ---
 
@@ -134,7 +140,8 @@ is confirmed present. Investigate the report/dataset side first.
 ## Python Scripts (key files)
 | File | Purpose | Status |
 |------|---------|--------|
-| plaid_sync.py | Shared sync module | ✅ Live — does not write to run_log (see Pick Up Here #3) |
+| plaid_sync.py | Shared sync module | ⚠️ Two known bugs as of 2026-08-03: (1) plaid_category_raw stores full JSON instead of extracted category string — fix drafted, not yet deployed; (2) INFLOW_CATEGORIES incorrectly includes BANK_FEES/LOAN_PAYMENTS (ISSUE-023, sign regression, ~$136K affected) — fix not yet drafted. Still does not write to run_log (ISSUE-016, carried over). |
+| enrich_transactions.py | Enrichment engine for Plaid-synced transactions (CHASE/ASSOCIATED_PERSONAL/AMEX) | ⚠️ Two bugs found and fixed 2026-08-03: apply_fallback() type/in_budget defaults corrected to match Category_Taxonomy.md spec; --unenriched-only retry logic fixed (previously silently no-op'd on any row that had already been through fallback once). Module docstring still documents the wrong enrichment priority order — code is correct (merchant_patterns first, category_map fallback-only), docstring is stale. |
 | plaid_client.py | Plaid SDK wrapper | ✅ Ready |
 | balance_sync.py | Associated balance pull | ✅ Live |
 | nwm_sync.py | NWM Tom + Amy cash value sync | ✅ Live — both Items reconnected 2026-08-01 |
@@ -200,7 +207,14 @@ Session 12 (2026-08-01):
                            50_baird_main_brokerage_rename_fix.sql
                            51_holdings_table_add_missing_columns.sql
 
-Current high watermark: **51**
+Session 13 (2026-08-01):   52 through 58 (see DecisionLog 2026-08-01 Session 13 for detail)
+
+Session 14 (2026-08-03):
+                           59_backfill_plaid_category_raw_json_fix.sql
+                           60_category_map_generic_fallbacks_backlog.sql
+                           61_merchant_patterns_recognized_vendors_backlog.sql
+
+Current high watermark: **61**
 
 ---
 

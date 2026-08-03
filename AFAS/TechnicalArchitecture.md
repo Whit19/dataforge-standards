@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-08-01 (Session 13: HSA Bank of America pipeline added, get_plaid_tokens.py credential fix, Data Health Power BI views)
+Last updated: 2026-08-03 (Session 14: ISSUE-019 root cause — plaid_category_raw JSON mismatch, enrich_transactions.py retry-logic and fallback-default bugs fixed; ISSUE-023 sign regression found, not yet fixed)
 
 ---
 
@@ -121,8 +121,8 @@ AI Agent Layer (Phase 5)
 | File | Purpose | Status |
 |------|---------|--------|
 | function_app.py | Azure Functions v2 entry point | ✅ Ready |
-| plaid_sync.py | Shared sync module (de-duplicated from timer + HTTP) | ✅ Ready — sign convention fix deployed 2026-06-02 |
-| enrichment.py | Enrichment engine (Plaid transactions) | ⚠️ Needs bonus rule amount threshold update (ISSUE-005) |
+| plaid_sync.py | Shared sync module (de-duplicated from timer + HTTP) | ⚠️ Two issues found 2026-08-03: plaid_category_raw stores the full personal_finance_category JSON object via json.dumps() instead of an extracted category string (ISSUE-019 root cause — category_map's exact-string match has never worked for Plaid-synced sources as a result; fix drafted, not yet deployed). INFLOW_CATEGORIES incorrectly includes BANK_FEES and LOAN_PAYMENTS as inflows (ISSUE-023, sign regression, ~25 rows/~$136K affected; fix not yet drafted). description column confirmed dead code (ISSUE-024) — Plaid's transaction object has no field by that name, so tx.get("description", "") has always returned empty. |
+| enrich_transactions.py | Enrichment engine for Plaid-synced transactions (CHASE/ASSOCIATED_PERSONAL/AMEX). Note: this file was previously listed here under the incorrect name "enrichment.py" — corrected 2026-08-03. | ⚠️ Two bugs fixed 2026-08-03: apply_fallback() type/in_budget defaults corrected to match Category_Taxonomy.md; --unenriched-only retry logic fixed (previously no-op'd on any row already processed by fallback once, since every step gates on category.isna() but apply_fallback() sets category='Uncategorized', not NULL). Module docstring still documents the wrong enrichment priority order (see Enrichment Pipeline section below) — not yet corrected. |
 | enrich_apple_csv.py | Enrichment engine for Apple Card CSV imports | ✅ Ready — category_map lookup fixed 2026-06-01 |
 | import_apple_csv.py | Apple Card CSV import script (manual monthly) | ✅ Ready |
 | plaid_client.py | Plaid SDK wrapper — created 2026-06-15 (did not previously exist despite this entry). _make_plaid_client() (duplicated from plaid_sync.py) + get_account_balances() | ✅ Ready — prior "plaid_category_raw fix" note likely describes logic actually in plaid_sync.py, needs verification |
@@ -273,18 +273,28 @@ All relationships: One-to-Many, Single cross-filter direction, Calendar as hub.
 
 ### Enrichment Pipeline — Logic Order
 Enrichment runs in strict priority order. Higher steps win; manual never gets overwritten.
+Corrected 2026-08-03 — this table previously documented the reverse of steps
+2 and 3, matching a stale docstring inside enrich_transactions.py itself
+rather than what the code actually executes (confirmed by reading the code
+and its own inline comment: "merchant_patterns runs FIRST — specific
+merchant match beats generic Plaid category / category_map runs SECOND —
+Plaid category as fallback only").
 
 | Step | Source | Logic |
 |------|--------|-------|
-| 1 | Bonus rules | Hardcoded: Baird payroll → Pay/Amy (~$3,328 bi-weekly); large Baird deposits → Bonus/Amy (threshold TBD >$10,000) — ISSUE-005 open |
-| 2 | Plaid category | personal_finance_category → lookup in category_map table |
-| 3 | Merchant pattern | merchant_name_raw LIKE match in merchant_patterns, ordered by priority ASC |
+| 1 | Merchant pattern | merchant_name_raw LIKE match in merchant_patterns, ordered by priority ASC — runs first; a specific merchant match beats a generic Plaid category |
+| 2 | Plaid category | plaid_category_raw → lookup in category_map table — fallback only, applied to rows merchant_patterns did not match |
+| 3 | Bonus rule | Hardcoded: Baird payroll → Pay/Amy; large Baird deposits → Bonus/Amy (threshold >$10,000) |
 | 4 | Historical | Carry forward category from prior enriched record for same merchant |
 | 5 | Manual | Human override — category_source = 'manual', never overwritten by pipeline |
+| 6 | Fallback | Unmatched rows → category='Uncategorized', subcategory='General', type='Expense', in_budget=1, category_source='unmatched', category_confidence='LOW' (corrected 2026-08-03 — previously set type='Other'/in_budget=0, contradicting Category_Taxonomy.md's documented default) |
 
-**Sign convention (enforced in plaid_sync.py as of 2026-06-02):**
+**Sign convention (as documented — enforcement currently has a known bug, see ISSUE-023):**
 - INCOME and TRANSFER_IN Plaid categories → stored as positive (abs value)
-- LOAN_PAYMENTS and BANK_FEES → stored as negative (outflows)
+- LOAN_PAYMENTS and BANK_FEES → should be stored as negative (outflows) per this
+  documented convention, but plaid_sync.py's INFLOW_CATEGORIES set currently
+  includes both incorrectly, causing them to post positive. Not yet fixed
+  as of 2026-08-03 — see ISSUE-023.
 - All other debits → negated at ingestion (-tx["amount"])
 
 ---
@@ -320,6 +330,28 @@ Three agents, each reading from FinanceDB views and external inputs:
 ---
 
 ## Incident History
+
+### 2026-08-03 — plaid_category_raw JSON-vs-string mismatch (ISSUE-019 root cause)
+plaid_sync.py's _sync_institution() has been storing the entire
+personal_finance_category JSON object (via json.dumps()) in
+dbo.transactions.plaid_category_raw since Plaid's v2 personal finance
+category API was adopted, rather than a single clean category string.
+DB_Schema.md documents this column as "Plaid's raw category string"
+(singular value) and enrich_transactions.py's category_map matching does
+an exact string comparison — meaning this lookup has effectively never
+succeeded for any Plaid-synced transaction (CHASE/ASSOCIATED_PERSONAL/AMEX),
+not just the June/July 2026 backlog that originally surfaced the issue.
+Scoping confirmed impact contained to 2026 (64 rows) — the JSON blob
+formatting appears to postdate whatever Plaid API version bump introduced
+personal_finance_category in its current form. Fix: extract
+personal_finance_category.detailed (fallback .primary, then the legacy v1
+category list) at ingestion. Historical rows backfilled via script 59.
+**Lesson: a documented column description ("raw category string") is not
+the same as a verified one — the actual stored format should be spot
+-checked directly against what a downstream consumer (category_map) expects
+to match, not assumed from the column's name or comment.**
+
+---
 
 ### 2026-08-01 — Silent production outage (dotenv)
 python-dotenv was added to db.py's local dependencies during the July session but never added to requirements.txt. The deployed Function App crashed on every cold start (ModuleNotFoundError: No module named 'dotenv'), causing the trigger indexer to find 0 functions — not a portal display quirk, a genuine failure. This silently killed all automated syncing (daily transactions, monthly balance/NWM sync) for at least 6 weeks, discovered only when investigating an apparently-isolated Amex sync failure. Fixed by adding python-dotenv to requirements.txt, reinstalling into .python_packages\lib\site-packages, and redeploying.

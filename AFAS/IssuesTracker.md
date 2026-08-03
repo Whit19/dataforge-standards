@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-08-01
+Last updated: 2026-08-03
 
 ---
 
@@ -62,18 +62,6 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 
 ---
 
-### ISSUE-019 — Power BI Monthly Spend shows Apple-only data for June/July 2026
-
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-08-01 |
-| Priority | High |
-| Description | Monthly Spend report page shows no data from any source other than Apple for June and July 2026, despite Chase/Associated Personal/Amex all confirmed current and present in dbo.transactions for those months (see vw_source_freshness — all three show max_date in late July/August 2026). Very likely a Power BI-side issue (stale refresh, a leftover slicer/filter, or a Calendar relationship gap) rather than a real data gap, but not yet diagnosed. |
-| Next Step | Try a manual dataset refresh first (simplest possible cause). Check for any source/date slicer left applied on the Monthly Spend page before investigating vw_monthly_spend or the Calendar relationship itself. |
-
----
-
 ### ISSUE-020 — category_confidence not populated for Plaid-synced sources
 
 | Field | Value |
@@ -110,7 +98,55 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 
 ---
 
+### ISSUE-023 — BANK_FEES/LOAN_PAYMENTS sign convention regression
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-08-03 |
+| Priority | High |
+| Description | plaid_sync.py's INFLOW_CATEGORIES set incorrectly includes "BANK_FEES" and "LOAN_PAYMENTS", causing these transactions to post as positive (income) instead of negative (expense) — directly contradicting BestMethods.md's own documented sign convention, which lists both as outflows. Scoping query confirmed 25 historical rows affected across CHASE/ASSOCIATED_PERSONAL/AMEX, ~$136K+ net misrepresented, concentrated in large recurring items (Chase Credit Card autopay, Rocket Mortgage, University Club Collection, recurring Amex/misc autopay entries). |
+| Next Step | Draft plaid_sync.py CC prompt removing BANK_FEES/LOAN_PAYMENTS from INFLOW_CATEGORIES, plus a historical correction UPDATE (cannot be fixed by re-running enrichment — sign is set once at ingestion and /transactions/sync won't replay settled transactions). Review the 25 affected rows individually first in case a genuine BANK_FEES refund is mixed in (documented as a rare exception in the code's own comment) — don't blanket-flip without checking. |
+
+---
+
+### ISSUE-024 — plaid_sync.py's description column is dead code; no fallback against Plaid merchant_name drift
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-08-03 |
+| Priority | Medium |
+| Description | tx.get("description", "") in plaid_sync.py always returns empty — Plaid's transaction object has no field called description, so this column has never been populated. Discovered while investigating why "Center" and "Product" displayed instead of "North Shore CTR LLC" and "TradingViewV*Product" — Plaid's merchant_name field is sometimes over-resolved/generic, and the code only falls back to the fuller name field when merchant_name is completely absent, not merely low-quality. Confirmed separately that Plaid's own merchant_name resolution for a given vendor can change year over year (TradingView: matched an existing pattern in 2025, resolved to generic "Product" in 2026), meaning a merchant_patterns rule that works today can silently stop matching later with no code change on our end. |
+| Next Step | Repurpose the description column to store Plaid's raw name field at ingestion, giving a fallback text source when merchant_name is low-quality, and a way to detect/diagnose future merchant-name drift without waiting for a human to recognize a truncated name. |
+
+---
+
+### ISSUE-025 — enrich_apple_csv.py suspected of the same type/in_budget fallback bug as enrich_transactions.py
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-08-03 |
+| Priority | Medium |
+| Description | Apple-sourced transactions were still not appearing correctly under Expense on Power BI's Monthly Spend page after the CHASE/ASSOCIATED_PERSONAL/AMEX fix (ISSUE-019) was deployed and verified. Apple transactions are enriched by a separate script, enrich_apple_csv.py, which was not reviewed this session — the same apply_fallback()-style type='Other'/in_budget=0 bug found in enrich_transactions.py is suspected but not confirmed. |
+| Next Step | Upload/review enrich_apple_csv.py directly — do not assume the same bug exists without seeing the code, per project debugging protocol. |
+
+---
+
+### ISSUE-026 — 14 unclassified merchants from the ISSUE-019 backlog awaiting identification
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-08-03 |
+| Priority | Low |
+| Description | Bizjtix ($2,700, CHASE), WISCONSINGOV ($318.93, ASSOCIATED_PERSONAL), Retail/RETAIL (x2, CHASE), Bayshore D (ASSOCIATED_PERSONAL), Musa I (x2, ASSOCIATED_PERSONAL), Shorewood (ASSOCIATED_PERSONAL), TEMPORARY FUNDS HOLD (ASSOCIATED_PERSONAL — possibly a bank-side pending/hold artifact, not real spend), SHEBOYGAN (ASSOCIATED_PERSONAL — Plaid's RENT_AND_UTILITIES_OTHER_UTILITIES code suggests a utility, but no matching "Other" subcategory currently exists under Bills & Utilities), Google Cloud ($0.06, AMEX), Railway ($5.00, AMEX). Not blocking — these sit under Plaid's genuinely broad catch-all codes where a blanket category_map mapping would risk misclassifying unrelated future merchants. "Center" and "Product" from the original 16-row list were identified and resolved this session (see DecisionLog 2026-08-03). |
+| Next Step | Tom to identify remaining merchants; Claude drafts final merchant_patterns/manual-correction SQL once identified. |
+
+---
+
 ## Resolved Issues (archive — recent)
+
+### RESOLVED — ISSUE-019 — Power BI Monthly Spend showed Apple-only data for June/July 2026
+- Resolved: 2026-08-03
+- Root cause: plaid_sync.py stored the full personal_finance_category JSON object in plaid_category_raw instead of a clean category string, so category_map's exact-string match silently never worked for Plaid-synced sources. Compounded by a separate bug where enrich_transactions.py's isna()-gated retry logic never actually reprocessed rows previously written by apply_fallback(). Both fixed (CC prompts deployed); 64 affected rows backfilled via script 59, re-enriched, and verified. 26 of the remaining 42 unmatched rows resolved via category_map/merchant_patterns additions (scripts 60/61). 14 rows remain — tracked separately as ISSUE-026, not blocking. Power BI visual reconfirmation (manual refresh + Monthly Spend page check) still pending as of session end. See DecisionLog 2026-08-03 for full diagnostic trail.
 
 ### RESOLVED — ISSUE-015 — Deployed Function App silently crash-looped for 6+ weeks (dotenv)
 - Resolved: 2026-08-01

@@ -2,8 +2,11 @@
 **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 Repo: github.com/Whit19/dataforge-standards
 
-## Current Status (as of 2026-08-17)
-Unified Sports + School dashboard, live and hosted on GitHub Pages. Settings is built around a Child → Activity linking model (Children → Sports/School activities → email senders + calendars), with a global Child filter that now covers Calendars, Email History, *and* the Summary/briefing tab. Two real bugs from the Child→Activity rebuild were found, root-caused, fixed, and verified this session (see IssuesTracker.md ISSUE-008 and ISSUE-009). Next planned focus: PWA polish, and reworking the still-dead Manual Updates tab (ISSUE-001).
+## ⚠ Deployment Account — Read This First
+Always deploy the Web App from `tjunker9@gmail.com` — that's the account whose Gmail inbox the script actually scans. Deploying from any other Google account silently binds the deployment to that account instead (Apps Script's "Execute as: Me" locks to whoever was logged in at Deploy time), with no error until Refresh Briefing is clicked later. See IssuesTracker ISSUE-016 / DecisionLog AD-19 for the full diagnosis.
+
+## Current Status (as of 2026-08-17, later session)
+Unified Sports + School dashboard, live and hosted on GitHub Pages. Filtering across the whole app is now a single cascade — Category → Child → Activity (PD-05) — replacing what used to be separate per-sender (Email History) and per-calendar-name (Calendars) filter rows. Settings' Activities section is a collapsed-by-default accordion; Days Back/Days Forward is one global setting, not per-Activity (AD-15). The daily briefing no longer surfaces already-passed content from old emails (ISSUE-011, AD-16), the 7-Day Schedule is grouped by day, and there's a new persistent To-Do tab (AD-18). Next planned focus: PWA polish, reworking the still-dead Manual Updates tab (ISSUE-001), and — when ready to revisit — Refresh Briefing wait-time/timeout handling (ISSUE-004, deliberately deferred).
 
 ## What This Is
 A personal dashboard for managing multiple kids' sports teams *and* school activities in one place. It aggregates emails from configured senders, syncs calendars, and uses Claude AI (via Google Apps Script) to generate a daily briefing per category (Sports / School) with a priority, app cards, schedule timeline, and action items — filterable by which kid it's about.
@@ -80,18 +83,20 @@ That's the only hardcoded config left. Children, Activities (sport/school, which
 ## Dashboard Tabs
 | Tab | Purpose |
 |-----|---------|
-| ⚡ Summary | Home screen — shows last briefing per category, Refresh Briefing button. Filterable by the active Child. |
-| 📅 Calendars | Weekly list view, navigate by week, filter by team and by Child, Load Calendars button |
-| 📬 Email History | Rolling email log filtered by app and by Child |
+| ⚡ Summary | Home screen — priority, cards, day-grouped 7-Day Schedule, Action Items (each with a "+ To-Do" button). Filterable by Category/Child/Activity. |
+| 📅 Calendars | Weekly list view, navigate by week, filterable by the same Category/Child/Activity cascade, Load Calendars button |
+| 📬 Email History | Rolling email log, filterable by the same Category/Child/Activity cascade (no separate per-sender filter row anymore) |
+| ✅ To-Do | Persistent checklist, localStorage-only (AD-18). Add manually, or via "+ To-Do" on any Action Item. Not synced across browsers. |
 | ✏️ Manual Updates | Paste text as fallback input — **currently not wired into the briefing prompt at all; see ISSUE-001** |
-| ⚙ Settings | Web App URL, Children, Activities (with linked senders), Calendars (each linked to an Activity) |
+| ⚙ Settings | Web App URL, Children, Activities (collapsed accordion, click to expand/edit), global Scan & Briefing Window, Calendars |
 
 ---
 
 ## Settings Setup Flow (in order)
 1. **Children** — add each kid's name and pick a color
-2. **Sports & School Activities** — one card per team/school; pick category, name it, toggle which child(ren) it covers, set days-back/days-forward, add its email senders underneath
-3. **Calendars** — one row per `.ics` feed, linked to one Activity via a dropdown
+2. **Scan & Briefing Window** — one global Days Back to Scan / Days Forward in Briefing, applies to every Activity (AD-15 — no longer set per-Activity)
+3. **Sports & School Activities** — one accordion card per team/school (collapsed by default; click to expand and edit); pick category, name it, toggle which child(ren) it covers, add its email senders
+4. **Calendars** — one row per `.ics` feed, linked to one Activity via a dropdown
 
 Existing pre-Child-model settings auto-migrate into an `(unsorted)` default Activity per category with no children assigned, so nothing breaks — go re-sort into real children afterward.
 
@@ -106,19 +111,25 @@ Existing pre-Child-model settings auto-migrate into an `(unsorted)` default Acti
 - **Child → Activity linking model** — Children link to Activities (not directly to senders/calendars), because a team or school is the real unit siblings actually share. (AD-12)
 - **Global Child filter**, extended to the Summary tab by having Claude tag its own output with `childIds` from a legend of known children. (PD-04)
 - **ICS timezone fix** — events with `Z` suffix (UTC) were parsed as local time → 4-6hr offset; fixed by detecting `Z` and parsing as true UTC.
-- **Briefing uses the full rolling email history**, not just the latest scan, so older-but-still-relevant context isn't missed.
-- **Two bugs found and fixed this session** (both root-caused with a direct repro/read of the code before fixing, not guessed):
+- **Briefing uses the full rolling email history**, not just the latest scan, so older-but-still-relevant context isn't missed — this is *why* AD-16 (below) was needed, not a contradiction of it.
+- **Two bugs found and fixed in the Child→Activity session** (both root-caused with a direct repro/read of the code before fixing, not guessed):
   - A DOM-shadowing bug where inline `onclick`/`oninput` handlers referencing bare `children`/`removeChild` silently resolved to `document.children`/`document.removeChild` instead of the app's own state — broke Add/Edit/Delete Child entirely. (AD-13)
   - The rolling email-history merge kept an email's *original* ActivityId tag forever instead of letting fresh scans correct it, so per-child email filtering only worked for kids whose emails happened to be scanned after their Settings reorg. (AD-14)
+- **Category → Child → Activity filter cascade** replaces the old separate per-sender/per-calendar-name filters. (PD-05)
+- **Global scan/briefing window**, migrated automatically from old per-activity values. (AD-15)
+- **Briefing staleness prevention** — explicit `todayISO` + prompt rule, plus a `dateISO` field and client-side backstop filter. (AD-16)
+- **Calendar events carry a real computed ISO date**, so Claude copies it instead of inferring one — fixed a real bug (ISSUE-013) this had been causing. (AD-17)
+- **Model-output reliability pattern**, now established and reused three times (ISSUE-010, ISSUE-011, ISSUE-013): whenever a prompt asks Claude to compute or tag something, pair it with a deterministic client-side check that doesn't fully trust the model's compliance. (BestMethods BM-20)
 
 ---
 
 ## Deployment Workflow (after any GAS change)
-1. Paste updated script into Extensions → Apps Script
-2. Save (Ctrl+S)
-3. Deploy → Manage Deployments → ✏️ edit → New version → Deploy
-4. **URL does not change** — no dashboard update needed
-5. No need to re-run `installDailyTrigger` unless testing
+1. **Confirm you're logged into `tjunker9@gmail.com`** before doing anything else — see the warning at the top of this file
+2. Paste updated script into Extensions → Apps Script
+3. Save (Ctrl+S)
+4. Deploy → Manage Deployments → ✏️ edit → New version → Deploy
+5. **URL does not change** — no dashboard update needed
+6. No need to re-run `installDailyTrigger` unless testing
 
 ## Deployment Workflow (after any dashboard HTML change)
 1. Commit + push `sports-dashboard.html` (or whatever filename your GitHub Pages repo uses) to the repo
@@ -126,10 +137,10 @@ Existing pre-Child-model settings auto-migrate into an `(unsorted)` default Acti
 
 ## First-Time Setup (for a new environment)
 1. Get an Anthropic API key at console.anthropic.com → add billing credits
-2. Open the Google Sheet → Extensions → Apps Script → paste `SportsEmailScanner.gs`
+2. Open the Google Sheet **while logged into `tjunker9@gmail.com`** → Extensions → Apps Script → paste `SportsEmailScanner.gs`
 3. Add the API key at the top of the script — nowhere else
 4. Run `installDailyTrigger` once (sets 6 AM daily schedule)
-5. Deploy as Web App → Execute as: Me, Access: Anyone
+5. Deploy as Web App → Execute as: Me, Access: Anyone — **confirm the account in the top-right of the Apps Script editor is `tjunker9@gmail.com` before clicking Deploy**
 6. Open the dashboard → Settings tab → paste the Web App URL
 7. Settings → add Children, then Activities (with senders) for Sports and/or School, then link Calendars
 8. Calendars tab → Load Calendars
@@ -139,6 +150,9 @@ Existing pre-Child-model settings auto-migrate into an `(unsorted)` default Acti
 
 ## Possible Next Features
 - Rework Manual Updates to be Activity-driven and actually wire it into the prompt (ISSUE-001)
+- Refresh Briefing timeout/wait-time handling — polling pattern (ISSUE-004), deliberately deferred, revisit when ready
+- Email History not refetching after Refresh Briefing (ISSUE-006) — still open, not incidentally fixed by the filter-cascade rework
+- Sync the To-Do list to GAS so it travels across browsers like Settings does
 - PWA manifest + service worker (installable)
 - GroupMe API integration (direct message pull, no email delay)
 - Push notifications / SMS for same-day urgent events

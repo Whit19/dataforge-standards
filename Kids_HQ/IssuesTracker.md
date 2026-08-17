@@ -1,6 +1,6 @@
 # HQ Dashboard — Data Issues & Bug Tracker
 
-**Last Updated:** August 2026  
+**Last Updated:** 2026-08-17  
 **Purpose:** Track known bugs, data quality issues, edge cases, and open questions that need investigation or fixing.
 
 ---
@@ -47,6 +47,8 @@ The Manual Updates tab allows users to paste content from any sports app. Howeve
 **Description:**  
 The `action=generate` call can take 30-60 seconds (Gmail scan + Claude API call). On slow mobile connections, the 90-second client timeout occasionally fires, showing an error even when GAS successfully completed the job in the background.
 
+**Update (2026-08-17, later session):** Confirmed still relevant — Tom flagged Refresh Briefing feeling slow. A completed refresh was observed finishing well inside the 90s window (not an active failure, just wait-time UX). Deliberately deferred to its own future session rather than folded into an unrelated fix.
+
 **Expected Behavior:**  
 User should see the fresh briefing even if the initial fetch times out, as long as GAS completed successfully.
 
@@ -82,6 +84,8 @@ Add better error messaging when a Google Calendar URL fails to convert. Show use
 If the user clicks "Refresh Briefing" (which rescans Gmail), then navigates to the Email History tab, they still see the old history. The `historyLoaded` flag prevents a re-fetch.
 
 **Update (2026-08-17):** Reconfirmed still present — `historyLoaded=false` is currently only reset inside `setCategory()` (switching the Sports/School tab), not after a successful `generate()`.
+
+**Update (2026-08-17, later session):** Still open — NOT incidentally fixed by that session's Category→Child→Activity filter rework. That work changed what Email History filters by, not when it refetches; `historyLoaded=false` is still only reset inside `setCategory()`, never after a successful `generate()`. Flagging explicitly so this isn't wrongly assumed resolved.
 
 **Proposed Fix:**  
 In `generate()`, after successful completion: `historyLoaded = false;`
@@ -182,6 +186,109 @@ Merge now keys by `date|subject` and lets the current scan's row win on collisio
 
 ---
 
+### ISSUE-011 — Briefing Surfaced Stale/Past-Dated Content From Historical Emails
+**Severity:** Was 🟠 High  
+**Status:** Fixed (2026-08-17)  
+**Filed:** 2026-08-17
+
+**Description:**  
+Because the app intentionally feeds Claude the full rolling email history for context, the prompt never instructed Claude to check whether an email's referenced event/deadline had already passed relative to "today" before surfacing it. Observed directly: a briefing generated Monday, Aug 17 included "Sign up Whit for Irish Fest volunteer shift on Saturday Aug 15" as a live action item — two days after the fact.
+
+**Root cause (confirmed, not guessed):** the prompt told Claude what today's date was but had no rule about dropping already-passed items, and the full-history design (intentional, see BestMethods BM-14) means old emails describing since-passed events are always in context.
+
+**Fix Applied:**  
+- Both prompt builders now receive `todayISO` and an explicit "no stale content" rule: never surface a card/timeline/action item whose date has already fully passed relative to today, with one exception (a past event whose email still carries forward-relevant info, e.g. a confirmation).
+- Timeline and action items now carry a `dateISO` field.
+- Added a deterministic client-side filter (`isPastISO()`) that drops any item with a past `dateISO` regardless of what Claude returned — the same don't-fully-trust-the-model pattern established by ISSUE-010.
+
+**See:** Decision Log AD-16.
+
+---
+
+### ISSUE-012 — 7-Day Schedule Was a Flat, Undifferentiated List
+**Severity:** Was 🟢 Low (UX)  
+**Status:** Fixed (2026-08-17)  
+**Filed:** 2026-08-17
+
+**Description:**  
+Timeline entries rendered as one flat list with no day grouping — not clear at a glance which day something fell on, or whether a day had nothing scheduled at all.
+
+**Fix Applied:**  
+Rewrote as a day-grouped view: one section per day (today + next 6), each showing its items or an explicit "Nothing scheduled" placeholder, so all 7 days are always visible.
+
+---
+
+### ISSUE-013 — Calendar-Derived Timeline Items All Grouped Under "Other" Instead of the Correct Day
+**Severity:** Was 🟠 High  
+**Status:** Fixed (2026-08-17)  
+**Filed:** 2026-08-17 (introduced by the ISSUE-012 fix, caught same session)
+
+**Description:**  
+After the day-grouped 7-Day Schedule shipped (buckets items by `dateISO`), calendar-derived events — recurring soccer practices, a golf tee time, a lacrosse tryout — all landed in the undated "Other" bucket instead of their correct day.
+
+**Root cause (confirmed by tracing the data flow, not guessed):** the calendar event payload sent from the dashboard to GAS only ever included a display string like `"Mon, Aug 17"` — no year, no computed ISO date. Claude was left to infer the real calendar date from that string alone in the prompt, and wasn't reliably producing (or including) a matching `dateISO`.
+
+**Fix Applied:**  
+- The browser already has a real JS `Date` object for every loaded calendar event; that ISO date is now sent through in the `?cal=` payload (`di` field).
+- Stored in a new `DateISO` column on each category's CalendarEvents sheet.
+- Surfaced explicitly in the prompt's CALENDAR EVENTS section as `{dateISO: YYYY-MM-DD}` next to each event.
+- Prompt now instructs Claude to copy that value directly for calendar-sourced items instead of computing it, and to only compute `dateISO` by hand for email-only events (with a self-check that the stated weekday matches).
+
+**See:** Decision Log AD-17.
+
+---
+
+### ISSUE-014 — Adding a To-Do From an Action Item Didn't Appear Until Page Reload
+**Severity:** Was 🟡 Medium  
+**Status:** Fixed (2026-08-17)  
+**Filed:** 2026-08-17 (introduced by the same session's To-Do feature, caught next follow-up)
+
+**Description:**  
+The "+ To-Do" button on Action Items saved the new item to `localStorage` correctly but never re-rendered the To-Do tab's DOM, so the item was invisible until a full page reload.
+
+**Fix Applied:**  
+`addTodoFromAction()` now calls `renderTodos()` immediately after saving.
+
+---
+
+### ISSUE-015 — Phantom Vertical Scrollbar on Tab Nav
+**Severity:** Was 🟢 Low  
+**Status:** Fixed (2026-08-17) — pending visual confirmation  
+**Filed:** 2026-08-17
+
+**Description:**  
+The Summary/Calendars/Email History/etc. tab row displayed a faint vertical scrollbar that didn't belong to a normal tab bar.
+
+**Root cause (diagnosed via CSS spec behavior, not guessed):** `.tab-nav` set `overflow-x:auto` without setting `overflow-y`. Per the CSS spec, when one overflow axis is set to a non-`visible` value and the other is left as `visible`, the browser computes the unset axis as `auto` too — so any sub-pixel vertical overflow (button padding/line-height) triggered a phantom scrollbar.
+
+**Fix Applied:**  
+Added `overflow-y:hidden` explicitly.
+
+**Status caveat:** flagged as "likely, not certain" when shipped — a genuine CSS quirk that matches the symptom exactly, but not yet explicitly confirmed fixed in Tom's browser. Confirm next session.
+
+---
+
+### ISSUE-016 — "Gmail Operation Not Allowed" on Refresh Briefing (Process Issue, Not a Code Bug)
+**Severity:** Was 🔴 Critical (blocked the core Refresh Briefing feature entirely)  
+**Status:** Fixed (2026-08-17)  
+**Filed:** 2026-08-17
+
+**Description:**  
+Refresh Briefing began failing with `Exception: Gmail operation not allowed`, while loading the dashboard (which only reads the last stored summary) continued to work fine — the tell that only the live `GmailApp.search()` call was affected.
+
+**Root cause (isolated by elimination, not guessed):**
+1. Running the function manually in the Apps Script editor reproduced the identical error with no fresh consent prompt — ruled out a stale/revoked OAuth token.
+2. Checking Google Account → linked apps showed full Gmail scope freshly granted (35 minutes old) and the error still persisted — ruled out missing/incomplete user consent.
+3. Actual cause: the Web App had most recently been redeployed from a different Google account (`tjunker@dataforge`) than the one whose Gmail inbox the script is meant to scan (`tjunker9@gmail.com`). Apps Script's "Execute as: Me" permanently binds a deployment to whichever account was logged in at the moment Deploy was clicked — so every Gmail operation was silently pointed at the wrong account's inbox.
+
+**Fix Applied:**  
+Redeployed the Web App from the `tjunker9@gmail.com` account. No code change was needed or made.
+
+**Notes:**  
+This is a standing operational trap, not a one-time fix — deploying from any other account will reproduce this exact failure with no error at deploy time, only later when Refresh Briefing is actually clicked. See Decision Log AD-19 and BestMethods BM-19.
+
+---
+
 ## Closed / Won't Fix Issues
 
 ---
@@ -203,6 +310,7 @@ Switched to GET with `?cal=` parameter encoding. POST endpoint (`doPost()`) rema
 
 Run these checks periodically or after any GAS / dashboard update:
 
+- [ ] **Deploy only from `tjunker9@gmail.com`** — deploying from any other Google account silently breaks Gmail access (see ISSUE-016) with no error until Refresh Briefing is clicked
 - [ ] Load Calendars → all teams appear with correct event counts
 - [ ] Events show at correct local time (test with a known event)
 - [ ] Refresh Briefing completes within 90 seconds
@@ -222,3 +330,4 @@ Run these checks periodically or after any GAS / dashboard update:
 
 - **Session 1 (Mar 2026):** Tracker initialized. ISSUE-003 already fixed. ISSUE-001 is the highest priority open item.
 - **Session — 2026-08-17:** ISSUE-002 fixed (GAS-side ICS fetch, see AD-10). Two new critical/high bugs found, root-caused, fixed, and verified with automated tests: ISSUE-008 (child add/delete silently broken by a DOM-shadowing collision) and ISSUE-009 (email history never re-tagged after Settings reorg). Added ISSUE-010 to track the new AI-dependent child-tagging feature as a monitoring item, not a guaranteed-correct one. ISSUE-001 remains the top open item and now has an added dimension (its hardcoded app list is stale against the Activity/sender model).
+- **Session — 2026-08-17 (later session):** Major filter/navigation UX rework (Category→Child→Activity cascade, Settings accordion, global scan window) shipped no new bugs on its own. Separately found and fixed ISSUE-011 (stale briefing content) and, as a direct side effect of that fix, ISSUE-012/ISSUE-013 (7-Day Schedule day-grouping and the calendar dateISO bug it exposed) — both root-caused by tracing the actual data flow, not guessed. Added the persistent To-Do feature, then caught and fixed ISSUE-014 (add-to-do not rendering) in the very next follow-up. Fixed ISSUE-015 (tab-nav phantom scrollbar), a real CSS spec quirk. Root-caused and resolved ISSUE-016 ("Gmail operation not allowed") to a wrong-account deployment via elimination (manual editor run reproduced it with no re-auth prompt; fresh consent didn't fix it) rather than guessed. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched — ISSUE-006 in particular was explicitly confirmed NOT incidentally fixed by the Email History rewrite.

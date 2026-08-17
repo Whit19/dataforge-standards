@@ -1,7 +1,7 @@
 # HQ Dashboard — Technical Architecture
 
 **Last Updated:** August 2026  
-**Status:** Unified Sports + School dashboard live, with a Child → Activity linking model. Superseding rationale for anything that changed lives in `DecisionLog.md` (AD-10 through AD-14, PD-03, PD-04) — this doc describes the *current* system; check the Decision Log for *why* it changed.
+**Status:** Unified Sports + School dashboard live, with a Child → Activity linking model and a Category → Child → Activity filter cascade. Superseding rationale for anything that changed lives in `DecisionLog.md` (AD-10 through AD-19, PD-03 through PD-05) — this doc describes the *current* system; check the Decision Log for *why* it changed.
 
 ---
 
@@ -21,9 +21,9 @@
 │  │ generate  │ │ ics&url=  │ │            │ │  001)  │ │           │ │
 │  └───────────┘ └───────────┘ └────────────┘ └────────┘ └───────────┘ │
 │                                                                        │
-│  Global Child filter pill row (All / per-child) sits above the       │
-│  Sports/School switch — filters Calendars, Email History, and        │
-│  Summary (via childIds tagging — see PD-04)                          │
+│  Filter cascade: Category → Child → Activity, three pill rows above  │
+│  the tabs (PD-05). Drives Calendars + Email History identically via  │
+│  activityId; Child also drives Summary via childIds tagging (PD-04)  │
 │                                                                        │
 │  Settings: GAS Web App URL in localStorage only.                     │
 │  Children/Activities/Calendars/senders in localStorage AND synced    │
@@ -46,10 +46,12 @@
 │       date|subject, where the CURRENT scan's tag always wins on a    │
 │       collision (AD-14 — this used to be a bug)                      │
 │    4. generateSummaryWithClaude(category) → merges history + cal     │
-│       events, resolves "[Child — Activity]" labels for context, adds │
-│       a "KNOWN CHILDREN (id = name)" legend, asks Claude to tag each  │
-│       card/timeline/action with childIds → POST to Claude → parse    │
-│       JSON → storeSummary()                                          │
+│       events (each calendar event includes a real {dateISO}, AD-17), │
+│       resolves "[Child — Activity]" labels, adds a "KNOWN CHILDREN   │
+│       (id = name)" legend + todayISO + a no-stale-content rule       │
+│       (AD-16), asks Claude to tag each card/timeline/action with     │
+│       childIds and dateISO → POST to Claude → parse JSON →           │
+│       storeSummary()                                                 │
 │                                                                        │
 │  doGet(?action=history&cat=)      → per-category EmailHistory sheet  │
 │  doGet(?action=ics&url=)          → fetch one .ics feed server-side  │
@@ -95,7 +97,7 @@ There is no separate `school-dashboard.html` / `SchoolEmailScanner.gs` — see D
 
 ---
 
-## Settings Data Model (Decision Log AD-12)
+## Settings Data Model (Decision Log AD-12, AD-15)
 
 ```
 children: [
@@ -106,8 +108,10 @@ activities: [
   {
     id, category: 'sports'|'school', name,
     childIds: [id, ...],           // 0, 1, or many — siblings can share a team/school
-    color, daysBack, daysForward,
+    color,
     senders: [ { match, app, color } ]
+    // daysBack/daysForward REMOVED from here (AD-15) — old saved data may
+    // still have them; they're simply ignored, not actively stripped
   }
 ]
 
@@ -116,6 +120,8 @@ cals: [
 ]
 
 maxEmails: 100
+daysBack: 15     // NEW (AD-15) — global, applies to every Activity
+daysForward: 7   // NEW (AD-15) — global, applies to every Activity
 ```
 
 - A calendar or Activity is linked to child(ren) via `activityId` → `Activity.childIds`, never a direct child tag on the raw sender/calendar row.
@@ -144,11 +150,17 @@ GAS trigger → runDailyBriefing()
 ```
 User clicks Refresh Briefing → generate() in JS
   → calEventsParam() → encodes up to 60 calendar events (current category, current
-    child filter does NOT narrow this — it's the full category's events) as compact JSON
+    child/activity filters do NOT narrow this — it's the full category's events) as
+    compact JSON, each event now including a real computed ISO date (`di`, AD-17)
+    alongside the display string
   → fetch GET /exec?action=generate&cat={active}&cal=[JSON]
-  → GAS: save cal events → scan Gmail → call Claude → store
+  → GAS: save cal events (incl. DateISO column) → scan Gmail → call Claude
+    (prompt includes todayISO + no-stale-content rule, AD-16) → store
   → return { summary, generatedAt } → renderOutput() → cached as lastBriefingData
-    → renderBriefingFiltered() applies the active Child filter client-side
+    → renderBriefingFiltered() applies the active Child filter AND a deterministic
+      isPastISO() backstop client-side (drops any past-dated item regardless of
+      what Claude returned, AD-16) → renderTimelineGrouped() buckets the 7-Day
+      Schedule by day using each item's dateISO
 ```
 
 ### 3. Calendar Loading
@@ -162,8 +174,9 @@ User clicks Load Calendars
   → loadedEvents[] in memory (stale until the next Load Calendars click —
     editing a calendar's Activity link in Settings does NOT retroactively
     update already-loaded events; re-click Load Calendars after relinking)
-  → rebuildTeamFilters() → renderCalendar(), which applies category +
-    child filters together (categoryFilteredEvents() → filteredEvents())
+  → renderActivitySwitch() → renderCalendar(), which applies category +
+    child + activity filters together (categoryFilteredEvents() → filteredEvents(),
+    PD-05 — replaces the old per-calendar-name team filter)
   → [on next Refresh Briefing] → calEventsParam() sends events to GAS
 ```
 
@@ -172,8 +185,10 @@ User clicks Load Calendars
 User opens Email History tab
   → loadHistory() → fetch GET /exec?action=history&cat={active}
   → GAS reads {Cat}EmailHistory sheet → returns JSON array (each row incl. activityId)
-  → renderHistory() → filters by selected app AND (if set) by the active Child,
-    resolving activityId → Activity → childIds
+  → renderHistory() → filters by the active Child (resolving activityId → Activity →
+    childIds) AND the active Activity (direct activityId match) — PD-05, replaces the
+    old per-sender/per-app filter row entirely (ISSUE-006 note: this changed WHAT
+    Email History filters by, not WHEN it refetches — that gap is still open)
 ```
 
 ### 5. Settings Sync
@@ -190,6 +205,19 @@ Manual "☁ Load Settings from Cloud" button
   → pullSettingsFromGas(false) → same fetch, shows a status message either way
 ```
 
+### 6. To-Do List (New, AD-18)
+```
+Add/toggle/delete a To-Do item
+  → loadTodos()/saveTodos() → localStorage['gdhq_todos'] only — NOT synced to GAS,
+    unlike Settings (AD-11). Array of { id, text, done, addedAt }.
+  → renderTodos() re-renders the To-Do tab's DOM
+
+Action Item "+ To-Do" button (Summary tab)
+  → addTodoFromAction(idx) → dedupes by exact text match against existing todos,
+    then calls saveTodos() + renderTodos() (a same-session bug, ISSUE-014, was
+    fixed here — renderTodos() was originally missing after saveTodos())
+```
+
 ---
 
 ## API Contracts
@@ -202,13 +230,13 @@ Manual "☁ Load Settings from Cloud" button
   "summary": {
     "priority": "string",
     "cards": [{ "source": "", "sourceColor": "#hex", "title": "", "body": "", "bullets": [], "tag": "urgent|today|soon|info", "childIds": ["..."] }],
-    "timeline": [{ "date": "Mon Mar 10", "time": "3:30 PM", "event": "", "childIds": ["..."] }],
-    "actions": [{ "text": "string", "childIds": ["..."] }]
+    "timeline": [{ "date": "Mon Mar 10", "dateISO": "2026-03-10", "time": "3:30 PM", "event": "", "childIds": ["..."] }],
+    "actions": [{ "text": "string", "dateISO": "2026-03-10 or empty string", "childIds": ["..."] }]
   },
   "generatedAt": "ISO 8601 string"
 }
 ```
-Note: `actions` were plain strings before the child-tagging change; the dashboard's `renderBriefingFiltered()` accepts both shapes so old cached briefings still render.
+Note: `actions` were plain strings before the child-tagging change; the dashboard's `renderBriefingFiltered()` accepts both shapes so old cached briefings still render. `dateISO` (AD-16) is likewise absent on any briefing cached before this session's change — the dashboard's `isPastISO()`/`renderTimelineGrouped()` treat a missing `dateISO` as "leave alone" (shown under an "Other" bucket, never dropped), not as an error.
 
 **GET /exec?action=generate&cat=&cal=JSON** — Regenerates that category's briefing, returns same shape
 
@@ -230,9 +258,9 @@ Note: `actions` were plain strings before the child-tagging change; the dashboar
 
 ### Calendar Events Compact Format (GET param, sent TO GAS from the dashboard)
 ```json
-[{ "t": "team", "s": "summary", "d": "Mon Mar 10", "h": "3:30 PM", "l": "location" }]
+[{ "t": "team", "s": "summary", "d": "Mon Mar 10", "di": "2026-03-10", "h": "3:30 PM", "l": "location", "a": "activityId" }]
 ```
-Capped at 60 events, max 4000 chars total. Skipped if over limit.
+Capped at 60 events, max 4000 chars total. Skipped if over limit. `di` (AD-17) is the real ISO date from the browser's own `Date` object — GAS stores it in a new `DateISO` sheet column and surfaces it directly to Claude so the model copies it instead of inferring the date from `d`, the display string.
 
 ### Claude Prompt Schema
 Claude is prompted (per category, via `buildSportsPrompt`/`buildSchoolPrompt`) to return ONLY valid JSON:
@@ -240,12 +268,12 @@ Claude is prompted (per category, via `buildSportsPrompt`/`buildSchoolPrompt`) t
 {
   "priority": "string",
   "cards": [{ "childIds": ["..."], "...": "..." }],
-  "timeline": [{ "childIds": ["..."], "...": "..." }],
-  "actions": [{ "text": "...", "childIds": ["..."] }]
+  "timeline": [{ "childIds": ["..."], "dateISO": "YYYY-MM-DD", "...": "..." }],
+  "actions": [{ "text": "...", "dateISO": "YYYY-MM-DD or empty string", "childIds": ["..."] }]
 }
 ```
 Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): `urgent` | `today` | `soon` | `exam` | `info`.  
-`childIds` must use only the exact ids from the `KNOWN CHILDREN (id = name)` legend given in the prompt; an empty array means general/unclear, and the dashboard treats that as "show under every filter."
+`childIds` must use only the exact ids from the `KNOWN CHILDREN (id = name)` legend given in the prompt; an empty array means general/unclear, and the dashboard treats that as "show under every filter." `dateISO` (AD-16) must never describe a date already fully passed relative to the prompt's `todayISO` — enforced both by an explicit prompt rule and, since model instruction-following isn't guaranteed, a deterministic client-side `isPastISO()` filter that drops any past-dated item regardless of what Claude returned. For calendar-sourced timeline items, Claude is instructed to copy `dateISO` directly from the CALENDAR EVENTS section (AD-17) rather than compute it.
 
 ---
 
@@ -263,6 +291,8 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
 | Inline `on*=""` handlers run in a `with(document)` scope | Bare identifiers matching DOM built-ins (`children`, `removeChild`, etc.) silently resolve to the wrong object | Avoid those names for globals referenced inline; see AD-13 |
 | Rolling history sheet merge | Stale tags can persist if merge favors old rows | Fresh scan data always wins on a `date|subject` key collision (AD-14) |
 | localStorage only in browser | Settings lost if cleared, doesn't sync across browsers | GAS-backed Settings sheet sync + "Load Settings from Cloud" (AD-11) |
+| To-Do list is localStorage-only | Doesn't sync across browsers/devices, unlike Settings | Deliberate scope cut this session (AD-18) — revisit if cross-device access becomes a real need |
+| Full rolling email history intentionally includes already-passed events | Without a rule, old context reads as current in the briefing | Explicit todayISO + no-stale-content prompt rule, plus a dateISO client-side backstop (AD-16) |
 
 ---
 
@@ -283,3 +313,4 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
 
 - **Session 1 (Mar 2026):** Architecture documented from working Sports HQ MVP.
 - **Session — 2026-08-17:** Rewritten to reflect the Unified dashboard (PD-03), Child→Activity Settings model (AD-12), GAS-side settings sync (AD-11) and ICS fetch (AD-10), and childIds tagging in the Claude schema (PD-04). Retired the old three-proxy ICS waterfall and separate School HQ sections since neither reflects the live system anymore.
+- **Session — 2026-08-17 (later session):** Filter architecture updated to the Category→Child→Activity cascade (PD-05), replacing the old per-calendar-name/per-sender filtering described here previously. Settings Data Model updated for global daysBack/daysForward (AD-15). Calendar Events Compact Format and the Claude Prompt Schema both updated to add dateISO (AD-16, AD-17). Added a new To-Do data flow section (AD-18), entirely separate from the briefing's own regenerated `actions` array.

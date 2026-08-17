@@ -1,6 +1,6 @@
 # HQ Dashboard — Best Methods
 
-**Last Updated:** August 2026  
+**Last Updated:** 2026-08-17  
 **Purpose:** Hard-won lessons learned during development. Read this before writing any code for this project. Prevents re-making known mistakes.
 
 ---
@@ -308,9 +308,48 @@ delete settingsObj.apiKey;
 
 ---
 
+## Additions — Session 2026-08-17 (later session)
+
+Three more lessons, same append-only convention as the section above: numbered to continue the existing sequence (next available was BM-19), not physically inserted into the topical sections above.
+
+---
+
+### BM-19 — Always Deploy From the Gmail-Owning Google Account
+
+**Rule:** Confirm you're logged into `tjunker9@gmail.com` before touching Deploy in the Apps Script editor — every time, not just the first time.
+
+**Why:** Apps Script's "Execute as: Me" permanently binds a Web App deployment to whichever Google account was logged in at the moment Deploy was clicked — not to the script project itself. Deploying from a different account (a different Chrome profile, a work/school account, etc.) silently redirects every `GmailApp` call to that account's inbox instead. There's no error at deploy time. It only surfaces later, as `Exception: Gmail operation not allowed`, when a Gmail-touching action (like Refresh Briefing) actually runs — and even manually running the function in the Apps Script editor from the wrong account reproduces the same error with no consent prompt, which makes it look like an auth bug rather than a wrong-account deployment.
+
+**Diagnosis method that worked:** ruled out causes in order rather than guessing — (1) ran the function manually in the editor, got the identical error with no fresh consent screen, which ruled out a stale/revoked token; (2) checked Google Account → linked apps, found full Gmail scope freshly granted, which ruled out missing consent; (3) only then found the actual mismatch — the deploying account wasn't the Gmail-owning account.
+
+**Where this bit us:** see IssuesTracker ISSUE-016 and DecisionLog AD-19.
+
+---
+
+### BM-20 — Deterministic Backstops for Anything the Prompt Asks the Model to Compute
+
+**Rule:** Whenever a Claude prompt asks for a structured field the model has to derive (not just report) — a child-id tag, a computed date — treat the prompt instruction as a first line of defense, not the only one. Add a matching client-side check that discards or corrects results that violate the rule, regardless of what the model returned.
+
+**Why:** This project has now hit this pattern three times independently: ISSUE-010's childIds (a card might get tagged to the wrong kid, or not tagged at all), and this session's ISSUE-011/ISSUE-013 (a past-dated item or a wrong calendar date slipping through despite an explicit prompt rule). Model instruction-following is good, not guaranteed — a rule stated once in a prompt is not the same as a rule enforced in code.
+
+**Where this bit us:** `isPastISO()` in `sports-dashboard.html`, added this session as the backstop for the "no stale content" prompt rule — see DecisionLog AD-16.
+
+---
+
+### BM-21 — Don't Ask the Model to Compute What You Already Know Deterministically
+
+**Rule:** If the browser or server already has the real, correct value for something (e.g. a JS `Date` object for a loaded calendar event), pass that value through directly rather than describing it in prose and asking Claude to recompute it.
+
+**Why:** ISSUE-013 was exactly this mistake — calendar events were sent to the prompt as a display string like `"Mon, Aug 17"` (no year), requiring Claude to infer the actual calendar date itself, which it did unreliably (timeline items landed in an undated "Other" bucket instead of their correct day). The fix wasn't a better prompt — it was removing the need for the model to compute the value at all, by sending the real ISO date through in the `?cal=` payload.
+
+**Where this bit us:** `calEventsParam()` / `calSection` construction in `sports-dashboard.html` and `SportsEmailScanner.gs` — see DecisionLog AD-17.
+
+---
+
 ## Session Notes
 
 > Append entries as new lessons are learned. Never delete entries — mark outdated ones as `[Superseded]`.
 
 - **Session 1 (Mar 2026):** File created. BM-01 through BM-15 documented from MVP development.
 - **Session — 2026-08-17:** Added BM-16, BM-17, BM-18 from the Child→Activity Settings rebuild and its two bug fixes. Marked BM-08 `[Superseded by AD-10]` — the ICS proxy waterfall it described was replaced by a server-side GAS fetch. Added dated notes to BM-11 and BM-13 confirming both are still open/unapplied as of this session.
+- **Session — 2026-08-17 (later session):** Added BM-19 (deployment account discipline, from root-causing ISSUE-016), BM-20 and BM-21 (deterministic backstops / don't make the model compute what you already know, from ISSUE-011 and ISSUE-013).

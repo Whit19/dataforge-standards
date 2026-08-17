@@ -1,6 +1,6 @@
 # HQ Dashboard — Decision Log
 
-**Last Updated:** August 2026  
+**Last Updated:** 2026-08-17  
 **Purpose:** Track key architectural, design, and product decisions with rationale.  
 This document helps future sessions avoid relitigating settled questions and understand *why* things were built the way they were.
 
@@ -287,9 +287,88 @@ Each entry has:
 
 ---
 
+### PD-05 — Single Category → Child → Activity Filter Cascade (Replaces Separate Per-Sender / Per-Calendar Filters)
+
+**Decision:** Calendars and Email History previously had their own separate filter rows — Calendars filtered by calendar name (`calName`), Email History by individual sender/app label. Both are now driven by one shared three-tier cascade: Category (Sports/School) → Child → Activity, sitting above the tabs as global pill rows.
+
+**Rationale:** The per-sender chip row in Email History grew to 20+ chips as more senders were configured — unusable. The per-calendar-name row in Calendars had the same problem at smaller scale. Activity (a team or school) is the real unit both senders and calendars already roll up to via `activityId` — filtering by Activity directly is both more useful and inherently bounded (as many chips as configured Activities, not as many as configured senders).
+
+**Alternatives Considered:**
+- Keep per-sender/per-calendar filters but add a "show more" collapse — rejected, still two separate mental models for functionally the same filter
+- Group by sender app label instead of Activity — rejected, doesn't solve the underlying "which team/school" question the user actually has
+
+**Trade-off accepted:** Switching Category or Child now resets the Activity filter back to "All" rather than trying to preserve a selection across incompatible option sets — simplest, least-surprising default.
+
+**Status:** Active.
+
+---
+
+### AD-15 — Global Scan/Briefing Window Instead of Per-Activity
+
+**Decision:** `daysBack` / `daysForward` moved from a field on each Activity to one global setting (`Scan & Briefing Window` in Settings), applied uniformly across every Activity in both categories.
+
+**Rationale:** There was never a real use case for different scan windows per team — it was a leftover from before Activities existed, and it was one more field to fill in on every single Activity card, adding to Settings page sprawl.
+
+**Migration:** On first load after this change, if old per-activity values are present without a new top-level `daysBack`/`daysForward`, the widest of the old values is carried forward automatically as the new global default — nothing narrows silently on upgrade. Implemented once in both GAS `migrateLegacySettings()` and the dashboard's `migrateLegacyLocal()`.
+
+**Status:** Active.
+
+---
+
+### AD-16 — Explicit `todayISO` + "No Stale Content" Prompt Rule, Plus a `dateISO` Field for Deterministic Filtering
+
+**Decision:** Both prompt builders (`buildSportsPrompt`, `buildSchoolPrompt`) now receive `todayISO` explicitly and an instruction to never surface a card/timeline/action item whose date has already passed relative to it. Timeline and action items now also carry a `dateISO` field (YYYY-MM-DD), used by the dashboard to (a) drop any item with a past date client-side regardless of what the model returned, and (b) group the 7-Day Schedule by actual day.
+
+**Rationale:** The app intentionally feeds Claude the full rolling email history for context (AD-09/BM-14 — nothing gets missed), which means old emails describing since-passed events are always present. Without an explicit rule and a deterministic backstop, that intentional design surfaced stale information as if current (ISSUE-011) — confirmed directly: a briefing generated Aug 17 included a volunteer signup for an event that happened Aug 15.
+
+**Alternatives Considered:**
+- Trim the email history window fed to Claude — rejected, defeats the purpose of AD-09/BM-14 (missing real context is worse than including old context, as long as staleness is handled)
+- Rely on the prompt instruction alone, no client-side backstop — rejected, consistent with this project's established practice (see ISSUE-010/PD-04) of not fully trusting model instruction-following for anything filterable deterministically
+
+**Status:** Active. See also BestMethods BM-20.
+
+---
+
+### AD-17 — Calendar Events Now Carry a Real Computed ISO Date, Not Just a Display String
+
+**Decision:** The `?cal=` payload sent from the dashboard to GAS now includes a `di` field (ISO date), sourced directly from the browser's own `Date` object for each loaded calendar event. GAS stores it in a new `DateISO` column on each category's CalendarEvents sheet and surfaces it explicitly in the prompt's CALENDAR EVENTS section as `{dateISO: YYYY-MM-DD}` next to each event. The prompt now instructs Claude to copy that value directly for calendar-sourced items rather than compute it.
+
+**Rationale:** Before this change, calendar events were only described to Claude with a display string like `"Mon, Aug 17"` — no year, no real computed date — requiring Claude to infer the actual calendar date from context. This was unreliable in practice: calendar-derived timeline items (recurring practices, a tee time, a tryout) were landing in an undated "Other" bucket instead of their correct day (ISSUE-013). The fix removes the need for the model to compute something the app already knows for certain.
+
+**Alternatives Considered:**
+- Ask Claude more forcefully to compute the date correctly (stronger prompt wording only) — rejected as the primary fix; the underlying problem is unnecessary model computation, not insufficient instruction
+- Have the dashboard build the entire timeline for calendar-sourced events deterministically, bypassing Claude for that portion — rejected for this pass, since the current design relies on Claude to dedupe/synthesize calendar and email sources together; worth reconsidering only if dateISO issues persist after this fix
+
+**Status:** Active. See also BestMethods BM-21.
+
+---
+
+### AD-18 — To-Do List Is Persistent But Local-Only (Not Synced to GAS)
+
+**Decision:** The new To-Do tab stores items in `localStorage` only, separate from the AI-regenerated briefing content (which is why it's persistent at all — a briefing regenerates on every Refresh, so checkmarks on the briefing's own Action Items would be wiped out constantly).
+
+**Rationale:** Fastest path to a genuinely useful feature this session; syncing would mean extending the GAS Settings-sheet pattern (AD-11) to a new data type, a larger scope than warranted for a same-session addition.
+
+**Trade-off accepted, deliberately not solved this session:** unlike Settings, the To-Do list does not sync across browsers/devices via GAS. Logged in ProjectRoadmap backlog as a future decision, not an oversight.
+
+**Status:** Active. Revisit if cross-device To-Do access becomes a real need.
+
+---
+
+### AD-19 (operational, not code) — Deployment Must Always Come From `tjunker9@gmail.com`
+
+**Decision/finding:** Apps Script's "Execute as: Me" binds a deployment permanently to whichever Google account was logged in at Deploy time. A deployment made from any account other than `tjunker9@gmail.com` (the Gmail inbox actually being scanned) silently breaks all Gmail operations, with no error until a Gmail-touching action is exercised — see IssuesTracker ISSUE-016 for the full diagnosis, which involved ruling out a stale OAuth token and missing consent before landing on the actual cause.
+
+**Rationale for logging this as a decision, not just a bug fix:** there is no code change that prevents this — it's a standing operational rule that needs to survive across sessions and devices, not something a future fix can eliminate.
+
+**Status:** Active. See also BestMethods BM-19.
+
+---
+
 ## Session Notes
 
 > Add entries when decisions are made, revisited, or reversed.
 
 - **Session 1 (Mar 2026):** Log initialized. Decisions AD-01 through AD-09, DD-01 through DD-03, PD-01 through PD-02 documented from MVP state.
 - **Session — 2026-08-17:** School HQ delivered as a Unified dashboard (PD-03, superseding PD-01). Settings rebuilt around a Child → Activity linking model (AD-12) with cloud sync (AD-11, superseding AD-06). ICS fetching moved server-side through GAS (AD-10, superseding AD-05), which also fixed ISSUE-002. Added a global Child filter (PD-04), later extended to the Summary tab via structured `childIds` tagging in Claude's output. Two real bugs found and fixed with root-caused, test-verified diagnoses: a `document`-shadowing bug blocking Add/Edit/Delete Child (AD-13), and a stale-tag bug in the rolling email history merge (AD-14). See IssuesTracker.md for the corresponding closed issues.
+- **Session — 2026-08-17 (later session):** Unified the previously-separate per-sender/per-calendar-name filters into one Category→Child→Activity cascade (PD-05). Moved scan window to a global setting (AD-15). Fixed the briefing surfacing already-passed content, with both a prompt rule and a deterministic client-side backstop (AD-16). Removed the need for Claude to infer calendar dates by passing real computed ISO dates through instead (AD-17), fixing a real bug (ISSUE-013) this exposed. Added a persistent, local-only To-Do list (AD-18). Root-caused and resolved a "Gmail operation not allowed" failure to a wrong-account deployment — logged as a standing operational rule, not a code fix (AD-19). See IssuesTracker.md ISSUE-011 through ISSUE-016 for the corresponding closed issues.

@@ -1,6 +1,6 @@
 # HQ Dashboard — Project Roadmap
 
-**Last Updated:** August 2026  
+**Last Updated:** 2026-08-17  
 **Project:** Family sports + school activity intelligence dashboard  
 **Current Phase:** Phase 3 complete (pivoted); Phase 4 mostly delivered as part of the same work — see notes below.
 
@@ -38,6 +38,13 @@ Incremental improvements to the existing Sports HQ system.
 | "Last refreshed" staleness indicator | Low | Pending |
 | Manual update content included in Claude prompt | Medium | Pending — ISSUE-001 |
 | Sender whitelist UI in Settings (no code edit needed) | Medium | ✅ Done — delivered as part of the Child→Activity Settings rebuild (Decision Log AD-12) |
+| Filter navigation cleanup (single Category→Child→Activity cascade) | Medium | ✅ Done — replaced separate per-sender (Email History) and per-calendar-name (Calendars) filter rows with one shared cascade (PD-05) |
+| Settings Activities: collapse to reduce page length | Medium | ✅ Done — accordion cards, collapsed by default, new activities auto-expand |
+| Days Back / Days Forward: global instead of per-Activity | Low | ✅ Done — one "Scan & Briefing Window" setting, with migration from old per-activity values (AD-15) |
+| Briefing excludes already-passed content | High | ✅ Done — see IssuesTracker ISSUE-011, DecisionLog AD-16 |
+| 7-Day Schedule shows all 7 days, grouped clearly | Medium | ✅ Done — see IssuesTracker ISSUE-012/013 |
+| Interactive To-Do list | Medium | ✅ Done — persistent tab, localStorage-only (AD-18, not yet synced across browsers like Settings is) |
+| Refresh Briefing wait time / timeout handling | Medium | Deferred — see IssuesTracker ISSUE-004, explicitly held for a dedicated session rather than folded into an unrelated fix |
 
 ---
 
@@ -86,7 +93,8 @@ This was originally scoped as a future phase, but landed early and mostly comple
 | Per-kid color coding throughout | 🟡 Partial — children and activities both carry a color, used in the child pills, chip pickers, and calendar dots; not yet audited for full consistency everywhere a kid could visually be represented |
 | Per-kid calendar subscriptions | ✅ Done — calendars link to an Activity, which links to one or more children |
 | Merged family timeline that shows all kids' events together | ✅ Done — the "All" child filter already shows everyone's events together in one weekly view; a dedicated cross-kid timeline widget was never built separately, but the need is met |
-| Claude prompt adapted to mention child names in briefings | ✅ Done, and taken further — cards/timeline/actions now carry a structured `childIds` field (not just prose mentions), so the child filter also works on the Summary tab. See ISSUE-010 for the caveat that this is model output, not guaranteed-deterministic. |
+| Claude prompt adapted to mention child names in briefings | ✅ Done, and taken further — cards/timeline/actions now carry a structured `childIds` field (not just prose mentions), so the child filter also works on the Summary tab. See ISSUE-010 for the caveat that this is model output, not guaranteed-deterministic; the same caveat now also applies to `dateISO` (see ISSUE-011/013). |
+| Third filter tier: which specific team/school | ✅ Done — Activity added as the third cascade level (Category → Child → Activity), replacing the old separate per-sender/per-calendar filter rows entirely (PD-05) |
 
 **Remaining for a clean close-out:** a short polish pass confirming color consistency across every kid-related UI element, and deciding whether a dedicated "family timeline" widget is still wanted now that "All" filter effectively covers it.
 
@@ -127,6 +135,7 @@ Make it properly installable and shareable. Unchanged from original plan — not
 - Nutrition/hydration reminders on game days
 - Photo log for game memories
 - Rework the Manual Updates tab to be Activity-driven instead of a hardcoded app list, and actually wire it into the prompt (folds ISSUE-001 and the stale-tab problem into one pass)
+- Sync the To-Do list to GAS (like Settings does, AD-11) so it travels across browsers instead of being localStorage-only per device (see AD-18)
 
 ---
 
@@ -136,3 +145,4 @@ Make it properly installable and shareable. Unchanged from original plan — not
 
 - **Session 1 (Mar 2026):** Established roadmap. Phase 1 confirmed complete.
 - **Session — 2026-08-17:** Phase 3 marked complete, with a documented architectural pivot (unified dashboard instead of separate School system — Decision Log PD-03). Phase 4 (Kid Profiles) turned out to be mostly delivered as a side effect of the same work; marked accordingly with an honest partial on per-kid color-consistency polish. Phase 2's sender-whitelist item is done. Manual Updates (ISSUE-001) remains the most notable unfinished Phase 1/2 item, and now has an extra wrinkle (its hardcoded app list doesn't match the new Activity/sender model) worth fixing in the same pass.
+- **Session — 2026-08-17 (later session):** Significant Phase 2 UX pass: unified filtering into one Category→Child→Activity cascade (also closes out the last piece of Phase 4's "which team/school" filtering), collapsed Settings Activities into an accordion, moved scan window to a global setting. Separately, fixed a real accuracy problem — the briefing was surfacing already-past content from old emails — plus the day-grouping fix that came out of that work and the calendar-date bug it exposed along the way. Added a persistent To-Do list as a new small feature (not originally scoped, but a direct, low-cost extension of the Action Items work). Deliberately deferred the Refresh Briefing timeout/speed question (ISSUE-004) to its own future session rather than rushing a fix. Also resolved a deployment/process issue (ISSUE-016, wrong Google account) that isn't roadmap-relevant on its own but is now documented as a standing operational rule in BestMethods (BM-19) and DecisionLog (AD-19).

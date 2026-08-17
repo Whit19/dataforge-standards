@@ -1,6 +1,6 @@
 # HQ Dashboard — Best Methods
 
-**Last Updated:** June 2026  
+**Last Updated:** August 2026  
 **Purpose:** Hard-won lessons learned during development. Read this before writing any code for this project. Prevents re-making known mistakes.
 
 ---
@@ -125,26 +125,28 @@ if (dtRaw.endsWith('Z')) {
 
 ---
 
-### BM-07 — Normalize .ics URLs Before Proxying
+### BM-07 — Normalize .ics URLs Before Handing Them Off for Fetching
 
-**Rule:** Always run ICS URLs through `normalizeIcsUrl()` before passing to `fetchViaProxy()`.
+**Rule:** Always run ICS URLs through `normalizeIcsUrl()` before passing them along to be fetched.
 
 **Why:** Three common URL problems to catch:
 1. `webcal://` → replace with `https://`
 2. Google Calendar HTML embed URLs → convert to `.ics` format
 3. TeamSnap `http://ical-cdn.teamsnap.com` → upgrade to `https://`
 
-Without normalization, proxies will either reject the URL or return HTML instead of ICS data.
+Without normalization, the fetch will either be rejected or return HTML instead of ICS data. **[Still applies]** — this step still runs before the URL is sent to GAS's `action=ics` endpoint (see BM-08 for how the fetch itself changed).
 
 ---
 
 ### BM-08 — Proxy Waterfall: allorigins → corsproxy.io → codetabs
 
-**Rule:** Always try proxies in this order. Don't skip to a later proxy unless the earlier one returns a non-ICS response.
+**Status:** `[Superseded by AD-10]` — kept here for history; do not reintroduce this pattern.
 
-**Why:** allorigins.win has the best reliability but caches aggressively. corsproxy.io is less cached but less stable. codetabs is the most reliable fallback but slowest. The waterfall balances freshness vs. resilience.
+**Original rule:** Always try proxies in this order for fetching `.ics` calendar data from the browser. allorigins.win had the best reliability but cached aggressively; corsproxy.io was less cached but less stable; codetabs was the slowest but most reliable fallback.
 
-**Known limitation:** allorigins may serve stale ICS data (up to a few hours old). If a user reports missing recent events, try adding a cache-busting query param to the ICS URL: `?_cb=${Date.now()}`.
+**Why it was replaced:** This became the dashboard's biggest reliability problem in practice. A direct fetch test against each proxy showed allorigins.win timing out and corsproxy.io no longer proxying the old query format at all (returning its own marketing homepage instead of calendar data) — the API had changed out from under the integration with no warning. Calendar `.ics` fetching now happens server-side through GAS's `UrlFetchApp` (`doGet(?action=ics&url=...)`), which has no CORS restriction and doesn't depend on any third party's uptime or API stability. See DecisionLog AD-10.
+
+**Lesson to keep even though the specific proxies are gone:** when a browser-side integration depends on a public, unauthenticated third-party proxy for something core to the app, budget for it breaking silently and prefer routing through your own server-side code (GAS, in this stack) if that's an option.
 
 ---
 
@@ -186,7 +188,7 @@ async function generate() {
 }
 ```
 
-**Status:** This is ISSUE-006 — a known one-line fix not yet applied.
+**Status:** Still open as of 2026-08-17 — reconfirmed by reading the current `generate()` function; the reset is still not present. This is IssuesTracker ISSUE-006, a known one-line fix not yet applied.
 
 ---
 
@@ -195,6 +197,8 @@ async function generate() {
 **Rule:** When the direct GAS fetch fails and you fall back to the allorigins.win proxy, use only `?action=generate` — not the full URL with `cal=` param.
 
 **Why:** The allorigins proxy has its own URL length limits. A long `cal=` param appended to an already-encoded URL can cause the proxy to reject or truncate the request. Calendar events were already sent to GAS in a recent generate call and are stored in the CalendarEvents sheet, so omitting the param is acceptable.
+
+**Note (2026-08-17):** This allorigins fallback is unrelated to BM-08's now-removed ICS proxy waterfall — it's a separate, still-active fallback purely for reaching the `/exec` endpoint itself when a direct fetch fails. Don't confuse the two.
 
 ---
 
@@ -221,15 +225,17 @@ const manualSections = [
 // Encode and send as ?manual= param (watch URL length)
 ```
 
+**Note (2026-08-17):** Still open, and now has an added wrinkle — the hardcoded 7-app list above (TeamSnap/SportsEngine/GameChanger/GroupMe/Playmetrics/League/Carpool Kids) predates the Child→Activity/sender model (DecisionLog AD-12) and no longer necessarily matches what the user has actually configured as senders. When this gets fixed, rebuild the tab to generate one section per configured Activity instead of a hardcoded app list — don't just wire the existing hardcoded textareas into the prompt as-is.
+
 ---
 
-### BM-14 — Briefing Should Use Full 15-Day Email History, Not Just Latest Scan
+### BM-14 — Briefing Should Use Full Rolling Email History, Not Just Latest Scan
 
-**Rule:** `generateSummaryWithClaude()` must merge the current scan rows with the full `EmailHistory` sheet before building the Claude prompt.
+**Rule:** `generateSummaryWithClaude()` must merge the current scan rows with the full rolling `EmailHistory` sheet before building the Claude prompt.
 
-**Why:** The daily scan only covers emails from the last 15 days, but if the GAS runs right after midnight, many of those emails were already in the history from the previous run. More importantly, a game confirmed 10 days ago won't be in today's scan results if it's outside the immediate window. The history merge ensures all context is included.
+**Why:** The daily scan only covers emails from the last N days, but if the GAS runs right after midnight, many of those emails were already in the history from the previous run. More importantly, a game confirmed 10 days ago won't be in today's scan results if it's outside the immediate window. The history merge ensures all context is included.
 
-This is already implemented — keep it. Do not "simplify" by removing the history merge.
+This is already implemented — keep it. Do not "simplify" by removing the history merge. See BM-16 below for a real bug that was hiding inside this merge.
 
 ---
 
@@ -245,6 +251,61 @@ This is already implemented — keep it. Do not "simplify" by removing the histo
 
 If you need to reference the key location in docs: write `[see GAS script top-of-file constant ANTHROPIC_API_KEY]`.
 
+**See also BM-18** for a related, newer risk: the key leaking through a *runtime data store* (a Settings sheet) rather than a *committed file*.
+
+---
+
+## Additions — Session 2026-08-17
+
+Three new lessons from this session's Child→Activity Settings rebuild and the two bugs it surfaced. Numbered to continue the existing sequence (next available was BM-16); not physically inserted into the sections above, per this file's append-only convention — see the "See also" links above for where they connect to existing entries.
+
+---
+
+### BM-16 — Rolling History/Log Sheet Merges Must Let the Latest Scan Win, Not the First-Seen Row
+
+**Rule:** When merging fresh scan results into a rolling, deduped sheet (e.g. `updateHistorySheet()`), key the merge by a stable identity (e.g. `date|subject`) and let the **current** scan's row overwrite any existing row with the same key — never let whichever row was written first win permanently.
+
+**Why:** A full re-scan (like `scanEmails()`) already recomputes every field correctly for the entire lookback window on every single run — it's not incremental. If the merge instead favors "whatever's already on the sheet" on a key collision, any field that was wrong the first time a row was written (e.g. an `ActivityId` assigned before Settings was fully configured) gets stuck that way forever, silently, with no error, because that row will never look "new" again.
+
+**Symptom if forgotten:** a feature built on top of that sheet (here: per-child email filtering) appears "half broken" in a confusing pattern — correct for anything written after a config fix, wrong for everything written before, with no obvious cause from the outside.
+
+```javascript
+const merged = new Map();
+existing.forEach(r => merged.set(key(r), r));
+newRows.forEach(r => merged.set(key(r), r)); // fresh scan wins on collision
+```
+
+**Where this bit us:** `updateHistorySheet()` in `SportsEmailScanner.gs`, after the Child→Activity model shipped — see DecisionLog AD-14 and IssuesTracker ISSUE-009.
+
+---
+
+### BM-17 — Bare Identifiers in Inline `onclick=`/`oninput=""` Handlers Can Silently Resolve to `document`/`window`, Not Your Own Globals
+
+**Rule:** Never name a page-level global variable or function `children`, `removeChild`, `name`, `open`, `close`, `history`, `top`, `self`, `location`, `status`, or any other real `document`/`window` property — especially one that will ever be referenced as a **bare identifier** inside an inline `onclick=`/`oninput=`/`onchange=""` HTML attribute string.
+
+**Why:** Per the HTML spec, inline event-handler attributes execute inside an implicit `with(document){ with(form){ with(element){ ... } } }` scope. Real built-ins on those objects (`document.children`, `document.removeChild`, `window.name`, `window.history`, etc.) silently shadow a same-named page-level global — the handler runs with no thrown error in the common case, but quietly mutates the DOM instead of your app's actual state.
+
+**Diagnosis method that worked, fast:** before touching the real codebase, write a two-line isolated repro — a bare HTML page with nothing but the suspect global (`let children = [...]`) and one inline handler mutating it — and check what the handler actually mutated. This confirmed the exact mechanism directly in a couple of minutes, instead of guessing at render-cycle or event-binding theories first.
+
+**Symptom if forgotten:** a form field looks like it accepts input (the native browser textbox visibly updates as you type) but the value never persists anywhere the app's own state can see it; a delete/remove button silently does nothing, or throws `Cannot set properties of undefined` for anything past the very first item in a list.
+
+**Where this bit us:** `sports-dashboard.html`'s Settings tab, Add/Edit/Delete Child — see DecisionLog AD-13 and IssuesTracker ISSUE-008. Fixed by renaming the global array `children` → `kids` and the function `removeChild()` → `deleteChild()`.
+
+---
+
+### BM-18 — Settings That Sync to an Unauthenticated Backend Endpoint Must Explicitly Strip Secrets Before Every Write
+
+**Rule:** Anywhere user-editable settings get serialized and sent to a backend endpoint that has no auth (see AD-07 — GAS Web App Access: "Anyone"), explicitly `delete` any secret field from that object immediately before serialization. Don't rely on "we just never put it there" as the only safeguard.
+
+**Why:** BM-15 already covers not committing the API key to git. This is a distinct, newer risk: once Settings started round-tripping through a GAS-backed Sheet (`action=saveSettings` / `action=getSettings`) so a new browser could pull configuration down without manual re-entry, that Sheet became reachable by anyone who has the Web App URL — same as every other endpoint, because AD-07's whole security model is "the URL is the password." A future field added to the settings object (e.g. by copy-pasting a working block that happens to include the key) would leak it silently, with no error and no visible symptom until someone actually has the URL and goes looking.
+
+```javascript
+delete settingsObj.ANTHROPIC_API_KEY;
+delete settingsObj.apiKey;
+```
+
+**Where this applies:** `saveSettings()` in `SportsEmailScanner.gs` — see DecisionLog AD-11. Confirmed this delete is present and correctly placed before the write; recorded here so it's understood as a rule, not just a one-off line of code.
+
 ---
 
 ## Session Notes
@@ -252,3 +313,4 @@ If you need to reference the key location in docs: write `[see GAS script top-of
 > Append entries as new lessons are learned. Never delete entries — mark outdated ones as `[Superseded]`.
 
 - **Session 1 (Mar 2026):** File created. BM-01 through BM-15 documented from MVP development.
+- **Session — 2026-08-17:** Added BM-16, BM-17, BM-18 from the Child→Activity Settings rebuild and its two bug fixes. Marked BM-08 `[Superseded by AD-10]` — the ICS proxy waterfall it described was replaced by a server-side GAS fetch. Added dated notes to BM-11 and BM-13 confirming both are still open/unapplied as of this session.

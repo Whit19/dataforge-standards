@@ -60,12 +60,28 @@ Client-level reference MDs (non-code) stay in OneDrive under
 These are uploaded manually when needed; they are not fetched via URL.
 
 ### 3b. Fetching docs at session start
-Claude fetches all docs via `web_fetch` at the start of every session using the
-raw GitHub URLs configured in each Claude Project's Instructions field. No manual
-uploads are needed or expected.
+Claude fetches all docs at the start of every session using `curl` via the
+bash tool, using the raw GitHub URLs configured in each Claude Project's
+Instructions field. No manual uploads are needed or expected.
+
+**Do not use `web_fetch` for this.** `raw.githubusercontent.com` is served
+through a CDN that can silently return a stale cached copy of a file for a
+period after a fresh commit — no error, no 404, just old content. This was
+confirmed directly: `web_fetch` returned a doc with a stale "Last updated"
+date immediately after a commit GitHub's own UI already showed as current.
+Cache-busting query params do not fix this — GitHub's CDN ignores
+unrecognized query params on this endpoint. A direct `curl` request from
+the sandbox bypasses the CDN layer that `web_fetch` goes through and
+reliably returns the live file, so it's the standard method — not a
+fallback reached for only when a fetch looks suspicious.
 
 **Raw URL pattern:**
 `https://raw.githubusercontent.com/Whit19/dataforge-standards/main/[project]/[file].md`
+
+**Fetch command:**
+```bash
+curl -s "https://raw.githubusercontent.com/Whit19/dataforge-standards/main/[project]/[file].md"
+```
 
 **Files Claude fetches for every session:**
 
@@ -81,10 +97,12 @@ uploads are needed or expected.
 | `TimeLog.md` | Session time tracking |
 
 **Never start working until all URLs have been fetched and read.**
-If a fetch fails (network error, 404), Claude must stop and tell Tom before proceeding.
+If a fetch fails (network error, 404), Claude must stop and tell Tom before
+proceeding.
 
-The Project Instructions field in each Claude Project contains the full list of URLs
-for that project. Update the URLs there if a file is renamed or moved.
+The Project Instructions field in each Claude Project contains the full
+list of URLs for that project. Update the URLs there if a file is renamed
+or moved.
 
 ### 3c. Session startup prompt template
 Claude fetches all docs automatically from the URLs in Project Instructions.

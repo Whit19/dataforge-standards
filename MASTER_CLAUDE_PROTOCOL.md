@@ -23,7 +23,7 @@ Milwaukee, WI — freelance developer / AI consultant
 | UP Golf PWA | React + Vite + Firebase | [link] |
 | Club Golf | React + Vite + Firebase | [link] |
 | AFAS | Azure Functions + Python + Azure SQL + Power BI | [link] |
-| HQ Dashboard | Google Apps Script + Claude API + Google Sheets | [link] |
+| Kids HQ | Google Apps Script + Claude API + Google Sheets | [link] |
 | MicroSynergies | Node.js + Express + Anthropic API | [link] |
 
 ---

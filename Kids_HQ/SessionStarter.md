@@ -74,13 +74,11 @@ The GAS script creates/uses a Google Sheet named **"Game Day HQ"** with these ta
 
 ---
 
-## GAS Configuration (top of script)
+## GAS Configuration
 
-```javascript
-const ANTHROPIC_API_KEY = 'sk-ant-...'; // your key from console.anthropic.com — set ONLY here, never in Settings
-```
+Secrets (`ANTHROPIC_API_KEY`, `GROUPME_ACCESS_TOKEN`) are read from Apps Script's Script Properties at runtime — never hardcoded as consts. See TechnicalArchitecture.md's "GAS Configuration" section and Decision Log AD-21 for the full pattern and rationale (a hardcoded version of this leaked once — see IssuesTracker ISSUE-017 — don't reintroduce it).
 
-That's the only hardcoded config left. Children, Activities (sport/school, which kid(s), days back/forward), email senders, and calendars are all configured from the dashboard's Settings tab — there is no `SPORTS_SENDERS` array or `DAYS_BACK`/`DAYS_FORWARD` constant to hand-edit anymore.
+Children, Activities (sport/school, which kid(s), days back/forward), email senders, GroupMe groups, and calendars are all configured from the dashboard's Settings tab — there is no `SPORTS_SENDERS` array or `DAYS_BACK`/`DAYS_FORWARD` constant to hand-edit.
 
 ---
 

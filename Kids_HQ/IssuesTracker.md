@@ -1,6 +1,6 @@
 # HQ Dashboard — Data Issues & Bug Tracker
 
-**Last Updated:** 2026-08-17  
+**Last Updated:** 2026-08-18  
 **Purpose:** Track known bugs, data quality issues, edge cases, and open questions that need investigation or fixing.
 
 ---
@@ -289,6 +289,25 @@ This is a standing operational trap, not a one-time fix — deploying from any o
 
 ---
 
+### ISSUE-017 — Anthropic API Key Hardcoded in SportsEmailScanner.gs and Pushed to Remote
+**Severity:** Was 🔴 Critical  
+**Status:** Fixed (2026-08-18)  
+**Filed:** 2026-08-18
+
+**Description:**  
+A live Anthropic API key was committed as a plaintext const (`ANTHROPIC_API_KEY`) in `SportsEmailScanner.gs` and pushed to `origin/master` (commit `b93fa20`) in the project's private GitHub repo — the same repo that also hosts the GitHub Pages-deployed dashboard. Root cause: BestMethods BM-15 had assumed the GAS script wasn't git-tracked at all, so "the key lives safely in Apps Script cloud" no longer held once the file was actually being committed alongside `sports-dashboard.html`.
+
+**Resolution:**  
+1. Rotated the key immediately in the Anthropic Console (old key revoked, new key issued) — done regardless of the repo's actual public/private visibility, since a private repo isn't a durable secret boundary (see BestMethods BM-23)
+2. Migrated both `ANTHROPIC_API_KEY` and the newly-added `GROUPME_ACCESS_TOKEN` from hardcoded consts to Apps Script's Script Properties (see Decision Log AD-21) — closes the root cause, not just this one instance
+3. Scrubbed the leaked commit from git history via `git-filter-repo` + force-push; verified `b93fa20` is unreachable from any local or remote ref, and `origin/master`'s current copy of the file contains no key string
+4. Recommended, not yet actioned: a `gitleaks` pre-commit hook to catch this class of mistake before a commit is even made (see BestMethods BM-24)
+
+**Notes:**  
+History scrubbing was treated as hygiene, not the primary fix — rotation is what actually neutralizes a leaked credential, regardless of how "buried" it later becomes in git history.
+
+---
+
 ## Closed / Won't Fix Issues
 
 ---
@@ -331,3 +350,4 @@ Run these checks periodically or after any GAS / dashboard update:
 - **Session 1 (Mar 2026):** Tracker initialized. ISSUE-003 already fixed. ISSUE-001 is the highest priority open item.
 - **Session — 2026-08-17:** ISSUE-002 fixed (GAS-side ICS fetch, see AD-10). Two new critical/high bugs found, root-caused, fixed, and verified with automated tests: ISSUE-008 (child add/delete silently broken by a DOM-shadowing collision) and ISSUE-009 (email history never re-tagged after Settings reorg). Added ISSUE-010 to track the new AI-dependent child-tagging feature as a monitoring item, not a guaranteed-correct one. ISSUE-001 remains the top open item and now has an added dimension (its hardcoded app list is stale against the Activity/sender model).
 - **Session — 2026-08-17 (later session):** Major filter/navigation UX rework (Category→Child→Activity cascade, Settings accordion, global scan window) shipped no new bugs on its own. Separately found and fixed ISSUE-011 (stale briefing content) and, as a direct side effect of that fix, ISSUE-012/ISSUE-013 (7-Day Schedule day-grouping and the calendar dateISO bug it exposed) — both root-caused by tracing the actual data flow, not guessed. Added the persistent To-Do feature, then caught and fixed ISSUE-014 (add-to-do not rendering) in the very next follow-up. Fixed ISSUE-015 (tab-nav phantom scrollbar), a real CSS spec quirk. Root-caused and resolved ISSUE-016 ("Gmail operation not allowed") to a wrong-account deployment via elimination (manual editor run reproduced it with no re-auth prompt; fresh consent didn't fix it) rather than guessed. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched — ISSUE-006 in particular was explicitly confirmed NOT incidentally fixed by the Email History rewrite.
+- **Session — 2026-08-18:** Found and fully closed ISSUE-017 (leaked Anthropic API key) end-to-end: rotate → migrate to Script Properties (Decision Log AD-21) → git history scrub → prevention recommendation logged. GroupMe backend integration applied to `SportsEmailScanner.gs`. PWA manifest/service worker/dashboard UI changes drafted, currently uncommitted. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched.

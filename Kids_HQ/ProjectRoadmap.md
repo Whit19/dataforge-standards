@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-08-17  
 **Project:** Family sports + school activity intelligence dashboard  
-**Current Phase:** Phase 3 complete (pivoted); Phase 4 mostly delivered as part of the same work — see notes below.
+**Current Phase:** Phase 3 complete (pivoted); Phase 4 mostly delivered. Phase 5 (GroupMe) and Phase 6 (PWA installability) both now in progress — see notes below.
 
 ---
 
@@ -102,27 +102,31 @@ This was originally scoped as a future phase, but landed early and mostly comple
 
 ## Phase 5 — Enhanced Data Sources 📡
 
-Richer inputs beyond Gmail. Unchanged from original plan — none of this has started.
+Richer inputs beyond Gmail.
 
-| Feature | Notes |
-|---------|-------|
-| Google Calendar sync (direct API) | Replace .ics proxy workaround — note the proxy workaround itself was already replaced by a GAS-side fetch (AD-10); this would be a further step (direct API vs. ICS feed at all) |
-| GroupMe API integration | Pull messages without email delay |
-| Push notifications / SMS | Same-day urgent alerts |
-| Weather injection on game days | AccuWeather or NWS free API |
-| Carpool coordination view | Built from existing Carpool Kids emails |
-| Score/standings auto-fetch | GameChanger or SportsEngine webhook |
+| Feature | Notes | Status |
+|---------|-------|--------|
+| Google Calendar sync (direct API) | Replace .ics proxy workaround — note the proxy workaround itself was already replaced by a GAS-side fetch (AD-10); this would be a further step (direct API vs. ICS feed at all) | Not started |
+| GroupMe API integration | Pull messages without email delay | 🔧 In progress — messages normalized into the existing history sheet, zero prompt changes needed (AD-20); GAS backend (`scanGroupMe()`) and Settings UI drafted, currently uncommitted. Blocked on completing GroupMe's OAuth app-registration flow to obtain a real token + group ID for end-to-end testing |
+| Push notifications / SMS | Same-day urgent alerts | Not started |
+| Weather injection on game days | AccuWeather or NWS free API | Not started |
+| Carpool coordination view | Built from existing Carpool Kids emails | Not started — flagged as the one Phase 5 item likely to need its own UI design pass rather than slotting into the existing card/Activity model |
+| Score/standings auto-fetch | GameChanger or SportsEngine webhook | Not started |
 
 ---
 
 ## Phase 6 — PWA + Distribution 📱
 
-Make it properly installable and shareable. Unchanged from original plan — not started. Currently hosted as a static file (GitHub Pages), which covers "shareable" but not "installable."
+Make it properly installable and shareable from the same single URL on both desktop and mobile.
 
-- PWA manifest, icons, splash screens
-- Service worker for offline summary caching
-- Capacitor wrapper for iOS/Android app store submission (PWABuilder path)
-- Optional: share with other parents (multi-user GAS deployment)
+| Item | Status |
+|------|--------|
+| PWA manifest (`manifest.json`) | 🔧 Drafted, uncommitted |
+| Service worker (`sw.js`) — installability + safe offline fallback, deliberately network-first for the dashboard itself, not full offline caching (AD-22) | 🔧 Drafted, uncommitted |
+| Dashboard `<head>` wiring (manifest link, theme-color, Apple touch icon, SW registration) | Pending |
+| Real branded icon assets (180px Apple touch, 192px, 512px, plus maskable variants) | Pending — no icon art exists yet |
+| Capacitor wrapper for iOS/Android app store submission (PWABuilder path) | Not started |
+| Multi-family distribution (Model A — self-hosted per family) | Decided as the starting approach; setup guide not yet written |
 
 ---
 
@@ -146,3 +150,4 @@ Make it properly installable and shareable. Unchanged from original plan — not
 - **Session 1 (Mar 2026):** Established roadmap. Phase 1 confirmed complete.
 - **Session — 2026-08-17:** Phase 3 marked complete, with a documented architectural pivot (unified dashboard instead of separate School system — Decision Log PD-03). Phase 4 (Kid Profiles) turned out to be mostly delivered as a side effect of the same work; marked accordingly with an honest partial on per-kid color-consistency polish. Phase 2's sender-whitelist item is done. Manual Updates (ISSUE-001) remains the most notable unfinished Phase 1/2 item, and now has an extra wrinkle (its hardcoded app list doesn't match the new Activity/sender model) worth fixing in the same pass.
 - **Session — 2026-08-17 (later session):** Significant Phase 2 UX pass: unified filtering into one Category→Child→Activity cascade (also closes out the last piece of Phase 4's "which team/school" filtering), collapsed Settings Activities into an accordion, moved scan window to a global setting. Separately, fixed a real accuracy problem — the briefing was surfacing already-past content from old emails — plus the day-grouping fix that came out of that work and the calendar-date bug it exposed along the way. Added a persistent To-Do list as a new small feature (not originally scoped, but a direct, low-cost extension of the Action Items work). Deliberately deferred the Refresh Briefing timeout/speed question (ISSUE-004) to its own future session rather than rushing a fix. Also resolved a deployment/process issue (ISSUE-016, wrong Google account) that isn't roadmap-relevant on its own but is now documented as a standing operational rule in BestMethods (BM-19) and DecisionLog (AD-19).
+- **Session — 2026-08-18:** Started Phase 5 (GroupMe integration — backend + Settings UI drafted, blocked on live OAuth credentials) and Phase 6 (PWA manifest + service worker drafted, dashboard wiring and icons still pending). Confirmed the multi-family distribution direction: Model A (self-hosted per family) over a centralized SaaS rebuild, given Google's OAuth verification requirements for the alternative. Separately resolved a critical security incident (leaked Anthropic API key, IssuesTracker ISSUE-017) unrelated to roadmap progress but worth noting here since it delayed feature work this session.

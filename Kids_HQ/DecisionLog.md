@@ -1,6 +1,6 @@
 # HQ Dashboard — Decision Log
 
-**Last Updated:** 2026-08-17  
+**Last Updated:** 2026-08-18  
 **Purpose:** Track key architectural, design, and product decisions with rationale.  
 This document helps future sessions avoid relitigating settled questions and understand *why* things were built the way they were.
 
@@ -365,6 +365,47 @@ Each entry has:
 
 ---
 
+### AD-20 — GroupMe Messages Normalized Into the Existing Email History Shape
+
+**Decision:** GroupMe messages are normalized into the same 6-column row shape already used for email (`Date, From, App, Subject, Body, ActivityId`) and merged into the same rolling `EmailHistory`/`SchoolEmailHistory` sheet via the existing `updateHistorySheet()` — not a new parallel sheet, tab, or prompt section.
+
+**Rationale:** `updateHistorySheet()` already handles fresh-scan-wins merging by key (AD-14). Reusing it means `generateSummaryWithClaude()` and both prompt builders need zero changes for GroupMe content to flow into the same daily briefing — GroupMe just becomes another row source, tagged `App: 'GroupMe'`.
+
+**Alternatives Considered:**
+- A separate `GroupMeHistory` sheet + a second prompt section — rejected as unnecessary duplication of merge/prompt logic for data that's conceptually the same shape ("an update arrived from an app") as email.
+
+**Status:** Active.
+
+---
+
+### AD-21 — Secrets Never Hardcoded as Script Consts; PropertiesService Is the Standard
+
+**Decision:** `ANTHROPIC_API_KEY`, `GROUPME_ACCESS_TOKEN`, and any future script-level secret are read via `PropertiesService.getScriptProperties().getProperty(...)` at runtime, set manually through the Apps Script editor's Project Settings → Script Properties UI — never as a literal string assigned to a const in `SportsEmailScanner.gs`.
+
+**Rationale:** A live Anthropic API key was committed to this file as a plaintext const and pushed to the repo's remote (see IssuesTracker ISSUE-017). BestMethods BM-15 had assumed "the GAS script isn't stored in GitHub" as the safeguard — that assumption didn't hold in practice, since the file is git-tracked (in a private repo, but see BM-23: private isn't a durable secret boundary). PropertiesService removes the secret from any file that could ever be committed, regardless of repo visibility or tracking status.
+
+**Alternatives Considered:**
+- Relying on repo privacy alone — rejected; private repos aren't a durable secret boundary (collaborators, an accidental visibility change, or a compromised GitHub account all bypass it)
+- A `.gitignored` local secrets file — rejected as unnecessary complexity when Apps Script already provides a built-in, git-invisible property store
+
+**Status:** Active. Corrects the implicit assumption behind BM-15 — see BestMethods for the corrected version.
+
+---
+
+### AD-22 — PWA Service Worker Uses Network-First for the Dashboard, Shell-Only Precache
+
+**Decision:** The new service worker (`sw.js`) does not aggressively cache `sports-dashboard.html`. It precaches only the small PWA shell (manifest + icons) and uses a network-first strategy for navigation requests, falling back to a cached/offline message only if genuinely offline with nothing cached yet.
+
+**Rationale:** The dashboard is a single, frequently-changing HTML file redeployed on every GitHub Pages push (AD-04). An aggressively cached service worker risks showing a stale summary or an outdated UI after a deploy — worse than the app simply requiring a live connection, for something this update-frequent.
+
+**Alternatives Considered:**
+- Full offline-first precaching of the dashboard shell — rejected for the staleness risk above
+- No service worker at all — rejected; Chrome/Edge require one with a fetch handler for the "Install App" prompt to be eligible at all
+
+**Status:** Active.
+
+---
+
 ## Session Notes
 
 > Add entries when decisions are made, revisited, or reversed.
@@ -372,3 +413,4 @@ Each entry has:
 - **Session 1 (Mar 2026):** Log initialized. Decisions AD-01 through AD-09, DD-01 through DD-03, PD-01 through PD-02 documented from MVP state.
 - **Session — 2026-08-17:** School HQ delivered as a Unified dashboard (PD-03, superseding PD-01). Settings rebuilt around a Child → Activity linking model (AD-12) with cloud sync (AD-11, superseding AD-06). ICS fetching moved server-side through GAS (AD-10, superseding AD-05), which also fixed ISSUE-002. Added a global Child filter (PD-04), later extended to the Summary tab via structured `childIds` tagging in Claude's output. Two real bugs found and fixed with root-caused, test-verified diagnoses: a `document`-shadowing bug blocking Add/Edit/Delete Child (AD-13), and a stale-tag bug in the rolling email history merge (AD-14). See IssuesTracker.md for the corresponding closed issues.
 - **Session — 2026-08-17 (later session):** Unified the previously-separate per-sender/per-calendar-name filters into one Category→Child→Activity cascade (PD-05). Moved scan window to a global setting (AD-15). Fixed the briefing surfacing already-passed content, with both a prompt rule and a deterministic client-side backstop (AD-16). Removed the need for Claude to infer calendar dates by passing real computed ISO dates through instead (AD-17), fixing a real bug (ISSUE-013) this exposed. Added a persistent, local-only To-Do list (AD-18). Root-caused and resolved a "Gmail operation not allowed" failure to a wrong-account deployment — logged as a standing operational rule, not a code fix (AD-19). See IssuesTracker.md ISSUE-011 through ISSUE-016 for the corresponding closed issues.
+- **Session — 2026-08-18:** Began GroupMe integration (AD-20) and PWA installability plumbing (AD-22). Mid-session, discovered and fully remediated a leaked Anthropic API key: rotated, migrated to Script Properties along with the new GroupMe token (AD-21), and scrubbed from git history. See IssuesTracker ISSUE-017 for the full incident record.

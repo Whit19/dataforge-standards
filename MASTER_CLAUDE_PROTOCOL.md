@@ -1,6 +1,6 @@
 # Master Claude Protocol — DataForge
 **Apply this to every Claude Project and every session. No exceptions.**
-Last updated: 2026-08-16
+Last updated: 2026-08-18
 
 ---
 

@@ -1,6 +1,6 @@
 # HQ Dashboard — Technical Architecture
 
-**Last Updated:** August 2026  
+**Last Updated:** August 18, 2026  
 **Status:** Unified Sports + School dashboard live, with a Child → Activity linking model and a Category → Child → Activity filter cascade. Superseding rationale for anything that changed lives in `DecisionLog.md` (AD-10 through AD-19, PD-03 through PD-05) — this doc describes the *current* system; check the Decision Log for *why* it changed.
 
 ---
@@ -92,8 +92,25 @@
 |------|------|------|--------|
 | `sports-dashboard.html` | Single-file HTML/CSS/JS | Unified Sports + School frontend, incl. Settings UI | ✅ Live |
 | `SportsEmailScanner.gs` | Google Apps Script | Unified Sports + School backend / AI orchestration | ✅ Live |
+| `manifest.json` | Static JSON | PWA web manifest — installability on desktop + mobile from one URL | 🔧 Drafted, uncommitted |
+| `sw.js` | Service Worker | PWA installability + safe offline fallback; deliberately network-first for the dashboard itself (AD-22) | 🔧 Drafted, uncommitted |
 
 There is no separate `school-dashboard.html` / `SchoolEmailScanner.gs` — see Decision Log PD-03 for why that plan was reversed.
+
+---
+
+## GAS Configuration — Script Properties, Not Hardcoded Consts (AD-21)
+
+Both `ANTHROPIC_API_KEY` and `GROUPME_ACCESS_TOKEN` are read at runtime from Apps Script's Script Properties, never assigned as literal strings:
+
+```javascript
+const ANTHROPIC_API_KEY = PropertiesService.getScriptProperties().getProperty('ANTHROPIC_API_KEY');
+const GROUPME_ACCESS_TOKEN = PropertiesService.getScriptProperties().getProperty('GROUPME_ACCESS_TOKEN');
+```
+
+Both values are set manually via the Apps Script editor's **Project Settings (gear icon) → Script Properties** — never through code, never through the dashboard's Settings sync. This is a hard rule, not a preference: an earlier version of this script had `ANTHROPIC_API_KEY` as a hardcoded const, which was committed to git and leaked (see IssuesTracker ISSUE-017). Script Properties keeps the secret out of any file that could ever be committed, regardless of the repo's visibility.
+
+Children, Activities (sport/school, which kid(s), days back/forward), email senders, GroupMe groups, and calendars are all configured from the dashboard's Settings tab — there is no `SPORTS_SENDERS` array or `DAYS_BACK`/`DAYS_FORWARD` constant to hand-edit anymore.
 
 ---
 
@@ -110,6 +127,7 @@ activities: [
     childIds: [id, ...],           // 0, 1, or many — siblings can share a team/school
     color,
     senders: [ { match, app, color } ]
+    groupmeGroups: [ { groupId, name, color } ],  // NEW (AD-20) — parallel to senders, not merged into it
     // daysBack/daysForward REMOVED from here (AD-15) — old saved data may
     // still have them; they're simply ignored, not actively stripped
   }
@@ -178,6 +196,24 @@ User clicks Load Calendars
     child + activity filters together (categoryFilteredEvents() → filteredEvents(),
     PD-05 — replaces the old per-calendar-name team filter)
   → [on next Refresh Briefing] → calEventsParam() sends events to GAS
+```
+
+### 3b. GroupMe Message Scanning (AD-20)
+```
+GAS: scanGroupMe(category) — called from both runDailyBriefing() and
+doGet(?action=generate), immediately after scanEmails(category)
+  → for each Activity in category, for each configured groupmeGroups entry:
+      GET api.groupme.com/v3/groups/{groupId}/messages?token=GROUPME_ACCESS_TOKEN
+      → filter messages by the same global daysBack window as email
+      → normalize each message into the SAME row shape as email:
+        [msgDate, senderName, 'GroupMe', textPreview, fullText, activityId]
+  → updateHistorySheet(category, groupmeRows) — the SAME function email uses,
+    called a second time in the same run; since it always re-reads the sheet
+    fresh and merges newRows on top, this produces the same result as one
+    combined call
+  → generateSummaryWithClaude() and both prompt builders need NO changes —
+    GroupMe messages are indistinguishable from email rows by the time they
+    reach the prompt, other than App: 'GroupMe'
 ```
 
 ### 4. Email History Browsing
@@ -314,3 +350,4 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
 - **Session 1 (Mar 2026):** Architecture documented from working Sports HQ MVP.
 - **Session — 2026-08-17:** Rewritten to reflect the Unified dashboard (PD-03), Child→Activity Settings model (AD-12), GAS-side settings sync (AD-11) and ICS fetch (AD-10), and childIds tagging in the Claude schema (PD-04). Retired the old three-proxy ICS waterfall and separate School HQ sections since neither reflects the live system anymore.
 - **Session — 2026-08-17 (later session):** Filter architecture updated to the Category→Child→Activity cascade (PD-05), replacing the old per-calendar-name/per-sender filtering described here previously. Settings Data Model updated for global daysBack/daysForward (AD-15). Calendar Events Compact Format and the Claude Prompt Schema both updated to add dateISO (AD-16, AD-17). Added a new To-Do data flow section (AD-18), entirely separate from the briefing's own regenerated `actions` array.
+- **Session — 2026-08-18:** GAS Configuration section rewritten for Script Properties, not hardcoded consts (AD-21), following a leaked API key (ISSUE-017). Added GroupMe as a new data source (AD-20): a new 3b data flow, a `groupmeGroups` line in the Settings Data Model, and two new File Inventory rows for the drafted-but-uncommitted PWA files (`manifest.json`, `sw.js`, AD-22).

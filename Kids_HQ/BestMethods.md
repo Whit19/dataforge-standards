@@ -1,6 +1,6 @@
 # HQ Dashboard — Best Methods
 
-**Last Updated:** 2026-08-17  
+**Last Updated:** 2026-08-18  
 **Purpose:** Hard-won lessons learned during development. Read this before writing any code for this project. Prevents re-making known mistakes.
 
 ---
@@ -250,6 +250,8 @@ This is already implemented — keep it. Do not "simplify" by removing the histo
 **Why:** The GAS script is not stored in GitHub — it lives in Google Apps Script cloud. The key is safe there. Any committed file (including documentation) is public or at risk of exposure.
 
 If you need to reference the key location in docs: write `[see GAS script top-of-file constant ANTHROPIC_API_KEY]`.
+
+**Correction (2026-08-18):** The assumption above — "the GAS script is not stored in GitHub" — turned out to be false in practice for this project: `SportsEmailScanner.gs` was in fact git-tracked alongside `sports-dashboard.html` in a private repo, and a live `ANTHROPIC_API_KEY` was committed and pushed as a plaintext const (see IssuesTracker ISSUE-017). The durable fix is BM-22 below — never hardcode the value at all, regardless of where the file lives or how private the repo is believed to be.
 
 **See also BM-18** for a related, newer risk: the key leaking through a *runtime data store* (a Settings sheet) rather than a *committed file*.
 

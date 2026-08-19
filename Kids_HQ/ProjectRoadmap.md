@@ -1,8 +1,8 @@
 # HQ Dashboard — Project Roadmap
 
-**Last Updated:** 2026-08-17  
+**Last Updated:** 2026-08-19  
 **Project:** Family sports + school activity intelligence dashboard  
-**Current Phase:** Phase 3 complete (pivoted); Phase 4 mostly delivered. Phase 5 (GroupMe) and Phase 6 (PWA installability) both now in progress — see notes below.
+**Current Phase:** Phase 3 complete (pivoted); Phase 4 mostly delivered. Phase 5's Google Calendar sync item is done (AD-23); GroupMe integration and Phase 6 (PWA installability) remain in progress — see notes below.
 
 ---
 
@@ -43,7 +43,7 @@ Incremental improvements to the existing Sports HQ system.
 | Days Back / Days Forward: global instead of per-Activity | Low | ✅ Done — one "Scan & Briefing Window" setting, with migration from old per-activity values (AD-15) |
 | Briefing excludes already-passed content | High | ✅ Done — see IssuesTracker ISSUE-011, DecisionLog AD-16 |
 | 7-Day Schedule shows all 7 days, grouped clearly | Medium | ✅ Done — see IssuesTracker ISSUE-012/013 |
-| Interactive To-Do list | Medium | ✅ Done — persistent tab, localStorage-only (AD-18, not yet synced across browsers like Settings is) |
+| Interactive To-Do list | Medium | ✅ Done — persistent tab, now synced across browsers via GAS (AD-24, closes out AD-18) |
 | Refresh Briefing wait time / timeout handling | Medium | Deferred — see IssuesTracker ISSUE-004, explicitly held for a dedicated session rather than folded into an unrelated fix |
 
 ---
@@ -93,7 +93,7 @@ This was originally scoped as a future phase, but landed early and mostly comple
 | Per-kid color coding throughout | 🟡 Partial — children and activities both carry a color, used in the child pills, chip pickers, and calendar dots; not yet audited for full consistency everywhere a kid could visually be represented |
 | Per-kid calendar subscriptions | ✅ Done — calendars link to an Activity, which links to one or more children |
 | Merged family timeline that shows all kids' events together | ✅ Done — the "All" child filter already shows everyone's events together in one weekly view; a dedicated cross-kid timeline widget was never built separately, but the need is met |
-| Claude prompt adapted to mention child names in briefings | ✅ Done, and taken further — cards/timeline/actions now carry a structured `childIds` field (not just prose mentions), so the child filter also works on the Summary tab. See ISSUE-010 for the caveat that this is model output, not guaranteed-deterministic; the same caveat now also applies to `dateISO` (see ISSUE-011/013). |
+| Claude prompt adapted to mention child names in briefings | ✅ Done, and taken further — cards/timeline/actions now carry a structured `childIds` field (not just prose mentions), so the child filter also works on the Summary tab. See ISSUE-010 for the caveat that this is model output, not guaranteed-deterministic; the same caveat now also applies to `dateISO` (see ISSUE-011/013) and, as of 2026-08-19, `activityId` (PD-06, ISSUE-020) — the Activity filter now works on Summary too, not just Calendars/Email History. |
 | Third filter tier: which specific team/school | ✅ Done — Activity added as the third cascade level (Category → Child → Activity), replacing the old separate per-sender/per-calendar filter rows entirely (PD-05) |
 
 **Remaining for a clean close-out:** a short polish pass confirming color consistency across every kid-related UI element, and deciding whether a dedicated "family timeline" widget is still wanted now that "All" filter effectively covers it.
@@ -106,7 +106,7 @@ Richer inputs beyond Gmail.
 
 | Feature | Notes | Status |
 |---------|-------|--------|
-| Google Calendar sync (direct API) | Replace .ics proxy workaround — note the proxy workaround itself was already replaced by a GAS-side fetch (AD-10); this would be a further step (direct API vs. ICS feed at all) | Not started |
+| Google Calendar sync (direct API) | Replaces `.ics` as the briefing's calendar data source entirely, using GAS's native `CalendarApp` — a further step past AD-10 (which moved `.ics` fetching server-side but kept `.ics` itself as the source) | ✅ Done — see DecisionLog AD-23. Scope note: this only replaced the source feeding the *briefing*; the Calendars tab's own week-view UI is still `.ics`-based and untouched — see the new backlog item below for that follow-up |
 | GroupMe API integration | Pull messages without email delay | 🔧 In progress — messages normalized into the existing history sheet, zero prompt changes needed (AD-20); GAS backend (`scanGroupMe()`) and Settings UI drafted, currently uncommitted. Blocked on completing GroupMe's OAuth app-registration flow to obtain a real token + group ID for end-to-end testing |
 | Push notifications / SMS | Same-day urgent alerts | Not started |
 | Weather injection on game days | AccuWeather or NWS free API | Not started |
@@ -139,7 +139,7 @@ Make it properly installable and shareable from the same single URL on both desk
 - Nutrition/hydration reminders on game days
 - Photo log for game memories
 - Rework the Manual Updates tab to be Activity-driven instead of a hardcoded app list, and actually wire it into the prompt (folds ISSUE-001 and the stale-tab problem into one pass)
-- Sync the To-Do list to GAS (like Settings does, AD-11) so it travels across browsers instead of being localStorage-only per device (see AD-18)
+- Extend the Calendars tab to show more than 7 days out and filter by kid/sport/school (user-requested, 2026-08-19) — likely by reusing the new Google-Calendar-scanned, `activityId`-tagged data from AD-23 via a new unbounded-range GAS endpoint, rather than maintaining the separate `.ics` pipeline further. Two options discussed: extend the existing pipeline (removes the now-redundant `.ics` Settings config entirely) vs. leave the two pipelines separate (lower risk, less consolidation). Decision deliberately deferred, not made — see DecisionLog AD-23's Scope note.
 
 ---
 
@@ -151,3 +151,4 @@ Make it properly installable and shareable from the same single URL on both desk
 - **Session — 2026-08-17:** Phase 3 marked complete, with a documented architectural pivot (unified dashboard instead of separate School system — Decision Log PD-03). Phase 4 (Kid Profiles) turned out to be mostly delivered as a side effect of the same work; marked accordingly with an honest partial on per-kid color-consistency polish. Phase 2's sender-whitelist item is done. Manual Updates (ISSUE-001) remains the most notable unfinished Phase 1/2 item, and now has an extra wrinkle (its hardcoded app list doesn't match the new Activity/sender model) worth fixing in the same pass.
 - **Session — 2026-08-17 (later session):** Significant Phase 2 UX pass: unified filtering into one Category→Child→Activity cascade (also closes out the last piece of Phase 4's "which team/school" filtering), collapsed Settings Activities into an accordion, moved scan window to a global setting. Separately, fixed a real accuracy problem — the briefing was surfacing already-past content from old emails — plus the day-grouping fix that came out of that work and the calendar-date bug it exposed along the way. Added a persistent To-Do list as a new small feature (not originally scoped, but a direct, low-cost extension of the Action Items work). Deliberately deferred the Refresh Briefing timeout/speed question (ISSUE-004) to its own future session rather than rushing a fix. Also resolved a deployment/process issue (ISSUE-016, wrong Google account) that isn't roadmap-relevant on its own but is now documented as a standing operational rule in BestMethods (BM-19) and DecisionLog (AD-19).
 - **Session — 2026-08-18:** Started Phase 5 (GroupMe integration — backend + Settings UI drafted, blocked on live OAuth credentials) and Phase 6 (PWA manifest + service worker drafted, dashboard wiring and icons still pending). Confirmed the multi-family distribution direction: Model A (self-hosted per family) over a centralized SaaS rebuild, given Google's OAuth verification requirements for the alternative. Separately resolved a critical security incident (leaked Anthropic API key, IssuesTracker ISSUE-017) unrelated to roadmap progress but worth noting here since it delayed feature work this session.
+- **Session — 2026-08-19:** Closed out Phase 5's Google Calendar sync item (AD-23) — a user-requested architecture change (drop per-team `.ics` maintenance in favor of a direct Google Calendar scan), not originally scoped work. Phase 4's Activity-filter gap on Summary (parallel to the childIds gap already closed) fixed via PD-06. Phase 2's To-Do list item upgraded from localStorage-only to GAS-synced (AD-24, closes AD-18). Added a new backlog item for a longer-range, kid/sport/school-filterable Calendars tab, explicitly deferred rather than built this session. GroupMe (Phase 5) remains blocked on OAuth setup, untouched this session aside from an unconfirmed label/count fix — see IssuesTracker ISSUE-019.

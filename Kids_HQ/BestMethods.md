@@ -257,6 +257,36 @@ If you need to reference the key location in docs: write `[see GAS script top-of
 
 ---
 
+### BM-22 — Secrets Live in PropertiesService, Never as a Hardcoded Const, Regardless of Repo Visibility
+
+**Rule:** Any script-level secret (`ANTHROPIC_API_KEY`, `GROUPME_ACCESS_TOKEN`, or any future one) is read via `PropertiesService.getScriptProperties().getProperty(...)` at runtime, set manually through the Apps Script editor's Project Settings → Script Properties UI — never as a literal string assigned to a const in the `.gs` file itself.
+
+**Why:** BM-15's original safeguard ("the GAS script isn't stored in GitHub") turned out to be a false assumption in practice, not a durable boundary — see the correction above and IssuesTracker ISSUE-017. `PropertiesService` removes the secret from any file that could ever be committed at all, which doesn't depend on remembering the repo is private, remembering to `.gitignore` something, or any other manual discipline that can lapse.
+
+**Where this bit us:** `SportsEmailScanner.gs` — see DecisionLog AD-21.
+
+---
+
+### BM-23 — A Private GitHub Repo Is Not a Durable Secret Boundary
+
+**Rule:** Never treat "the repo is private" as sufficient protection for a secret. Rotate immediately if one leaks into a commit, regardless of the repo's visibility setting, and don't rely on visibility as the primary safeguard going forward.
+
+**Why:** A private repo's protection depends on things that can silently change or be bypassed — a collaborator added later, an accidental visibility toggle, a compromised GitHub account, a forked/cloned copy nobody remembers exists. None of those require the repo to ever go technically "public" for the secret to be exposed. Confirmed as the actual failure mode here: `SportsEmailScanner.gs` was tracked in a private repo the whole time — privacy alone did not prevent the key from being a real leaked credential once committed.
+
+**Where this bit us:** IssuesTracker ISSUE-017; referenced directly in DecisionLog AD-21's rationale.
+
+---
+
+### BM-24 — Recommended, Not Yet Implemented: a `gitleaks` Pre-Commit Hook
+
+**Rule (recommendation, not yet actioned):** Add a `gitleaks` pre-commit hook (or equivalent secret-scanning tool) to this repo so a credential-shaped string is caught *before* a commit is made, not after a push.
+
+**Why:** ISSUE-017's leak wasn't caught until after it was already pushed to the remote — rotation and history-scrubbing are cleanup, not prevention. A pre-commit scanner would have caught the `ANTHROPIC_API_KEY` const before it ever left the local machine.
+
+**Status:** Not yet implemented — logged here as a known gap, not a completed safeguard. Revisit alongside any future GAS/dashboard session that touches secrets handling.
+
+---
+
 ## Additions — Session 2026-08-17
 
 Three new lessons from this session's Child→Activity Settings rebuild and the two bugs it surfaced. Numbered to continue the existing sequence (next available was BM-16); not physically inserted into the sections above, per this file's append-only convention — see the "See also" links above for where they connect to existing entries.
@@ -344,7 +374,43 @@ Three more lessons, same append-only convention as the section above: numbered t
 
 **Why:** ISSUE-013 was exactly this mistake — calendar events were sent to the prompt as a display string like `"Mon, Aug 17"` (no year), requiring Claude to infer the actual calendar date itself, which it did unreliably (timeline items landed in an undated "Other" bucket instead of their correct day). The fix wasn't a better prompt — it was removing the need for the model to compute the value at all, by sending the real ISO date through in the `?cal=` payload.
 
-**Where this bit us:** `calEventsParam()` / `calSection` construction in `sports-dashboard.html` and `SportsEmailScanner.gs` — see DecisionLog AD-17.
+**Where this bit us:** `calEventsParam()` / `calSection` construction in `sports-dashboard.html` and `SportsEmailScanner.gs` — see DecisionLog AD-17. Note as of 2026-08-19: `calEventsParam()` itself was removed entirely when the calendar data source changed (AD-23) — this entry's lesson still stands, it just no longer applies to a `?cal=` payload specifically since that payload no longer exists for the briefing.
+
+---
+
+## Additions — Session 2026-08-19
+
+Three new lessons: BM-25 extends the model-output-reliability pattern (BM-20) to a second tagged field; BM-26 and BM-27 are new lessons from replacing the `.ics` calendar pipeline with a direct Google Calendar scan (DecisionLog AD-23). Same append-only convention as prior session sections.
+
+---
+
+### BM-25 — The Model-Output-Reliability Pattern Extends to Every New Tagged Field, Not Just the First One
+
+**Rule:** When a second (or third) structured field gets added to what Claude is asked to tag on its own output — following the precedent BM-20 established for `childIds` and `dateISO` — give it the exact same treatment: a legend of valid values in the prompt, an explicit "don't guess, empty/blank means unclear" instruction, and a graceful client-side degradation rule (untagged shows under every filter, never disappears) rather than assuming a new field will just work because the pattern worked before.
+
+**Why:** `activityId` (DecisionLog PD-06) is the third field to get this treatment. Each one is a separate opportunity for the model to under-tag, over-tag, or misapply — treating "we already solved this once" as covering the new field too would be assuming reliability that was never actually re-verified for it.
+
+**Where this applies:** `briefingItemMatches()` in `sports-dashboard.html`, extended to check `activityId` alongside `childIds` — see IssuesTracker ISSUE-020 for the corresponding monitoring entry.
+
+---
+
+### BM-26 — Match Strategy Should Follow the Data Source's Actual Structure, Not Be Forced Uniform Across It
+
+**Rule:** When a single system exposes some data through a dedicated, purpose-scoped container (a named calendar that only ever contains one team's events) and other data through a shared, mixed container (a personal calendar with everything in it), don't apply the same matching heuristic to both. Use the container's own identity as the primary signal wherever a dedicated container exists — no content-matching needed there — and reserve content-based matching (title, description, etc.) for the mixed container where no better signal is available.
+
+**Why:** An earlier draft of `scanGoogleCalendar()` used title-only keyword matching everywhere, which would have missed real events on dedicated team calendars whose titles don't happen to mention the team, AND missed events on the personal calendar where the activity name only appears in the description (a ForeTees tee-time confirmation), not the title. Two different pass strategies, matched to two structurally different data sources, caught both cases; one uniform strategy would have caught neither reliably.
+
+**Where this applies:** `scanGoogleCalendar()`'s two-pass design in `SportsEmailScanner.gs` — see DecisionLog AD-23.
+
+---
+
+### BM-27 — A New GAS Built-In Service Needs a Manual One-Time Authorization Run Before the First Deploy
+
+**Rule:** The first time a GAS script calls a built-in service it's never used before (`CalendarApp`, `DriveApp` beyond the existing `getFilesByName` fallback, etc.), run any function containing that call once manually from the Apps Script editor — not via the Web App — and approve the resulting permission prompt, *before* deploying a new version.
+
+**Why:** A Web App request can't interactively prompt an anonymous caller for OAuth consent. If the script calls a not-yet-authorized service from a live `doGet`, it fails silently in a way that's easy to miss: `scanGoogleCalendar()` wraps its `CalendarApp` calls in try/catch and logs a warning rather than throwing, per this project's own established pattern (BM-01's `muteHttpExceptions` philosophy applied one level up) — so `generate` still returns a briefing, just with zero calendar events, no error visible to the person using the dashboard.
+
+**Where this applies:** `CalendarApp.getDefaultCalendar()` / `getAllCalendars()`, first introduced this session — see DecisionLog AD-23 and SessionStarter.md's First-Time Setup step 5.
 
 ---
 
@@ -355,3 +421,5 @@ Three more lessons, same append-only convention as the section above: numbered t
 - **Session 1 (Mar 2026):** File created. BM-01 through BM-15 documented from MVP development.
 - **Session — 2026-08-17:** Added BM-16, BM-17, BM-18 from the Child→Activity Settings rebuild and its two bug fixes. Marked BM-08 `[Superseded by AD-10]` — the ICS proxy waterfall it described was replaced by a server-side GAS fetch. Added dated notes to BM-11 and BM-13 confirming both are still open/unapplied as of this session.
 - **Session — 2026-08-17 (later session):** Added BM-19 (deployment account discipline, from root-causing ISSUE-016), BM-20 and BM-21 (deterministic backstops / don't make the model compute what you already know, from ISSUE-011 and ISSUE-013).
+- **Session — 2026-08-18 (backfilled 2026-08-19 — this entry, and BM-22/23/24 themselves, were referenced by DecisionLog AD-21 and IssuesTracker ISSUE-017 since this date but never actually written into this file until now):** Added BM-22, BM-23, BM-24 from the leaked-API-key incident (rotate → Script Properties migration → git history scrub → prevention recommendation).
+- **Session — 2026-08-19:** Added BM-25 (model-output-reliability pattern extended to `activityId`), BM-26 (matching strategy should follow data-source structure, not be forced uniform), and BM-27 (new GAS service needs a manual one-time authorization run before deploy) — all three from replacing the `.ics` calendar pipeline with a direct Google Calendar scan (DecisionLog AD-23).

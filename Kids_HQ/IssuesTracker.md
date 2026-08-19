@@ -1,6 +1,6 @@
 # HQ Dashboard — Data Issues & Bug Tracker
 
-**Last Updated:** 2026-08-18  
+**Last Updated:** 2026-08-19  
 **Purpose:** Track known bugs, data quality issues, edge cases, and open questions that need investigation or fixing.
 
 ---
@@ -119,6 +119,22 @@ As of the fix landing under Decision Log PD-04, Claude is asked to tag each brie
 Untagged items (`childIds` missing or empty) are treated as "general" and shown under every filter, including a specific child — so a tagging miss makes an item show up too often, never disappear. Verified with an automated test covering: a card tagged for one child, one for another, one explicitly general, and one from an old cached briefing with no `childIds` field at all (pre-dates this change) — all four behaved as expected.
 
 **What to watch for:** if a user reports a card clearly appears under the wrong child (not just "too often"), that's a real tagging-quality issue worth revisiting (e.g. tightening the prompt's rules section), not a code bug.
+
+---
+
+### ISSUE-020 — Google Calendar Matching Depends on Calendar/Event Naming Conventions
+**Severity:** 🟡 Medium  
+**Status:** Monitoring  
+**Filed:** 2026-08-19
+
+**Description:**  
+As of DecisionLog AD-23, the briefing's calendar events come from a two-pass heuristic match (calendar name, then event title, then event description) rather than an explicit per-event link the way `.ics` calendars were tied to an Activity via a dropdown. There's no hard guarantee every real event gets matched, or matched to the correct Activity.
+
+**Known limitation already identified:** calendar-name matching (Pass 1) is a loose bidirectional substring check — a calendar named "WNS Girls Lax Schedule 2…" will NOT match an Activity named "WNS Lax," since neither string is a substring of the other, even though they're clearly the same team to a person.
+
+**Mitigation already in place:** an event matching no configured Activity is dropped rather than shown unassigned — prevents noise, at the cost of possibly under-including rather than over-including.
+
+**What to watch for:** check the GAS Executions log line (`Google Calendar: matched X event(s)...`) after a Refresh Briefing — if a calendar or event you expected to see is missing, the fix is renaming the Activity in Settings to more closely match the calendar's or event's actual wording, not new code. See SessionStarter.md's testing checklist for this session's specific verification steps.
 
 ---
 
@@ -308,6 +324,36 @@ History scrubbing was treated as hygiene, not the primary fix — rotation is wh
 
 ---
 
+### ISSUE-018 — Email History Gave No Visual Indication of Which Activity a Row Belonged To, and Its Found-Count Ignored Active Filters
+**Severity:** Was 🟡 Medium  
+**Status:** Fixed (2026-08-19) — confirmed via screenshot showing correct Activity badges and a filtered count ("18 of 122 email(s) shown")  
+**Filed:** 2026-08-19
+
+**Description:**  
+User reported Email History rows (especially GroupMe messages) as unclear which team/sport they belonged to, even with the Activity filter pill set. Investigated directly rather than assumed: the `activityId` tagging and client-side filtering were both already correct (`renderHistory()` was genuinely filtering by `activeActivityFilter`) — the actual gap was that rows only ever displayed the sender `app` badge, never the resolved Activity name, and the "N email(s) found" status text was set once from the unfiltered total at load time and never updated when the Activity pill changed. A correctly-filtered list that never says so, and never shows *what* it's filtered to, reads as broken even when it isn't.
+
+**Fix Applied:**  
+- `renderHistory()` now shows a second badge resolving `e.activityId` to the Activity's name (or "(unassigned)").
+- The found-count now reads `"{filtered} of {total} email(s) shown"` whenever the active filters narrow the list, instead of always showing the unfiltered total.
+
+**See:** part of the same session's card-header work (DecisionLog PD-07) applying the same "show what this is actually about" principle.
+
+---
+
+### ISSUE-019 — GroupMe Email History Rows Always Labeled Literal "GroupMe" Instead of the Configured Group Label
+**Severity:** Was 🟢 Low  
+**Status:** Fixed (2026-08-19) — confirmed deployed  
+**Filed:** 2026-08-19
+
+**Description:**  
+Email History showed every GroupMe-sourced row with the badge "GROUPME" regardless of which configured GroupMe group it came from — equivalent to showing "EMAIL" instead of a sender's configured label like "Coach Emmett." Root cause: `scanEmails()` uses each sender's configured `app` label via `detectApp()`, but `scanGroupMe()` hardcoded the literal string `'GroupMe'` instead of using that group's own configured `name` (Settings → GroupMe Groups → LABEL). Separately, the Settings "N sources" count on each Activity card only counted `senders.length`, silently omitting `groupmeGroups.length`.
+
+**Fix Applied:**  
+- GAS: `scanGroupMe()` writes `group.name || 'GroupMe'` instead of the literal string.
+- Dashboard: Email History row coloring looks up a matched GroupMe group's own configured color (falling back to the old teal only for legacy rows still carrying the literal label); Settings source count sums `senders.length + groupmeGroups.length`.
+
+---
+
 ## Closed / Won't Fix Issues
 
 ---
@@ -339,7 +385,9 @@ Run these checks periodically or after any GAS / dashboard update:
 - [ ] Email History shows emails from the expected date range, correctly attributed to the right child
 - [ ] Settings tab: test connection shows ✓ Connected
 - [ ] "Load Settings from Cloud" round-trips correctly in a fresh/incognito browser
-- [ ] All .ics URLs still valid (LeagueApps, TeamSnap, Playmetrics tokens don't expire silently)
+- [ ] All .ics URLs still valid (LeagueApps, TeamSnap, Playmetrics tokens don't expire silently) — note: this now only affects the Calendars tab's own week view, not the briefing (see AD-23)
+- [ ] Google Calendar scan: GAS Executions log shows "Google Calendar: matched X event(s)..." with X > 0 after a Refresh Briefing (see ISSUE-020, and SessionStarter.md's testing checklist for the full verification steps)
+- [ ] A To-Do added on one device appears on another after a page reload, confirming AD-24's cross-device sync
 
 ---
 
@@ -351,3 +399,4 @@ Run these checks periodically or after any GAS / dashboard update:
 - **Session — 2026-08-17:** ISSUE-002 fixed (GAS-side ICS fetch, see AD-10). Two new critical/high bugs found, root-caused, fixed, and verified with automated tests: ISSUE-008 (child add/delete silently broken by a DOM-shadowing collision) and ISSUE-009 (email history never re-tagged after Settings reorg). Added ISSUE-010 to track the new AI-dependent child-tagging feature as a monitoring item, not a guaranteed-correct one. ISSUE-001 remains the top open item and now has an added dimension (its hardcoded app list is stale against the Activity/sender model).
 - **Session — 2026-08-17 (later session):** Major filter/navigation UX rework (Category→Child→Activity cascade, Settings accordion, global scan window) shipped no new bugs on its own. Separately found and fixed ISSUE-011 (stale briefing content) and, as a direct side effect of that fix, ISSUE-012/ISSUE-013 (7-Day Schedule day-grouping and the calendar dateISO bug it exposed) — both root-caused by tracing the actual data flow, not guessed. Added the persistent To-Do feature, then caught and fixed ISSUE-014 (add-to-do not rendering) in the very next follow-up. Fixed ISSUE-015 (tab-nav phantom scrollbar), a real CSS spec quirk. Root-caused and resolved ISSUE-016 ("Gmail operation not allowed") to a wrong-account deployment via elimination (manual editor run reproduced it with no re-auth prompt; fresh consent didn't fix it) rather than guessed. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched — ISSUE-006 in particular was explicitly confirmed NOT incidentally fixed by the Email History rewrite.
 - **Session — 2026-08-18:** Found and fully closed ISSUE-017 (leaked Anthropic API key) end-to-end: rotate → migrate to Script Properties (Decision Log AD-21) → git history scrub → prevention recommendation logged. GroupMe backend integration applied to `SportsEmailScanner.gs`. PWA manifest/service worker/dashboard UI changes drafted, currently uncommitted. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched.
+- **Session — 2026-08-19:** Closed ISSUE-018 (Email History Activity display + stale found-count) and ISSUE-019 (GroupMe label/color/source-count), both confirmed. Added ISSUE-020 (Monitoring) for the new Google Calendar matching heuristic introduced by DecisionLog AD-23, which fully replaced the `.ics` pipeline feeding the briefing this session. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched.

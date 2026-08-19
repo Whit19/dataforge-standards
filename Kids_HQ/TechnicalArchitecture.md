@@ -1,7 +1,7 @@
 # HQ Dashboard — Technical Architecture
 
-**Last Updated:** August 18, 2026  
-**Status:** Unified Sports + School dashboard live, with a Child → Activity linking model and a Category → Child → Activity filter cascade. Superseding rationale for anything that changed lives in `DecisionLog.md` (AD-10 through AD-19, PD-03 through PD-05) — this doc describes the *current* system; check the Decision Log for *why* it changed.
+**Last Updated:** August 19, 2026  
+**Status:** Unified Sports + School dashboard live, with a Child → Activity linking model and a Category → Child → Activity filter cascade that now also filters Summary. The briefing's calendar data comes directly from a server-side Google Calendar scan, not `.ics` feeds. Superseding rationale for anything that changed lives in `DecisionLog.md` (AD-10 through AD-24, PD-03 through PD-07) — this doc describes the *current* system; check the Decision Log for *why* it changed.
 
 ---
 
@@ -19,11 +19,17 @@
 │  │ JSON, or  │ │ GAS via   │ │ &cat=      │ │ see    │ │ → senders │ │
 │  │ ?action=  │ │ ?action=  │ │            │ │ISSUE-  │ │ / Calendars│ │
 │  │ generate  │ │ ics&url=  │ │            │ │  001)  │ │           │ │
+│  │ (no cal   │ │ (week-    │ │            │ │        │ │           │ │
+│  │ data sent │ │ view UI   │ │            │ │        │ │           │ │
+│  │ — AD-23)  │ │ ONLY,     │ │            │ │        │ │           │ │
+│  │           │ │ decoupled │ │            │ │        │ │           │ │
+│  │           │ │ from AD-23│ │            │ │        │ │           │ │
 │  └───────────┘ └───────────┘ └────────────┘ └────────┘ └───────────┘ │
 │                                                                        │
 │  Filter cascade: Category → Child → Activity, three pill rows above  │
-│  the tabs (PD-05). Drives Calendars + Email History identically via  │
-│  activityId; Child also drives Summary via childIds tagging (PD-04)  │
+│  the tabs (PD-05). Now drives Calendars + Email History + Summary    │
+│  identically via activityId (PD-06, extending PD-04's childIds-only  │
+│  Summary support)                                                     │
 │                                                                        │
 │  Settings: GAS Web App URL in localStorage only.                     │
 │  Children/Activities/Calendars/senders in localStorage AND synced    │
@@ -37,8 +43,11 @@
 │  Deployed as Web App (Execute as: Me, Access: Anyone)                │
 │                                                                        │
 │  doGet(?action=generate&cat=sports|school)                            │
-│    1. Save cal events from ?cal= param to the category's Calendar    │
-│       Events sheet                                                    │
+│    1. scanGoogleCalendar(category) → reads CalendarApp directly (two-│
+│       pass: named-calendar match, then title/description match on   │
+│       the default calendar) → writes the category's CalendarEvents   │
+│       sheet, same shape as before (AD-23 — replaces the old ?cal=    │
+│       param entirely for this purpose)                                │
 │    2. scanEmails(category) → Gmail search across ALL that category's │
 │       Activities' senders → per-category Emails sheet, tagged with   │
 │       each row's ActivityId                                          │
@@ -47,11 +56,11 @@
 │       collision (AD-14 — this used to be a bug)                      │
 │    4. generateSummaryWithClaude(category) → merges history + cal     │
 │       events (each calendar event includes a real {dateISO}, AD-17), │
-│       resolves "[Child — Activity]" labels, adds a "KNOWN CHILDREN   │
-│       (id = name)" legend + todayISO + a no-stale-content rule       │
-│       (AD-16), asks Claude to tag each card/timeline/action with     │
-│       childIds and dateISO → POST to Claude → parse JSON →           │
-│       storeSummary()                                                 │
+│       resolves "[Child — Activity]" labels, adds "KNOWN CHILDREN"    │
+│       and "KNOWN ACTIVITIES" (id = name) legends + todayISO + a      │
+│       no-stale-content rule (AD-16), asks Claude to tag each card/   │
+│       timeline/action with childIds, activityId (PD-06), and dateISO │
+│       → POST to Claude → parse JSON → storeSummary()                 │
 │                                                                        │
 │  doGet(?action=history&cat=)      → per-category EmailHistory sheet  │
 │  doGet(?action=ics&url=)          → fetch one .ics feed server-side  │
@@ -167,21 +176,38 @@ GAS trigger → runDailyBriefing()
 ### 2. On-Demand Refresh from Dashboard
 ```
 User clicks Refresh Briefing → generate() in JS
-  → calEventsParam() → encodes up to 60 calendar events (current category, current
-    child/activity filters do NOT narrow this — it's the full category's events) as
-    compact JSON, each event now including a real computed ISO date (`di`, AD-17)
-    alongside the display string
-  → fetch GET /exec?action=generate&cat={active}&cal=[JSON]
-  → GAS: save cal events (incl. DateISO column) → scan Gmail → call Claude
+  → fetch GET /exec?action=generate&cat={active} — no calendar data sent by the
+    dashboard at all anymore (AD-23; see 2b below for where calendar data now
+    comes from instead)
+  → GAS: scanGoogleCalendar(category) → scan Gmail → call Claude
     (prompt includes todayISO + no-stale-content rule, AD-16) → store
   → return { summary, generatedAt } → renderOutput() → cached as lastBriefingData
-    → renderBriefingFiltered() applies the active Child filter AND a deterministic
-      isPastISO() backstop client-side (drops any past-dated item regardless of
-      what Claude returned, AD-16) → renderTimelineGrouped() buckets the 7-Day
-      Schedule by day using each item's dateISO
+    → renderBriefingFiltered() applies the active Child AND Activity filters
+      (PD-04, PD-06) AND a deterministic isPastISO() backstop client-side (drops
+      any past-dated item regardless of what Claude returned, AD-16)
+      → renderTimelineGrouped() buckets the 7-Day Schedule by day using each
+        item's dateISO
 ```
 
-### 3. Calendar Loading
+### 2b. Google Calendar Scanning (AD-23)
+```
+GAS: scanGoogleCalendar(category) — called from doGet(?action=generate),
+immediately before scanEmails(category)
+  → Pass 1: CalendarApp.getAllCalendars(), excluding the default calendar
+      → for each calendar whose NAME loosely matches (bidirectional substring)
+        a configured Activity's `name`: include every event on that calendar
+        in the window, tagged with that Activity's id — no per-event check
+  → Pass 2: CalendarApp.getDefaultCalendar().getEvents(start, end)
+      → for each event: match by TITLE against configured Activity names first,
+        then by DESCRIPTION as a fallback (catches e.g. a ForeTees confirmation
+        where the activity name is only in the notes)
+      → no match on either → event is dropped, not included
+  → events sorted by dateISO, capped at 60 → saveCalendarEvents(category, events)
+    — the SAME function and sheet shape the old ?cal= param path always used, so
+    generateSummaryWithClaude()'s calSection prompt-building needed no changes
+```
+
+### 3. Calendar Loading (Calendars tab week view ONLY — see AD-23's Scope note; this no longer feeds the briefing)
 ```
 User clicks Load Calendars
   → for each configured calendar row (name, url, color, activityId):
@@ -195,7 +221,9 @@ User clicks Load Calendars
   → renderActivitySwitch() → renderCalendar(), which applies category +
     child + activity filters together (categoryFilteredEvents() → filteredEvents(),
     PD-05 — replaces the old per-calendar-name team filter)
-  → [on next Refresh Briefing] → calEventsParam() sends events to GAS
+  → these events power ONLY this tab's own week view — as of AD-23, Refresh
+    Briefing no longer reads loadedEvents or sends anything calendar-related to
+    GAS; calEventsParam() was removed entirely
 ```
 
 ### 3b. GroupMe Message Scanning (AD-20)
@@ -241,17 +269,25 @@ Manual "☁ Load Settings from Cloud" button
   → pullSettingsFromGas(false) → same fetch, shows a status message either way
 ```
 
-### 6. To-Do List (New, AD-18)
+### 6. To-Do List (AD-18, synced to GAS as of AD-24)
 ```
 Add/toggle/delete a To-Do item
-  → loadTodos()/saveTodos() → localStorage['gdhq_todos'] only — NOT synced to GAS,
-    unlike Settings (AD-11). Array of { id, text, done, addedAt }.
+  → loadTodos()/saveTodos() → localStorage['gdhq_todos'] AND, as of AD-24,
+    pushTodosToGas() → GET /exec?action=saveTodos&todos=[JSON], fire-and-forget,
+    same last-write-wins pattern as Settings sync (AD-11). Array of
+    { id, text, done, addedAt }.
   → renderTodos() re-renders the To-Do tab's DOM
+
+On page load
+  → pullTodosFromGas(silent) → GET /exec?action=getTodos → overwrites local
+    todos with the cloud copy (via saveTodosLocalOnly(), which does NOT push
+    back up) → renderTodos()
 
 Action Item "+ To-Do" button (Summary tab)
   → addTodoFromAction(idx) → dedupes by exact text match against existing todos,
-    then calls saveTodos() + renderTodos() (a same-session bug, ISSUE-014, was
-    fixed here — renderTodos() was originally missing after saveTodos())
+    then calls saveTodos() (which now also syncs to GAS) + renderTodos() (a
+    same-session bug, ISSUE-014, was fixed here — renderTodos() was originally
+    missing after saveTodos())
 ```
 
 ---
@@ -292,24 +328,24 @@ Note: `actions` were plain strings before the child-tagging change; the dashboar
 
 **POST /exec** — Legacy calendar-events endpoint, retained but unused by the current dashboard
 
-### Calendar Events Compact Format (GET param, sent TO GAS from the dashboard)
+### Calendar Events Sheet Format (written server-side by scanGoogleCalendar(), previously sent as a GET param from the dashboard — AD-23)
 ```json
-[{ "t": "team", "s": "summary", "d": "Mon Mar 10", "di": "2026-03-10", "h": "3:30 PM", "l": "location", "a": "activityId" }]
+{ "summary": "title", "team": "Activity name", "date": "Thu, Aug 20", "time": "3:30 PM or All Day", "location": "location", "activityId": "...", "dateISO": "2026-08-20" }
 ```
-Capped at 60 events, max 4000 chars total. Skipped if over limit. `di` (AD-17) is the real ISO date from the browser's own `Date` object — GAS stores it in a new `DateISO` sheet column and surfaces it directly to Claude so the model copies it instead of inferring the date from `d`, the display string.
+As of AD-23, this is built entirely server-side by `scanGoogleCalendar()` and written directly via `saveCalendarEvents()` — it is no longer sent as a `?cal=` GET param from the dashboard (the old 60-event/4000-char URL-length cap, BM-10, no longer applies here since there's no URL involved; `scanGoogleCalendar()` still caps at 60 for prompt-size reasons, not URL-length ones). `dateISO` is computed directly from each `CalendarApp` event's real start time via `Utilities.formatDate()` — same "pass the real value through, don't make Claude compute it" principle as AD-17 originally established for the old `.ics`-sourced pipeline.
 
 ### Claude Prompt Schema
 Claude is prompted (per category, via `buildSportsPrompt`/`buildSchoolPrompt`) to return ONLY valid JSON:
 ```json
 {
   "priority": "string",
-  "cards": [{ "childIds": ["..."], "...": "..." }],
-  "timeline": [{ "childIds": ["..."], "dateISO": "YYYY-MM-DD", "...": "..." }],
-  "actions": [{ "text": "...", "dateISO": "YYYY-MM-DD or empty string", "childIds": ["..."] }]
+  "cards": [{ "childIds": ["..."], "activityId": "...", "...": "..." }],
+  "timeline": [{ "childIds": ["..."], "activityId": "...", "dateISO": "YYYY-MM-DD", "...": "..." }],
+  "actions": [{ "text": "...", "dateISO": "YYYY-MM-DD or empty string", "childIds": ["..."], "activityId": "..." }]
 }
 ```
 Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): `urgent` | `today` | `soon` | `exam` | `info`.  
-`childIds` must use only the exact ids from the `KNOWN CHILDREN (id = name)` legend given in the prompt; an empty array means general/unclear, and the dashboard treats that as "show under every filter." `dateISO` (AD-16) must never describe a date already fully passed relative to the prompt's `todayISO` — enforced both by an explicit prompt rule and, since model instruction-following isn't guaranteed, a deterministic client-side `isPastISO()` filter that drops any past-dated item regardless of what Claude returned. For calendar-sourced timeline items, Claude is instructed to copy `dateISO` directly from the CALENDAR EVENTS section (AD-17) rather than compute it.
+`childIds` must use only the exact ids from the `KNOWN CHILDREN (id = name)` legend given in the prompt; an empty array means general/unclear, and the dashboard treats that as "show under every filter." `activityId` (PD-06) follows the identical rule against a `KNOWN ACTIVITIES (id = name)` legend — an empty string means general/unclear, same graceful-degradation treatment. `dateISO` (AD-16) must never describe a date already fully passed relative to the prompt's `todayISO` — enforced both by an explicit prompt rule and, since model instruction-following isn't guaranteed, a deterministic client-side `isPastISO()` filter that drops any past-dated item regardless of what Claude returned. For calendar-sourced timeline items, Claude is instructed to copy `dateISO` directly from the CALENDAR EVENTS section rather than compute it — that value now comes from `scanGoogleCalendar()` (AD-23) rather than the old `.ics`-sourced `?cal=` payload (AD-17), but the "pass the real value through" principle is unchanged.
 
 ---
 
@@ -319,7 +355,7 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
 |-----------|--------|----------|
 | CORS blocks browser → Claude API | Can't call Claude from browser | All AI calls go through GAS (AD-01) |
 | CORS blocks browser → GAS (sometimes) | Fetch failures | allorigins.win proxy fallback, `/exec` only |
-| GAS GET URL length limit ~8kb | Can't send unlimited calendar data | Cap events at 60, short keys, 4000 char limit |
+| GAS GET URL length limit ~8kb | Applied to calendar data sent from the browser before AD-23; calendar data is now built entirely server-side (`scanGoogleCalendar()`) and never sent as a GET param, so this constraint no longer applies to calendar events specifically — still relevant for any other data that might be sent this way | Historical: capped events at 60, short keys, 4000 char limit. `scanGoogleCalendar()` still caps at 60, now for Claude prompt-size reasons, not URL-length |
 | GAS execution timeout 6 min | Long Claude calls can fail | 90s client timeout on `action=generate` |
 | ICS feeds may be behind CORS | Raw .ics fetch fails from browser | Fetched server-side via GAS `UrlFetchApp` — no CORS restriction (AD-10) |
 | ICS UTC vs local time | Events appear 4-6 hrs off | Detect `Z` suffix, parse as UTC, JS converts to local (ISSUE-003, fixed) |
@@ -351,3 +387,4 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
 - **Session — 2026-08-17:** Rewritten to reflect the Unified dashboard (PD-03), Child→Activity Settings model (AD-12), GAS-side settings sync (AD-11) and ICS fetch (AD-10), and childIds tagging in the Claude schema (PD-04). Retired the old three-proxy ICS waterfall and separate School HQ sections since neither reflects the live system anymore.
 - **Session — 2026-08-17 (later session):** Filter architecture updated to the Category→Child→Activity cascade (PD-05), replacing the old per-calendar-name/per-sender filtering described here previously. Settings Data Model updated for global daysBack/daysForward (AD-15). Calendar Events Compact Format and the Claude Prompt Schema both updated to add dateISO (AD-16, AD-17). Added a new To-Do data flow section (AD-18), entirely separate from the briefing's own regenerated `actions` array.
 - **Session — 2026-08-18:** GAS Configuration section rewritten for Script Properties, not hardcoded consts (AD-21), following a leaked API key (ISSUE-017). Added GroupMe as a new data source (AD-20): a new 3b data flow, a `groupmeGroups` line in the Settings Data Model, and two new File Inventory rows for the drafted-but-uncommitted PWA files (`manifest.json`, `sw.js`, AD-22).
+- **Session — 2026-08-19:** Major rewrite of the calendar data flow — replaced the `.ics`-sourced `?cal=` GET param pipeline (Data Flow #2) with a new server-side Google Calendar scan (Data Flow #2b, AD-23), and marked Data Flow #3 (Calendar Loading) as now feeding only the Calendars tab's own week view, decoupled from the briefing. Updated the Claude Prompt Schema and system diagram to add `activityId` (PD-06), extending the Category→Child→Activity filter cascade to fully cover Summary for the first time. Updated the Calendar Events API contract section to reflect it's now a server-side-only data shape, not a GET param.

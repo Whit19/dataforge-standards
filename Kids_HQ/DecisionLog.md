@@ -1,6 +1,6 @@
 # HQ Dashboard — Decision Log
 
-**Last Updated:** 2026-08-18  
+**Last Updated:** 2026-08-19  
 **Purpose:** Track key architectural, design, and product decisions with rationale.  
 This document helps future sessions avoid relitigating settled questions and understand *why* things were built the way they were.
 
@@ -406,6 +406,61 @@ Each entry has:
 
 ---
 
+### PD-06 — Activity Filter Extended to Summary via `activityId` Tagging (Same Pattern as PD-04)
+
+**Decision:** Claude's card/timeline/action schema gains an `activityId` field alongside the existing `childIds`, populated from a new `KNOWN ACTIVITIES (id = name)` legend fed into both prompt builders. The dashboard's `briefingItemMatches()` now checks the active Activity filter against it, and `setActivityFilter()` re-renders Summary — previously it only re-rendered Calendars and Email History.
+
+**Rationale:** Reported directly by the user as broken, not as a known limitation to accept — the Activity pill visibly narrowed Calendars and Email History but had no effect on Summary at all, since there was no `activityId` anywhere in the model's output shape to filter on. Same underlying gap PD-04 solved for the Child filter, just one filter tier later.
+
+**Alternatives Considered:**
+- Derive Activity from the card's existing `source` string (e.g. "Coach Emmett") — rejected; sources don't map 1:1 to Activities, and email rows already carry a deterministic `activityId` upstream that the prompt can just pass through instead of asking the model to re-derive it.
+
+**Status:** Active. Same graceful-degradation rule as `childIds` (PD-04): an item with no/unresolved `activityId` shows under every Activity filter rather than disappearing. Treat as "monitoring" quality, not guaranteed, for the same reason as ISSUE-010 — see BestMethods BM-25.
+
+---
+
+### PD-07 — Briefing Card Header Shows "Child — Sport — Source"
+
+**Decision:** Each Summary card's header line now reads `Child — Sport — Source` (e.g. "Whit — MUHS Lax — Coach Emmett") instead of just the source. Any segment Claude didn't tag (no `childIds`, no resolved `activityId`) is omitted rather than shown blank, so a fully-untagged card still degrades to just the source, same as before this change.
+
+**Rationale:** User request, made directly reviewable in a screenshot — with several kids/teams active at once, "Coach Emmett" alone doesn't say which kid or team a card is about without opening it.
+
+**Status:** Active. Depends on PD-06's `activityId` and the existing `childIds` (PD-04) both being present and correctly tagged to show its full form.
+
+---
+
+### AD-23 — Google Calendar Direct Scan Replaces the `.ics` Pipeline for the Briefing
+
+**Decision:** The briefing's `CALENDAR EVENTS` section is no longer fed by the browser-side `.ics` fetch → GAS proxy (`action=ics`) → parse → `&cal=` param pipeline. A new `scanGoogleCalendar(category)` function in `SportsEmailScanner.gs` reads directly from the Google account the script is deployed under (`tjunker9@gmail.com`) via GAS's native `CalendarApp` service, using a two-pass matching strategy:
+- **Pass 1** — named sub-calendars (e.g. "Black Lax," "MUHS Lax - Official Offseason...") whose own calendar *name* loosely matches a configured Activity's `name`: every event on that calendar is included automatically, no per-event check needed.
+- **Pass 2** — the default/personal calendar, where sports/school events are mixed in with everything else: matched by the event *title* first, then the event *description* as a fallback (catches cases like a ForeTees tee-time confirmation where the activity name only appears in the notes/Reservation ID, never the title).
+
+Events matching neither pass are dropped. Writes into the exact same `CalendarEvents` sheet shape `saveCalendarEvents()` has always used, so `generateSummaryWithClaude()`'s prompt-building logic needed zero changes.
+
+**Rationale:** User's own account already aggregates team/school calendars as named sub-calendars via subscription, making per-team `.ics` URL maintenance in Settings redundant work. Reading `CalendarApp` directly also eliminates CORS/proxy dependency entirely for this data path — a further step past AD-10 (which moved `.ics` fetching server-side but kept `.ics` itself as the source).
+
+**Alternatives Considered:**
+- Calendar-name matching only — rejected; several real events (an "Alex - Soccer" personal-calendar entry, a golf tee-time confirmation) don't live on a dedicated named calendar at all, only on the default/personal one.
+- Title-only matching on the default calendar — rejected as the sole default-calendar strategy; a real example (a ForeTees confirmation with "foretees-notification-golf" only in the description, not the title) would have been silently dropped.
+
+**Scope:** This replaces the calendar data source for **the briefing only**. The Calendars tab's own week-view UI (`loadAllCals`, `renderCalendar`, `parseICS`, `fetchIcsViaGas`, and the `.ics` URL fields in Settings) is untouched and still `.ics`-based — see ProjectRoadmap backlog for the deferred decision on whether to consolidate that too.
+
+**Status:** Active. Requires a one-time manual Calendar-access authorization grant per deployment (CalendarApp is a new GAS service for this script) — see SessionStarter.md First-Time Setup. Known matching limitation: a calendar named e.g. "WNS Girls Lax Schedule 2…" won't loosely-match an Activity named "WNS Lax" (neither is a substring of the other) — fix is renaming the Activity to more closely match the calendar name, not new matching code. See BestMethods BM-26.
+
+---
+
+### AD-24 — To-Do List Synced to GAS (Closes Out AD-18)
+
+**Decision:** The To-Do list now syncs to a new `Todos` sheet tab via `getTodos()`/`saveTodos()` GAS functions and matching `action=getTodos`/`action=saveTodos` endpoints, mirroring the existing Settings sync pattern (AD-11) exactly — same fire-and-forget push on every save, same last-write-wins trade-off on collision, same "URL is the password" security model (AD-07) with no additional stripping needed since a to-do item carries no secret data.
+
+**Rationale:** AD-18 deliberately deferred this ("revisit if cross-device access becomes a real need") rather than treating it as an oversight. That need arrived — the user reported adding a to-do on desktop and not seeing it on mobile.
+
+**Alternatives Considered:** None beyond what AD-11 already settled for Settings — this is a direct reuse of that pattern, not a new design decision in its own right.
+
+**Status:** Active. **Supersedes AD-18** — the "local-only" decision there is resolved, not just revisited.
+
+---
+
 ## Session Notes
 
 > Add entries when decisions are made, revisited, or reversed.
@@ -414,3 +469,4 @@ Each entry has:
 - **Session — 2026-08-17:** School HQ delivered as a Unified dashboard (PD-03, superseding PD-01). Settings rebuilt around a Child → Activity linking model (AD-12) with cloud sync (AD-11, superseding AD-06). ICS fetching moved server-side through GAS (AD-10, superseding AD-05), which also fixed ISSUE-002. Added a global Child filter (PD-04), later extended to the Summary tab via structured `childIds` tagging in Claude's output. Two real bugs found and fixed with root-caused, test-verified diagnoses: a `document`-shadowing bug blocking Add/Edit/Delete Child (AD-13), and a stale-tag bug in the rolling email history merge (AD-14). See IssuesTracker.md for the corresponding closed issues.
 - **Session — 2026-08-17 (later session):** Unified the previously-separate per-sender/per-calendar-name filters into one Category→Child→Activity cascade (PD-05). Moved scan window to a global setting (AD-15). Fixed the briefing surfacing already-passed content, with both a prompt rule and a deterministic client-side backstop (AD-16). Removed the need for Claude to infer calendar dates by passing real computed ISO dates through instead (AD-17), fixing a real bug (ISSUE-013) this exposed. Added a persistent, local-only To-Do list (AD-18). Root-caused and resolved a "Gmail operation not allowed" failure to a wrong-account deployment — logged as a standing operational rule, not a code fix (AD-19). See IssuesTracker.md ISSUE-011 through ISSUE-016 for the corresponding closed issues.
 - **Session — 2026-08-18:** Began GroupMe integration (AD-20) and PWA installability plumbing (AD-22). Mid-session, discovered and fully remediated a leaked Anthropic API key: rotated, migrated to Script Properties along with the new GroupMe token (AD-21), and scrubbed from git history. See IssuesTracker ISSUE-017 for the full incident record.
+- **Session — 2026-08-19:** Extended the Activity filter to Summary via `activityId` tagging, mirroring PD-04's `childIds` pattern (PD-06); added a "Child — Sport — Source" briefing card header (PD-07). Fixed Email History's display (Activity name shown per row, found-count reflects active filters) — see IssuesTracker ISSUE-018. Fixed GroupMe rows always showing the literal label "GroupMe" instead of the configured group name, plus a Settings source-count gap that omitted GroupMe groups — see IssuesTracker ISSUE-019. Synced the To-Do list to GAS, closing out AD-18 (AD-24). Replaced the entire `.ics` calendar pipeline feeding the briefing with a direct, server-side Google Calendar scan using hybrid calendar-name + title/description matching (AD-23) — a user-requested architecture change, not a bug fix. Backfilled BestMethods BM-22 through BM-24, which had been referenced by AD-21/ISSUE-017 since 2026-08-18 but never actually written.

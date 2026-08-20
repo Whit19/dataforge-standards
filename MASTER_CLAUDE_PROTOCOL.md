@@ -1,6 +1,6 @@
 # Master Claude Protocol — DataForge
 **Apply this to every Claude Project and every session. No exceptions.**
-Last updated: 2026-08-18
+Last updated: 2026-08-20
 
 ---
 
@@ -18,13 +18,16 @@ Milwaukee, WI — freelance developer / AI consultant
 
 ## 2. Active Projects
 
-| Project | Stack | Notion Page |
-|---------|-------|-------------|
-| UP Golf PWA | React + Vite + Firebase | [link] |
-| Club Golf | React + Vite + Firebase | [link] |
-| AFAS | Azure Functions + Python + Azure SQL + Power BI | [link] |
-| Kids HQ | Google Apps Script + Claude API + Google Sheets | [link] |
-| MicroSynergies | Node.js + Express + Anthropic API | [link] |
+**One repo = one docs folder = one DecisionLog prefix, always.** Client relationships are tracked only in Notion (a Client field/relation on the Projects database) — never encoded in repo names, `dataforge-standards` subfolder names, or DecisionLog prefixes. A single client can have multiple, unrelated projects; each still gets its own row here and its own row in Notion. See Section 13a for what to do when a new project starts under an existing client.
+
+| Project | Client (if applicable) | Stack | Notion Page |
+|---------|------------------------|-------|-------------|
+| UP Golf PWA | — | React + Vite + Firebase | [link] |
+| Club Golf | — | React + Vite + Firebase | [link] |
+| AFAS | — | Azure Functions + Python + Azure SQL + Power BI | [link] |
+| Kids HQ | — | Google Apps Script + Claude API + Google Sheets | [link] |
+
+*(MicroSynergies sub-projects — `ask-the-docs`, `tech-team-wiki`, `knowledge-hub` — are currently inactive. Add rows here individually if/when work resumes, following Section 13a — do not add a single combined "MicroSynergies" row.)*
 
 ---
 
@@ -38,6 +41,7 @@ This allows Claude to fetch docs directly via raw GitHub URLs with no authentica
 ```
 dataforge-standards/                    ← public repo
 ├── MASTER_CLAUDE_PROTOCOL.md           ← root; fetched by all projects
+├── NEW_PROJECT_KICKOFF.md              ← root; used before a project folder exists
 ├── up-golf-pwa/                        ← one subfolder per project
 │   ├── SessionStarter.md
 │   ├── TechnicalArchitecture.md
@@ -74,6 +78,12 @@ unrecognized query params on this endpoint. A direct `curl` request from
 the sandbox bypasses the CDN layer that `web_fetch` goes through and
 reliably returns the live file, so it's the standard method — not a
 fallback reached for only when a fetch looks suspicious.
+
+This fetch mechanic is duplicated directly in each Claude Project's
+Instructions field (not just referenced here), because Instructions are
+guaranteed to be in context at session start — nothing needs to be fetched
+first for Claude to see them. If this section and a Project's Instructions
+field ever disagree, update both together.
 
 **Raw URL pattern:**
 `https://raw.githubusercontent.com/Whit19/dataforge-standards/main/[project]/[file].md`
@@ -304,14 +314,15 @@ Every architectural or product decision gets logged. Format:
 **Status:** Active | Superseded by [ID]
 ```
 
-**Prefixes by project:**
+**Prefixes by project (not by client — see Section 13a):**
 | Project | Prefix |
 |---------|--------|
 | UP Golf | DEC |
 | Club Golf | CGAD |
 | AFAS | AFAS |
 | HQ Dashboard | AD / DD / PD |
-| MicroSynergies | MS |
+
+*When a new project starts under an existing client, it gets its own prefix — never reuses another project's prefix, even under the same client. E.g. if MicroSynergies resumes: `ask-the-docs` → ATD, `tech-team-wiki` → TTW, `knowledge-hub` → KH.*
 
 **Always check the DecisionLog for the next available ID before adding an entry.**
 
@@ -334,17 +345,43 @@ Every bug or deferred item gets logged. Format:
 
 ## 13. New Project Checklist
 
-Run this every time a new project starts:
+Run this every time a new project starts. Use `NEW_PROJECT_KICKOFF.md`
+(root of `dataforge-standards`, alongside this file) as the actual prompt
+to paste into a new Claude.ai chat — it walks through every item below
+interactively and generates the MD files and Project Instructions block
+for you.
 
 - [ ] Create GitHub repo (private) — source code only, no docs folder needed
 - [ ] Create project subfolder in `dataforge-standards` repo — add all 7 standard MD files and commit
 - [ ] Create Claude Project in claude.ai — paste raw GitHub URLs for all 7 docs + master protocol into Project Instructions field
-- [ ] Add project row to Notion Projects database
-- [ ] Add services to Notion Services database (linked to project)
-- [ ] Add `.env` / `local.settings.json` to `.gitignore` before first commit
-- [ ] Confirm no secrets in any committed file
-- [ ] Add local folder path and OneDrive folder path to Notion project row
-- [ ] Set Status to `In Progress`
+- [ ] Confirm `.gitignore` covers `.env`, `local.settings.json`, `node_modules` — do NOT gitignore the whole `.claude` folder if the project uses any project-level Claude Code Skills (see Section 13b); those should stay committed
+- [ ] Add project-level Claude Code Skills if applicable (e.g. `pwa-firebase-rules` for React/Vite/Firebase projects) — see Section 13b
+
+**Handled automatically via the Notion connector (Claude.ai chat only — see Section 17):**
+Claude creates the Notion Projects database row, sets Status to Planning/In Progress,
+adds local folder + OneDrive folder paths, adds the GitHub repo URL, and links
+Services rows, as part of running the kickoff prompt. Confirm the row looks right
+in Notion rather than re-entering it by hand.
+
+### 13a. Multi-project clients
+
+Client relationships never get encoded into repo names, `dataforge-standards`
+subfolder names, or DecisionLog prefixes. A client with multiple projects
+(e.g. MicroSynergies with `ask-the-docs`, `tech-team-wiki`, `knowledge-hub`)
+gets one repo + one docs subfolder + one prefix *per project*, exactly as if
+each were an unrelated client. The only place "this project belongs to this
+client" is recorded is a Client field/relation on the Notion Projects database
+row. Never create a single combined docs folder or repo for "the client" as
+a whole.
+
+### 13b. Claude Code Skills at project setup
+
+Personal skills (`cc-prompt-delivery`, `powershell-windows-rules`,
+`session-docs-protocol`, living in `~/.claude/skills/`) apply automatically
+to every new project — nothing to do. Project-specific skills
+(e.g. `pwa-firebase-rules`) need to be copied into `.claude/skills/` inside
+the new repo and committed, so they're available on any machine, not just
+the one where they were first created.
 
 ---
 
@@ -370,13 +407,33 @@ At session end, Tom will say "Update the docs" — only then generate updates. F
 - `TimeLog.md` — always update (duration + one-sentence summary)
 
 **Also at session end:**
-- [ ] Update `Last Updated` date in Notion project row
+Claude updates the `Last Updated` date on the Notion project row automatically
+via the Notion connector, as part of the same "Update the docs" turn — see
+Section 17. No separate manual step, but this only fires in Claude.ai chat;
+see Section 17 for what to do if a session happened entirely in Claude Code.
+
+---
+
+## 15. What Claude Should Never Do
+
+- **Never update, generate, or modify any MD files unless explicitly told "Update the docs"**
+- **Never make any code changes unless explicitly asked — no proactive fixes, no "while I'm here" edits**
+- Never write sensitive values (keys, tokens, passwords) into any file or chat response
+- Never read sensitive values from screenshots
+- Never start working before all session docs have been fetched via `curl` (not `web_fetch`)
+- Never make multiple speculative code changes at once when debugging
+- Never inline Firestore collection/doc refs outside `firestorePaths.js`
+- Never use `&&` chaining in PowerShell commands
+- Never use `npm install` without `--legacy-peer-deps` on PWA projects
+- Never duplicate information across MD files — reference, don't repeat
+- Never re-litigate a decision that exists in the DecisionLog with an Active status
+- Never encode a client relationship into a repo name, docs folder, or DecisionLog prefix — see Section 13a
 
 ---
 
 ## 16. Session Summary & GitHub Commit Message
 
-At the end of every session, Claude generates both of the following without 
+At the end of every session, Claude generates both of the following without
 being asked — as part of the standard session close:
 
 ### Session Summary
@@ -387,36 +444,50 @@ A 3–5 sentence plain-English summary of what was accomplished. Covers:
 
 ### GitHub Commit Message
 A conventional commit format message ready to paste into GitHub:
+```
 <type>: <short summary line>
 
 <bullet: what changed>
 <bullet: what changed>
 <bullet: why or outcome>
+```
 
-
-**Types:** `feat` (new feature), `fix` (bug fix), `chore` (config/docs/tooling), 
+**Types:** `feat` (new feature), `fix` (bug fix), `chore` (config/docs/tooling),
 `refactor` (code change, no behavior change)
 
 ### When to generate
-Claude generates both automatically when the session end checklist runs — 
+Claude generates both automatically when the session end checklist runs —
 i.e. when Tom says "Update the docs." No separate prompt needed.
 
 ### Also update TimeLog.md
-The TimeLog entry summary line should match the session summary in tone and 
+The TimeLog entry summary line should match the session summary in tone and
 brevity — one sentence capturing the session's main accomplishment.
 
 ---
 
-## 15. What Claude Should Never Do
+## 17. Notion Automation Scope
 
-- **Never update, generate, or modify any MD files unless explicitly told "Update the docs"**
-- **Never make any code changes unless explicitly asked — no proactive fixes, no "while I'm here" edits**
-- Never write sensitive values (keys, tokens, passwords) into any file or chat response
-- Never read sensitive values from screenshots
-- Never start working before all session docs have been fetched via web_fetch
-- Never make multiple speculative code changes at once when debugging
-- Never inline Firestore collection/doc refs outside `firestorePaths.js`
-- Never use `&&` chaining in PowerShell commands
-- Never use `npm install` without `--legacy-peer-deps` on PWA projects
-- Never duplicate information across MD files — reference, don't repeat
-- Never re-litigate a decision that exists in the DecisionLog with an Active status
+Notion is connected via the Notion MCP connector, **in Claude.ai chat only.**
+Claude Code has no access to it — connecting a service in claude.ai does not
+extend to Claude Code, which would need its own separate MCP server setup to
+reach Notion at all. Do not assume a Claude Code session can read or write
+Notion just because chat can.
+
+**Fully automatic, no confirmation needed, whenever these happen in chat:**
+- **Kickoff** (Section 13): create the Projects database row, set Status,
+  add local/OneDrive folder paths, add the GitHub repo URL, link Services rows.
+- **"Update the docs"** (Section 14): update `Last Updated` on the project row,
+  and update Status if the session moved the project to a new phase
+  (e.g. Planning → In Progress, or In Progress → Complete).
+
+**Before the first automatic write in a new area of Notion**, Claude confirms
+the actual database/property names by reading the schema via the connector
+rather than guessing — property names (e.g. "Local Folder" vs "Local Path")
+must match exactly or the write will silently create a new property instead
+of filling the existing one.
+
+**If a session happens entirely in Claude Code** (no round-trip through chat),
+the Notion row does not get updated automatically — there's no connector
+there to do it. Either do a short check-in in chat afterward ("update the
+docs" still triggers the Notion sync even if the code work already happened
+in Claude Code), or update the Notion row by hand for that session.

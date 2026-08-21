@@ -414,6 +414,102 @@ Three new lessons: BM-25 extends the model-output-reliability pattern (BM-20) to
 
 ---
 
+## Additions — Session 2026-08-21
+
+Three new lessons: BM-28 is a calendar-matching gotcha found while
+completing this session's testing checklist; BM-29 and BM-30 are debugging
+techniques discovered while working around an inaccessible Apps Script
+Cloud Logs UI. Same append-only convention as prior session sections.
+
+---
+
+### BM-28 — A Personal Calendar Rename Never Changes What `CalendarApp` Reads for a Calendar You Don't Own
+
+**Rule:** Renaming a subscribed (not owned) calendar via Google Calendar's
+own Settings UI only changes your personal display of that calendar — it
+does not rename the calendar's underlying identity. `CalendarApp.getAllCalendars()`
+always returns the name the calendar's actual owner assigned it, regardless
+of how you've relabeled it in your own view.
+
+**Why:** This session confirmed directly: the "Bavarian Soccer" Activity's
+named-calendar match (AD-23 Pass 1) kept failing even after renaming the
+calendar to "U17/U18 Bavarian Soccer" in Google Calendar's UI. A debug
+dump of `CalendarApp.getAllCalendars()`'s actual returned names showed the
+calendar was still reporting as "U17/U18 Girls Blue" — its real name, set
+by the Playmetrics-synced team calendar's owner, completely unaffected by
+the personal rename. This is the same underlying mechanism already
+described at a symptom level in IssuesTracker ISSUE-020 (the WNS Lax
+naming-mismatch case) — this entry captures the actual cause, not just the
+symptom.
+
+**Where this bit us:** `scanGoogleCalendar()`'s Pass 1 matching in
+`SportsEmailScanner.gs` — see IssuesTracker ISSUE-020's 2026-08-21
+addendum and DecisionLog AD-25 (the `calMatchName` field this lesson
+motivated).
+
+**Takeaway for future matching problems:** if a calendar match fails
+despite a calendar's name visibly matching an Activity in the Google
+Calendar UI, check the ACTUAL name via a debug dump before assuming the
+matching logic itself is broken — the UI name and the API-visible name can
+silently diverge for any calendar you don't own.
+
+---
+
+### BM-29 — When Apps Script Cloud Logs Are Inaccessible, Use the Browser's Network Tab as a Fallback Diagnostic Channel
+
+**Rule:** If the Executions tab's Cloud Logs panel won't expand or load
+(greyed out, unresponsive, "No logs are available" that never resolves),
+add a small temporary debug object to the JSON response `doGet` already
+returns for the request being diagnosed, then inspect it directly via the
+browser's DevTools → Network tab on the dashboard's own request — no Apps
+Script UI involved at all.
+
+**Why:** This session hit a genuinely broken Cloud Logs panel (three-dot
+menu's "Cloud logs" option greyed out, row expansion showing "No logs are
+available for this execution" indefinitely) with no clear cause. Rather
+than keep fighting the GAS UI, a temporary `_debugCalInfo` field added to
+the `action=generate` response — read via DevTools Network tab → find the
+request → Preview tab — gave full visibility in minutes.
+
+**Important caveat confirmed this session:** GAS Web App responses are
+often a 302 redirect to a temporary `googleusercontent.com` URL. The
+`exec?...` request itself may show "Failed to load response data... this
+request was redirected" — the actual JSON body is on the FOLLOWING
+`echo?user_content_key=...` request in the Network list, not the `exec`
+request itself.
+
+**Where this applies:** general debugging technique, not tied to one file
+— used this session to diagnose the Bavarian Soccer calendar-matching
+issue (BM-28). Any temporary debug field added this way must be removed
+in a dedicated follow-up prompt once diagnosis is complete — see
+CC_01_RemoveTempDebug.md from this session as the pattern to follow.
+
+---
+
+### BM-30 — Check Execution Duration Against a Known Benchmark Before Trusting "No Logs Available"
+
+**Rule:** Before concluding a Web App execution's logs are missing or
+broken, check its Duration column first. A `doGet` finishing in roughly
+1–2 seconds is almost certainly the cheap default-read path
+(`?cat=sports`, no `action` param — just returns the already-stored
+Summary sheet) and genuinely has little to log. Only a duration in the
+~30–90+ second range reflects a real `action=generate` run (Gmail scan +
+calendar scan + Claude API call, per BestMethods BM-09's documented
+timeout budget) and is worth chasing logs for.
+
+**Why:** This session repeatedly investigated "why are there no logs" on
+`doGet` executions that turned out to be 1.2–2.7 second default-read
+requests — not because logging was broken, but because those particular
+requests never triggered a real scan or Claude call in the first place. A
+73.517-second row, once identified by duration alone, was the one that
+actually mattered and matched independently-confirmed real generate
+behavior.
+
+**Where this applies:** general Executions-tab triage — check Duration
+before assuming Cloud Logs are broken or missing.
+
+---
+
 ## Session Notes
 
 > Append entries as new lessons are learned. Never delete entries — mark outdated ones as `[Superseded]`.
@@ -423,3 +519,11 @@ Three new lessons: BM-25 extends the model-output-reliability pattern (BM-20) to
 - **Session — 2026-08-17 (later session):** Added BM-19 (deployment account discipline, from root-causing ISSUE-016), BM-20 and BM-21 (deterministic backstops / don't make the model compute what you already know, from ISSUE-011 and ISSUE-013).
 - **Session — 2026-08-18 (backfilled 2026-08-19 — this entry, and BM-22/23/24 themselves, were referenced by DecisionLog AD-21 and IssuesTracker ISSUE-017 since this date but never actually written into this file until now):** Added BM-22, BM-23, BM-24 from the leaked-API-key incident (rotate → Script Properties migration → git history scrub → prevention recommendation).
 - **Session — 2026-08-19:** Added BM-25 (model-output-reliability pattern extended to `activityId`), BM-26 (matching strategy should follow data-source structure, not be forced uniform), and BM-27 (new GAS service needs a manual one-time authorization run before deploy) — all three from replacing the `.ics` calendar pipeline with a direct Google Calendar scan (DecisionLog AD-23).
+- **Session — 2026-08-21:** Added BM-28 (personal calendar renames don't
+  change what CalendarApp reads for calendars you don't own — the real
+  root cause behind the Bavarian Soccer/WNS Lax matching failures), BM-29
+  (Network tab as a fallback diagnostic channel when Cloud Logs UI is
+  inaccessible, including the exec→echo redirect gotcha), and BM-30
+  (check execution duration against known benchmarks before assuming logs
+  are broken) — all three from this session's calendar-scan testing and
+  debugging work.

@@ -5,28 +5,72 @@ Repo: github.com/Whit19/dataforge-standards
 ## ⚠ Deployment Account — Read This First
 Always deploy the Web App from `tjunker9@gmail.com` — that's the account whose Gmail inbox the script actually scans. Deploying from any other Google account silently binds the deployment to that account instead (Apps Script's "Execute as: Me" locks to whoever was logged in at Deploy time), with no error until Refresh Briefing is clicked later. See IssuesTracker ISSUE-016 / DecisionLog AD-19 for the full diagnosis.
 
-## Current Status (as of 2026-08-19)
-**Biggest change this session: the briefing's calendar data source was fully replaced.** The old client-side `.ics` fetch → GAS proxy → parse → `&cal=` param pipeline is gone from the `generate` flow entirely. `SportsEmailScanner.gs` now reads directly from the Google account it's deployed under (`tjunker9@gmail.com`) via GAS's native `CalendarApp` service (`scanGoogleCalendar()`), matching events to Activities in two passes: named sub-calendars matched by their own name (every event on that calendar counts, no per-event check), then the default/personal calendar matched by event title, then event description as a fallback. See DecisionLog AD-23. **This is confirmed deployed** (both the GAS and dashboard halves), but **not yet confirmed working correctly end-to-end** — see the testing checklist below, which is the first thing to do next session. The Calendars tab's own week-view UI is untouched and still `.ics`-based; it's now fully decoupled from the briefing, not removed (see AD-23's Scope note and the new Roadmap backlog item about eventually consolidating it).
+## Current Status (as of 2026-08-21)
+**The Google Calendar scan from AD-23 is now confirmed working end-to-end.**
+All 9 steps of the prior session's testing checklist passed, with one real
+issue found and resolved along the way: the "Bavarian Soccer" and "WNS Lax"
+Activities weren't matching their named Google Calendars because renaming
+a calendar in Google Calendar's own UI only changes Tom's personal display
+of a calendar he doesn't own — CalendarApp still reads the calendar's real
+underlying name. Fixed for now by renaming the Activities to match the
+calendars' actual names (e.g. "Bavarian Soccer" → "U17/U18 Girls Blue").
+A durable fix — a separate `calMatchName` field so the calendar-matching
+term can differ from the display name — is designed and prompted (AD-25)
+but **not yet deployed**.
 
-Also this session: the Activity filter pill now works on the Summary tab, not just Calendars/Email History (`activityId` tagging added to Claude's schema, mirroring how `childIds` already worked — PD-06). Briefing cards now show a "Child — Sport — Source" header (PD-07). Email History shows which Activity each row belongs to and its found-count reflects active filters instead of the unfiltered total (ISSUE-018, fixed, confirmed via screenshot). The To-Do list now syncs across browsers via GAS, closing out AD-18 (AD-24). GroupMe rows no longer show the literal label "GroupMe" — they now show the configured group name, with a matching per-group color and a corrected Settings source count (ISSUE-019, fixed, confirmed deployed).
+Also this session: found and fixed a stale `scanSportsEmails` Time-Driven
+trigger (leftover from before the Sports/School unification, failing daily
+with "Script function not found") — deleted directly in the Apps Script
+Triggers UI, no code change needed. Found a real bug in relative-date
+handling: a briefing card resolved "next Tuesday" against today's date
+instead of the source message's own send date, producing a wrong date and
+garbled text (ISSUE-021, prompt generated, not yet deployed). Confirmed
+`runDailyBriefing()` (the 6 AM trigger) does NOT call `scanGoogleCalendar()`
+today, unlike the dashboard's on-demand Refresh Briefing — meaning the
+daily auto-briefing has been running on stale calendar data; a fix is
+prompted (AD-28) but not yet deployed.
 
-**Mid-session security incident from 2026-08-18, fully resolved (carried forward from last session's notes):** a live Anthropic API key was found hardcoded as a plaintext const in `SportsEmailScanner.gs` and already pushed to the repo's remote. It was rotated immediately in the Anthropic Console, then both it and `GROUPME_ACCESS_TOKEN` were migrated to Apps Script's Script Properties (AD-21). See IssuesTracker ISSUE-017.
+**Major design work, not yet built:** a Settings redesign was scoped and
+mocked up interactively with Tom, covering: "Family members" replacing
+"Children" as a UI label (PD-08, label-only — internal `children`/
+`childIds` naming is unchanged); Sport and School activities grouped
+together per person instead of two flat lists; an existing-vs-new-activity
+flow with a required Display Name and an optional Calendar Match Name;
+inline-editable and deletable email-source/GroupMe chips; archiving an
+Activity instead of deleting it (AD-26), so history stays intact; and an
+editable per-deployment Family Name field (AD-27) that drives the
+dashboard's title/subtitle — first groundwork toward eventual
+personalization for other families (see ProjectRoadmap backlog). All of
+this is written up as 8 CC prompts (see TimeLog/session notes for the
+list) — **none have been applied yet.**
 
 ### Next planned focus — start here
-1. **Run the calendar-scan testing checklist below.** This hasn't been verified end-to-end yet, only deployed.
-2. Decide on the new Calendars-tab backlog item (extend vs. leave separate — see ProjectRoadmap) if the calendar scan is testing well.
-3. Longer-standing open items, untouched again this session: ISSUE-001 (Manual Updates), ISSUE-006 (Email History not refetching after Refresh Briefing), GroupMe OAuth setup (Phase 5), PWA dashboard wiring + icons (Phase 6).
+1. **Review last session's settings changes.** Before doing anything else,
+   confirm which of the 8 CC prompts from 2026-08-21 Tom has actually
+   applied and deployed since this was written, and what (if anything)
+   broke or needs adjustment. Do not assume any of them are live —
+   verify first.
+2. If not yet applied: walk through applying the 8 CC prompts in the
+   documented order (daily-trigger calendar scan and temp-debug removal
+   first, then the data-model fields, then the three frontend Settings
+   prompts last, since they depend on the data-model changes).
+3. Once deployed, spot-check: relative-date resolution on a new
+   ambiguous-date message; the 6 AM trigger's next natural run (or a
+   manual `runDailyBriefing` test) actually logging a Google Calendar
+   match line for both categories; the new Settings UI (family member
+   grouping, archive/restore, editable chips, family name field) against
+   real data.
+4. Longer-standing open items, still untouched: ISSUE-001 (Manual
+   Updates), ISSUE-006 (Email History not refetching after Refresh
+   Briefing), GroupMe OAuth setup (Phase 5), PWA dashboard wiring + icons
+   (Phase 6).
 
-### Testing checklist — Google Calendar scan (do this first)
-1. **Confirm the one-time authorization actually happened.** If `Refresh Briefing` runs but the 7-Day Schedule is empty/thin, this is the first thing to check — open script.google.com, run any function manually once, and confirm you got (and approved) a Calendar-access consent prompt at some point. If you never saw one, the scan has been silently no-op'ing (logged, not thrown).
-2. Click **Refresh Briefing** for Sports, then separately for School.
-3. Open the Apps Script **Executions** tab (not just Logger) and find the line `Google Calendar: matched X event(s) to a sports Activity (Y other calendar(s) checked, plus default)`. Confirm X > 0.
-4. **Spot-check a named-calendar match (Pass 1):** pick an event you know is sitting on one of your team calendars (e.g. Black Lax, MUHS Lax) — even one whose *title* wouldn't obviously match (e.g. just "Practice") — and confirm it shows up in the Summary tab's 7-Day Schedule tagged to the correct team. This is the case that doesn't depend on title wording at all.
-5. **Spot-check a title match (Pass 2):** find an event on your personal calendar with the sport/activity name in the title (e.g. "Golf lesson") and confirm it appears, tagged correctly.
-6. **Spot-check the description-fallback case (Pass 2):** find an event like the ForeTees tee-time confirmation (activity name only in the notes/Reservation ID, not the title) and confirm it *also* appears — this is the case that was actually broken before this session's redesign.
-7. **Spot-check exclusion:** confirm something clearly irrelevant (a personal appointment, "Renew Tesla mY Registration," a Green Bay Packers game, a Birthdays-calendar entry) does NOT show up anywhere in the briefing. If something you don't want IS showing up, check whether one of your configured Activity names accidentally loosely-matches an unrelated calendar name.
-8. **Check for a known false negative:** if a team you expect is missing, check whether that team's actual Google Calendar name loosely-matches its configured Activity name in Settings — a calendar named "WNS Girls Lax Schedule 2…" will NOT auto-match an Activity named "WNS Lax" (neither is a substring of the other). Fix by renaming the Activity, not by asking for new code — see IssuesTracker ISSUE-020.
-9. **Expect the Calendars tab's week view to now show different events than the Summary tab's 7-Day Schedule.** They're intentionally on two separate pipelines now (Calendars tab = `.ics`, Summary = Google Calendar scan) — a mismatch between them is not itself a bug, just confirms the split is real. Decide from there whether that's fine long-term or worth consolidating (see Roadmap backlog).
+### Testing checklist — Google Calendar scan: COMPLETE (2026-08-21)
+All 9 steps from the prior version of this checklist passed. See Decision
+Log AD-23's Status note and IssuesTracker ISSUE-020 for the one real issue
+this testing surfaced and how it was resolved. This checklist is kept here
+for reference only — no further action needed unless new calendar-matching
+problems appear.
 
 ## What This Is
 A personal dashboard for managing multiple kids' sports teams *and* school activities in one place. It aggregates emails from configured senders, syncs calendars, and uses Claude AI (via Google Apps Script) to generate a daily briefing per category (Sports / School) with a priority, app cards, schedule timeline, and action items — filterable by which kid it's about.

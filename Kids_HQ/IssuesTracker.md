@@ -136,6 +136,64 @@ As of DecisionLog AD-23, the briefing's calendar events come from a two-pass heu
 
 **What to watch for:** check the GAS Executions log line (`Google Calendar: matched X event(s)...`) after a Refresh Briefing — if a calendar or event you expected to see is missing, the fix is renaming the Activity in Settings to more closely match the calendar's or event's actual wording, not new code. See SessionStarter.md's testing checklist for this session's specific verification steps.
 
+**Addendum (2026-08-21):** Root cause for a real instance of this
+limitation confirmed directly. The "Bavarian Soccer" Activity wasn't
+matching its named "U17/U18 Girls Blue" calendar even though Tom had
+renamed the calendar in his own Google Calendar UI to "U17/U18 Bavarian
+Soccer" — because that rename is only a personal display override for a
+calendar he doesn't own; `CalendarApp` still reads the calendar's real
+underlying name regardless of how it's relabeled in his own view. Same
+root cause applies to the existing WNS Lax example. Interim fix applied:
+renamed the Activities themselves to match the calendars' real names.
+Durable fix designed: a separate `calMatchName` field (Decision Log AD-25)
+so the calendar-matching term can differ from the display name — prompted,
+not yet deployed.
+
+---
+
+### ISSUE-021 — Relative Date Language Resolved Against Today Instead of the Source Message's Own Date
+**Severity:** 🟡 Medium
+**Status:** In Progress — fix prompted, not yet deployed
+**Filed:** 2026-08-21
+
+**Description:**
+A briefing card ("Brooke — Parent/Player Meeting Tuesday") showed the
+wrong date in one run (Aug 25 instead of the correct Aug 18) and garbled,
+conflated text in a later run ("rescheduled from tomorrow," referencing an
+unrelated message). Root cause, confirmed by reading the actual source
+GroupMe thread: an Aug 10 message stated the date explicitly ("Tuesday,
+August 18th"), but an Aug 12 follow-up just said "next Tuesday" with no
+explicit date — and Claude resolved that relative language against
+today's scan date instead of the Aug 12 message's own send date. This is
+distinct from AD-16, which only governs dropping already-passed content,
+not resolving ambiguous/relative date language.
+
+**Proposed Fix:**
+Add an explicit prompt rule to both `buildSportsPrompt` and
+`buildSchoolPrompt` instructing Claude to resolve relative date language
+against the source message's own date, and to prefer an earlier message's
+explicit date over recomputing one from later relative language in the
+same thread. See CC_02_RelativeDateFix.md.
+
+---
+
+### ISSUE-022 — Stale `scanSportsEmails` Trigger Failing Daily
+**Severity:** 🟢 Low
+**Status:** Fixed (2026-08-21) — confirmed, Tom deleted the trigger directly
+**Filed:** 2026-08-21
+
+**Description:**
+A Time-Driven trigger for a function called `scanSportsEmails` was firing
+daily around 6:20 AM and failing every time with "Script function not
+found: scanSportsEmails" — a leftover from before the Sports/School
+unification (PD-03); no such standalone function exists in the current
+codebase (email scanning for both categories happens inside
+`runDailyBriefing()` → `scanEmails()`).
+
+**Resolution:**
+Deleted directly in the Apps Script Triggers UI — no code change needed.
+Confirmed by Tom.
+
 ---
 
 ## Closed / Fixed Issues
@@ -400,3 +458,10 @@ Run these checks periodically or after any GAS / dashboard update:
 - **Session — 2026-08-17 (later session):** Major filter/navigation UX rework (Category→Child→Activity cascade, Settings accordion, global scan window) shipped no new bugs on its own. Separately found and fixed ISSUE-011 (stale briefing content) and, as a direct side effect of that fix, ISSUE-012/ISSUE-013 (7-Day Schedule day-grouping and the calendar dateISO bug it exposed) — both root-caused by tracing the actual data flow, not guessed. Added the persistent To-Do feature, then caught and fixed ISSUE-014 (add-to-do not rendering) in the very next follow-up. Fixed ISSUE-015 (tab-nav phantom scrollbar), a real CSS spec quirk. Root-caused and resolved ISSUE-016 ("Gmail operation not allowed") to a wrong-account deployment via elimination (manual editor run reproduced it with no re-auth prompt; fresh consent didn't fix it) rather than guessed. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched — ISSUE-006 in particular was explicitly confirmed NOT incidentally fixed by the Email History rewrite.
 - **Session — 2026-08-18:** Found and fully closed ISSUE-017 (leaked Anthropic API key) end-to-end: rotate → migrate to Script Properties (Decision Log AD-21) → git history scrub → prevention recommendation logged. GroupMe backend integration applied to `SportsEmailScanner.gs`. PWA manifest/service worker/dashboard UI changes drafted, currently uncommitted. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched.
 - **Session — 2026-08-19:** Closed ISSUE-018 (Email History Activity display + stale found-count) and ISSUE-019 (GroupMe label/color/source-count), both confirmed. Added ISSUE-020 (Monitoring) for the new Google Calendar matching heuristic introduced by DecisionLog AD-23, which fully replaced the `.ics` pipeline feeding the briefing this session. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched.
+- **Session — 2026-08-21:** Ran the full Google Calendar scan testing
+  checklist from the prior session to completion — confirmed working, one
+  real issue found and root-caused (ISSUE-020 addendum). Found and closed
+  ISSUE-022 (stale failing trigger, deleted directly, no code change).
+  Opened ISSUE-021 (relative-date resolution bug), fix prompted, not yet
+  deployed. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006 remain open/
+  deferred, untouched.

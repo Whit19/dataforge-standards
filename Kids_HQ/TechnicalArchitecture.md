@@ -1,7 +1,7 @@
 # HQ Dashboard — Technical Architecture
 
-**Last Updated:** August 19, 2026  
-**Status:** Unified Sports + School dashboard live, with a Child → Activity linking model and a Category → Child → Activity filter cascade that now also filters Summary. The briefing's calendar data comes directly from a server-side Google Calendar scan, not `.ics` feeds. Superseding rationale for anything that changed lives in `DecisionLog.md` (AD-10 through AD-24, PD-03 through PD-07) — this doc describes the *current* system; check the Decision Log for *why* it changed.
+**Last Updated:** August 21, 2026  
+**Status:** Unified Sports + School dashboard live, with a Child → Activity linking model and a Category → Child → Activity filter cascade that also filters Summary. The briefing's calendar data comes directly from a server-side Google Calendar scan on-demand (AD-23); a matching scan on the 6 AM daily trigger, a calendar/display name split (`calMatchName`), Activity archiving, and a per-deployment family name field are designed and prompted as of this session but **not yet deployed** — see the "Pending Changes" note below and DecisionLog AD-25 through AD-28.
 
 ---
 
@@ -133,6 +133,15 @@ children: [
 activities: [
   {
     id, category: 'sports'|'school', name,
+    calMatchName,                  // PENDING (AD-25) — optional; used
+                                    // only for Google Calendar matching,
+                                    // falls back to `name` when empty.
+                                    // Not yet deployed.
+    archived,                      // PENDING (AD-26) — optional
+                                    // boolean, default false. Skips
+                                    // this Activity in all scanning
+                                    // when true; history is never
+                                    // filtered. Not yet deployed.
     childIds: [id, ...],           // 0, 1, or many — siblings can share a team/school
     color,
     senders: [ { match, app, color } ]
@@ -149,6 +158,8 @@ cals: [
 maxEmails: 100
 daysBack: 15     // NEW (AD-15) — global, applies to every Activity
 daysForward: 7   // NEW (AD-15) — global, applies to every Activity
+familyName: ''   // PENDING (AD-27) — optional; drives the dashboard's
+                 // page title and heading when set. Not yet deployed.
 ```
 
 - A calendar or Activity is linked to child(ren) via `activityId` → `Activity.childIds`, never a direct child tag on the raw sender/calendar row.
@@ -172,6 +183,16 @@ GAS trigger → runDailyBriefing()
         → POST to Claude API
         → storeSummary(category) → {Cat}Summary sheet
 ```
+
+**Pending change (AD-28, not yet deployed):** `runDailyBriefing()`
+currently does NOT call `scanGoogleCalendar()` for either category —
+confirmed via a manual run's Cloud log showing no
+"Google Calendar: matched X event(s)..." line. This means the 6 AM
+auto-briefing runs on whatever calendar data was last written by a
+manual dashboard Refresh Briefing click, not fresh data. A fix is
+prompted to add a `scanGoogleCalendar(category)` call immediately
+before `scanEmails(category)` in this flow, matching Data Flow #2b's
+existing call order.
 
 ### 2. On-Demand Refresh from Dashboard
 ```
@@ -388,3 +409,12 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
 - **Session — 2026-08-17 (later session):** Filter architecture updated to the Category→Child→Activity cascade (PD-05), replacing the old per-calendar-name/per-sender filtering described here previously. Settings Data Model updated for global daysBack/daysForward (AD-15). Calendar Events Compact Format and the Claude Prompt Schema both updated to add dateISO (AD-16, AD-17). Added a new To-Do data flow section (AD-18), entirely separate from the briefing's own regenerated `actions` array.
 - **Session — 2026-08-18:** GAS Configuration section rewritten for Script Properties, not hardcoded consts (AD-21), following a leaked API key (ISSUE-017). Added GroupMe as a new data source (AD-20): a new 3b data flow, a `groupmeGroups` line in the Settings Data Model, and two new File Inventory rows for the drafted-but-uncommitted PWA files (`manifest.json`, `sw.js`, AD-22).
 - **Session — 2026-08-19:** Major rewrite of the calendar data flow — replaced the `.ics`-sourced `?cal=` GET param pipeline (Data Flow #2) with a new server-side Google Calendar scan (Data Flow #2b, AD-23), and marked Data Flow #3 (Calendar Loading) as now feeding only the Calendars tab's own week view, decoupled from the briefing. Updated the Claude Prompt Schema and system diagram to add `activityId` (PD-06), extending the Category→Child→Activity filter cascade to fully cover Summary for the first time. Updated the Calendar Events API contract section to reflect it's now a server-side-only data shape, not a GET param.
+- **Session — 2026-08-21:** Confirmed the AD-23 Google Calendar scan
+  working end-to-end via the full testing checklist; found and
+  root-caused a real calendar-matching failure (a personal calendar
+  rename doesn't change what CalendarApp reads for a calendar you
+  don't own). Designed, but did not yet deploy: a `calMatchName` field
+  splitting calendar-matching from display name (AD-25), Activity
+  archiving in place of deletion (AD-26), a per-deployment family name
+  field (AD-27), and closing the gap where the 6 AM trigger skipped
+  the calendar scan entirely (AD-28).

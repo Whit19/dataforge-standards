@@ -461,6 +461,107 @@ Events matching neither pass are dropped. Writes into the exact same `CalendarEv
 
 ---
 
+### AD-25 — Calendar Match Name Split From Activity Display Name
+
+**Decision:** Activities gain a new optional field, `calMatchName`,
+separate from the existing `name` field. `scanGoogleCalendar()`'s two-pass
+matching (AD-23) compares against `calMatchName` when present, falling
+back to `name` when it's empty — exactly today's behavior for any Activity
+that doesn't set it.
+
+**Rationale:** This session found that the "Bavarian Soccer" Activity
+couldn't match its named Google Calendar because Tom renaming the calendar
+in Google Calendar's own UI only changes his personal display of a
+calendar he doesn't own — `CalendarApp` still reads the calendar's real
+underlying name ("U17/U18 Girls Blue"), which has no substring
+relationship to the display name he wants on cards and in the dashboard.
+The same root cause already explained the WNS Lax case in ISSUE-020.
+Splitting the two purposes into separate fields removes the forced
+trade-off between a meaningful display name and a working calendar match.
+
+**Alternatives Considered:**
+- Keep forcing Tom to rename Activities to match calendar names exactly —
+  works (and is the interim fix in place today) but produces confusing
+  display names on cards/briefings for any oddly-named subscribed
+  calendar.
+
+**Status:** Designed and prompted (CC_03_CalMatchNameField.md,
+2026-08-21) — **not yet deployed.**
+
+---
+
+### AD-26 — Activities Are Archived, Not Deleted
+
+**Decision:** Activities gain a new `archived` boolean field. An archived
+Activity is skipped entirely by `scanEmails()`, `scanGroupMe()`, and
+`scanGoogleCalendar()` — but its existing history rows are never touched,
+filtered, or hidden from any existing read path.
+
+**Rationale:** A hard delete would orphan history rows already tagged with
+that Activity's id (per AD-14's design, history intentionally persists
+independent of current Settings state). Archiving retires an Activity from
+future scanning (e.g. a past season/team) while keeping its history fully
+intact and restorable.
+
+**Alternatives Considered:**
+- A true delete with cascading history cleanup — rejected as unnecessarily
+  destructive and irreversible for what is usually just a seasonal team
+  ending, not a mistake to undo.
+
+**Status:** Designed and prompted (CC_04_ArchivedAndFamilyNameFields.md,
+CC_07_ArchiveUIAndFamilyName.md, 2026-08-21) — **not yet deployed.**
+
+---
+
+### AD-27 — Editable Per-Deployment Family Name Field
+
+**Decision:** Settings gains a new top-level `familyName` field, synced
+the same way as every other Settings field (AD-11). The dashboard's page
+title and on-page heading render as `{familyName} Family HQ` when set, a
+generic "Family HQ" default otherwise. Subtitle text changes from "Kids
+Sports & School Daily Intelligence" to "Family Sports & School Daily
+Intelligence."
+
+**Rationale:** First concrete step toward the multi-family, self-hosted
+distribution model already decided in AD-19's era of planning
+(ProjectRoadmap Phase 6, Model A). Tom also raised personalization/paid
+features as a future idea for other families using their own deployment —
+not designed or committed to here, just captured (see ProjectRoadmap
+backlog for that item).
+
+**Alternatives Considered:** A hardcoded, code-level constant Tom edits
+directly per deployment — rejected in favor of a Settings-UI field, since
+it's no more effort to build and removes a code-editing step from onboarding
+a new family later.
+
+**Status:** Designed and prompted (CC_04_ArchivedAndFamilyNameFields.md,
+CC_07_ArchiveUIAndFamilyName.md, 2026-08-21) — **not yet deployed.**
+
+---
+
+### AD-28 — Daily Trigger Now Also Scans Google Calendar Directly
+
+**Decision:** `runDailyBriefing()` (the 6 AM Time-Driven trigger) is
+updated to call `scanGoogleCalendar(category)` for each category,
+immediately before `scanEmails(category)` — matching the exact call order
+`doGet(?action=generate)` already uses (AD-23's Data Flow #2b).
+
+**Rationale:** This session confirmed via a manual `runDailyBriefing` run's
+Cloud log that it currently skips the calendar scan entirely — the 6 AM
+auto-briefing has been running on whatever calendar data was last written
+by a manual Refresh Briefing click, not fresh data. Tom confirmed this
+parity gap should be closed.
+
+**Alternatives Considered:** None — this was an unintentional gap between
+the two trigger paths, not a deliberate design choice being revisited.
+
+**Status:** Designed and prompted (CC_08_DailyTriggerCalendarScan.md,
+2026-08-21) — **not yet deployed.** Flagged for a runtime sanity-check
+against GAS's 6-minute execution ceiling once deployed (Gmail scan +
+calendar scan + Claude call, times two categories).
+
+---
+
 ## Session Notes
 
 > Add entries when decisions are made, revisited, or reversed.
@@ -470,3 +571,12 @@ Events matching neither pass are dropped. Writes into the exact same `CalendarEv
 - **Session — 2026-08-17 (later session):** Unified the previously-separate per-sender/per-calendar-name filters into one Category→Child→Activity cascade (PD-05). Moved scan window to a global setting (AD-15). Fixed the briefing surfacing already-passed content, with both a prompt rule and a deterministic client-side backstop (AD-16). Removed the need for Claude to infer calendar dates by passing real computed ISO dates through instead (AD-17), fixing a real bug (ISSUE-013) this exposed. Added a persistent, local-only To-Do list (AD-18). Root-caused and resolved a "Gmail operation not allowed" failure to a wrong-account deployment — logged as a standing operational rule, not a code fix (AD-19). See IssuesTracker.md ISSUE-011 through ISSUE-016 for the corresponding closed issues.
 - **Session — 2026-08-18:** Began GroupMe integration (AD-20) and PWA installability plumbing (AD-22). Mid-session, discovered and fully remediated a leaked Anthropic API key: rotated, migrated to Script Properties along with the new GroupMe token (AD-21), and scrubbed from git history. See IssuesTracker ISSUE-017 for the full incident record.
 - **Session — 2026-08-19:** Extended the Activity filter to Summary via `activityId` tagging, mirroring PD-04's `childIds` pattern (PD-06); added a "Child — Sport — Source" briefing card header (PD-07). Fixed Email History's display (Activity name shown per row, found-count reflects active filters) — see IssuesTracker ISSUE-018. Fixed GroupMe rows always showing the literal label "GroupMe" instead of the configured group name, plus a Settings source-count gap that omitted GroupMe groups — see IssuesTracker ISSUE-019. Synced the To-Do list to GAS, closing out AD-18 (AD-24). Replaced the entire `.ics` calendar pipeline feeding the briefing with a direct, server-side Google Calendar scan using hybrid calendar-name + title/description matching (AD-23) — a user-requested architecture change, not a bug fix. Backfilled BestMethods BM-22 through BM-24, which had been referenced by AD-21/ISSUE-017 since 2026-08-18 but never actually written.
+- **Session — 2026-08-21:** Confirmed the AD-23 Google Calendar scan
+  working end-to-end; root-caused the one real failure (a subscribed
+  calendar's display rename doesn't change what `CalendarApp` reads) and
+  designed a durable fix (AD-25). Designed archiving in place of deleting
+  Activities (AD-26), an editable per-deployment family name (AD-27), and
+  closed a parity gap where the 6 AM trigger skipped the calendar scan
+  entirely (AD-28). Relabeled "Children" to "Family members" in the UI,
+  label-only (PD-08). All four decisions are designed and prompted via 8
+  CC prompts generated this session — none deployed yet as of this entry.

@@ -2,7 +2,7 @@
 
 **Last Updated:** 2026-08-19  
 **Project:** Family sports + school activity intelligence dashboard  
-**Current Phase:** Phase 3 complete (pivoted); Phase 4 mostly delivered. Phase 5's Google Calendar sync item is done (AD-23); GroupMe integration and Phase 6 (PWA installability) remain in progress — see notes below.
+**Current Phase:** Phase 3 complete (pivoted); Phase 4 mostly delivered. Phase 5's Google Calendar sync item is done and now fully verified end-to-end (AD-23, confirmed 2026-08-21). A Settings redesign (family-member grouping, activity archiving, calendar/display name split, editable family name) is designed and prompted but not yet deployed — see Decision Log AD-25 through AD-28 and PD-08. GroupMe integration and Phase 6 (PWA installability) remain in progress.
 
 ---
 
@@ -45,6 +45,7 @@ Incremental improvements to the existing Sports HQ system.
 | 7-Day Schedule shows all 7 days, grouped clearly | Medium | ✅ Done — see IssuesTracker ISSUE-012/013 |
 | Interactive To-Do list | Medium | ✅ Done — persistent tab, now synced across browsers via GAS (AD-24, closes out AD-18) |
 | Refresh Briefing wait time / timeout handling | Medium | Deferred — see IssuesTracker ISSUE-004, explicitly held for a dedicated session rather than folded into an unrelated fix |
+| Settings redesign — family members grouped by Sport/School, existing-vs-new activity flow, editable/deletable sources, archive instead of delete | High | Designed and prompted 2026-08-21, not yet deployed — see DecisionLog AD-25/AD-26/PD-08 |
 
 ---
 
@@ -140,6 +141,11 @@ Make it properly installable and shareable from the same single URL on both desk
 - Photo log for game memories
 - Rework the Manual Updates tab to be Activity-driven instead of a hardcoded app list, and actually wire it into the prompt (folds ISSUE-001 and the stale-tab problem into one pass)
 - Extend the Calendars tab to show more than 7 days out and filter by kid/sport/school (user-requested, 2026-08-19) — likely by reusing the new Google-Calendar-scanned, `activityId`-tagged data from AD-23 via a new unbounded-range GAS endpoint, rather than maintaining the separate `.ics` pipeline further. Two options discussed: extend the existing pipeline (removes the now-redundant `.ics` Settings config entirely) vs. leave the two pipelines separate (lower risk, less consolidation). Decision deliberately deferred, not made — see DecisionLog AD-23's Scope note.
+- Personalization and/or multi-activity support as a paid tier for
+  other families running their own self-hosted deployment (user idea,
+  2026-08-21) — no design or commitment yet; captured alongside the
+  new editable Family Name field (AD-27), which is a plain,
+  unrestricted building block for this either way.
 
 ---
 
@@ -152,3 +158,15 @@ Make it properly installable and shareable from the same single URL on both desk
 - **Session — 2026-08-17 (later session):** Significant Phase 2 UX pass: unified filtering into one Category→Child→Activity cascade (also closes out the last piece of Phase 4's "which team/school" filtering), collapsed Settings Activities into an accordion, moved scan window to a global setting. Separately, fixed a real accuracy problem — the briefing was surfacing already-past content from old emails — plus the day-grouping fix that came out of that work and the calendar-date bug it exposed along the way. Added a persistent To-Do list as a new small feature (not originally scoped, but a direct, low-cost extension of the Action Items work). Deliberately deferred the Refresh Briefing timeout/speed question (ISSUE-004) to its own future session rather than rushing a fix. Also resolved a deployment/process issue (ISSUE-016, wrong Google account) that isn't roadmap-relevant on its own but is now documented as a standing operational rule in BestMethods (BM-19) and DecisionLog (AD-19).
 - **Session — 2026-08-18:** Started Phase 5 (GroupMe integration — backend + Settings UI drafted, blocked on live OAuth credentials) and Phase 6 (PWA manifest + service worker drafted, dashboard wiring and icons still pending). Confirmed the multi-family distribution direction: Model A (self-hosted per family) over a centralized SaaS rebuild, given Google's OAuth verification requirements for the alternative. Separately resolved a critical security incident (leaked Anthropic API key, IssuesTracker ISSUE-017) unrelated to roadmap progress but worth noting here since it delayed feature work this session.
 - **Session — 2026-08-19:** Closed out Phase 5's Google Calendar sync item (AD-23) — a user-requested architecture change (drop per-team `.ics` maintenance in favor of a direct Google Calendar scan), not originally scoped work. Phase 4's Activity-filter gap on Summary (parallel to the childIds gap already closed) fixed via PD-06. Phase 2's To-Do list item upgraded from localStorage-only to GAS-synced (AD-24, closes AD-18). Added a new backlog item for a longer-range, kid/sport/school-filterable Calendars tab, explicitly deferred rather than built this session. GroupMe (Phase 5) remains blocked on OAuth setup, untouched this session aside from an unconfirmed label/count fix — see IssuesTracker ISSUE-019.
+- **Session — 2026-08-21:** Ran the Google Calendar scan testing
+  checklist from the prior session to full completion — confirmed
+  working, with one real calendar-matching bug found and root-caused
+  along the way (see IssuesTracker ISSUE-020's addendum). Also found
+  and closed a stale, silently-failing trigger (ISSUE-022) and opened
+  a new relative-date-resolution bug (ISSUE-021). Designed a
+  significant Settings redesign with Tom via interactive mockups
+  (family-member terminology, Sport/School grouping, editable
+  sources, activity archiving, a calendar/display name split, and a
+  personalizable family name) and closed a gap where the 6 AM daily
+  trigger skipped the calendar scan entirely (AD-28) — all written up
+  as 8 CC prompts this session, **none deployed yet.**

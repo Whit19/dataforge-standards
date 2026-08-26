@@ -290,6 +290,20 @@ These apply to every project. No exceptions.
 
 ---
 
+## 9a. Daily Summaries → Notion
+
+Projects that generate a recurring daily/periodic summary (briefings, digests, reports) should push each run's output to the shared **Daily Summaries** Notion database rather than any per-project or manual storage (e.g. OneNote). This is a workspace-wide database, not per-project — one Notion internal integration, connected once, writes to it from every project's backend.
+
+**Schema:** `Name` (title), `Date`, `Category` (select — project-specific values, e.g. Kids HQ uses Sports/School), `Top Priority` (text), `Project` (relation to the Projects database). Full content (the actual summary body — cards, sections, whatever the project's summary consists of) goes in the page body via Notion's page-content API, not a database property.
+
+**Setup per project** (see the Dashboard's New Project Checklist for the full sequence): confirm the shared integration is connected to the database (one-time, workspace-wide — only needed once ever, not per project), store the integration secret in that project's own secrets store (Script Properties for Apps Script projects, `.env`/equivalent for others — never hardcoded), and wire the project's summary-generation code to POST to Notion's API on each run, tagging the `Project` relation to that project's row in the Projects database.
+
+**Upsert behavior:** re-running a summary for a date/category that already has an entry should update that existing Notion page, not create a duplicate — check for an existing entry (by Date + Category + Project) before creating.
+
+Kids HQ is the reference implementation of this pattern (see its DecisionLog for the specific integration details).
+
+---
+
 ## 10. Debugging Protocol
 
 **Do not jump to conclusions. Look for the most obvious solution first.**
@@ -396,6 +410,7 @@ At session end, Tom will say "Update the docs" — only then generate updates. F
 2. Tom downloads the CC prompt MD files and pastes into Claude Code in VS Code — files written to disk
 3. Tom commits and pushes `dataforge-standards` — GitHub is the source of truth
 4. No Claude Project re-upload needed — Claude fetches latest via URL at next session start
+5. **Sync Notion.** Update the `Last Updated` date property on the project's Notion page (Projects data source, page ID `37462bde-ae68-80a2-ab5a-c2f6fcbae3c6` for Kids HQ) to the session's date. Use the `notion-update-page` tool with `update_properties`, setting `date:Last Updated:start` to today's date and `date:Last Updated:is_datetime` to `0`. This happens every time docs are updated at session end — not just when something notable changed — so the Notion row always reflects the most recent session date.
 
 **Files to consider per session (only update if changed):**
 - `SessionStarter.md` — almost always needs updating (status, completed items, next priorities)

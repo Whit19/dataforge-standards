@@ -1,7 +1,7 @@
 # HQ Dashboard — Technical Architecture
 
-**Last Updated:** August 21, 2026  
-**Status:** Unified Sports + School dashboard live, with a Child → Activity linking model and a Category → Child → Activity filter cascade that also filters Summary. The briefing's calendar data comes directly from a server-side Google Calendar scan on-demand (AD-23); a matching scan on the 6 AM daily trigger, a calendar/display name split (`calMatchName`), Activity archiving, and a per-deployment family name field are designed and prompted as of this session but **not yet deployed** — see the "Pending Changes" note below and DecisionLog AD-25 through AD-28.
+**Last Updated:** August 26, 2026  
+**Status:** Unified Sports + School dashboard live, with a Child → Activity linking model and a Category → Child → Activity filter cascade that also filters Summary. The briefing's calendar data comes directly from a server-side Google Calendar scan on-demand (AD-23); the Calendars tab now reads that same scanned data too, via a new `action=calendarEvents` endpoint (AD-29), rather than a live `.ics` fetch. A matching scan on the 6 AM daily trigger, a calendar/display name split (`calMatchName`), Activity archiving, and a per-deployment family name field are designed and prompted but **not yet deployed** — see the "Pending Changes" note below and DecisionLog AD-25 through AD-28.
 
 ---
 
@@ -14,16 +14,16 @@
 │  ┌───────────┐ ┌───────────┐ ┌────────────┐ ┌────────┐ ┌───────────┐ │
 │  │ Summary   │ │ Calendars │ │ Email      │ │ Manual │ │ Settings  │ │
 │  │           │ │           │ │ History    │ │Updates │ │           │ │
-│  │ Fetches   │ │ Sends ICS │ │ GET ?action│ │ (dead  │ │ Children →│ │
-│  │ stored    │ │ URL to    │ │ =history   │ │ input, │ │ Activities│ │
-│  │ JSON, or  │ │ GAS via   │ │ &cat=      │ │ see    │ │ → senders │ │
+│  │ Fetches   │ │ Reads last│ │ GET ?action│ │ (dead  │ │ Children →│ │
+│  │ stored    │ │ Google Cal│ │ =history   │ │ input, │ │ Activities│ │
+│  │ JSON, or  │ │ scan via  │ │ &cat=      │ │ see    │ │ → senders │ │
 │  │ ?action=  │ │ ?action=  │ │            │ │ISSUE-  │ │ / Calendars│ │
-│  │ generate  │ │ ics&url=  │ │            │ │  001)  │ │           │ │
-│  │ (no cal   │ │ (week-    │ │            │ │        │ │           │ │
-│  │ data sent │ │ view UI   │ │            │ │        │ │           │ │
-│  │ — AD-23)  │ │ ONLY,     │ │            │ │        │ │           │ │
-│  │           │ │ decoupled │ │            │ │        │ │           │ │
-│  │           │ │ from AD-23│ │            │ │        │ │           │ │
+│  │ generate  │ │ calendar- │ │            │ │  001)  │ │           │ │
+│  │ (no cal   │ │ Events    │ │            │ │        │ │           │ │
+│  │ data sent │ │ (AD-29,   │ │            │ │        │ │           │ │
+│  │ — AD-23)  │ │ same as   │ │            │ │        │ │           │ │
+│  │           │ │ last-scan │ │            │ │        │ │           │ │
+│  │           │ │ pattern)  │ │            │ │        │ │           │ │
 │  └───────────┘ └───────────┘ └────────────┘ └────────┘ └───────────┘ │
 │                                                                        │
 │  Filter cascade: Category → Child → Activity, three pill rows above  │
@@ -228,24 +228,26 @@ immediately before scanEmails(category)
     generateSummaryWithClaude()'s calSection prompt-building needed no changes
 ```
 
-### 3. Calendar Loading (Calendars tab week view ONLY — see AD-23's Scope note; this no longer feeds the briefing)
+### 3. Calendar Loading (reads from the last Google Calendar scan — same load-once-per-session, cache-client-side pattern as Email History's Data Flow #4, AD-29)
 ```
-User clicks Load Calendars
-  → for each configured calendar row (name, url, color, activityId):
-      normalizeIcsUrl() → fix teamsnap http/webcal/google embed URLs
-      fetchIcsViaGas() → GET /exec?action=ics&url=... (server-side fetch, AD-10)
-      parseICS() → split by VEVENT → parse DTSTART/SUMMARY/LOCATION
-      each parsed event is tagged with that calendar's activityId
-  → loadedEvents[] in memory (stale until the next Load Calendars click —
-    editing a calendar's Activity link in Settings does NOT retroactively
-    update already-loaded events; re-click Load Calendars after relinking)
+User opens Calendars tab
+  → loadCalendarEvents() → fetch GET /exec?action=calendarEvents&cat={active}
+  → GAS: calendarEvents(cat) → reads {Cat}CalendarEvents sheet (already written
+    by scanGoogleCalendar() on the last briefing scan, AD-23/2b — no live fetch
+    here, same "read from last scan" pattern as loadHistory())
+    → resolves childLabel per event via the same activityLabel()/childNames()
+      join generateSummaryWithClaude() already performs
+    → detects Date-typed cells (Sheets auto-coerces date/time-shaped strings
+      to real Date objects on write — see BestMethods) and reformats them to
+      plain yyyy-MM-dd / h:mm a strings before returning (ISSUE-025)
+  → returns { summary, team, childLabel, activityId, date, time, location,
+    dateISO } per event
   → renderActivitySwitch() → renderCalendar(), which applies category +
     child + activity filters together (categoryFilteredEvents() → filteredEvents(),
     PD-05 — replaces the old per-calendar-name team filter)
-  → these events power ONLY this tab's own week view — as of AD-23, Refresh
-    Briefing no longer reads loadedEvents or sends anything calendar-related to
-    GAS; calEventsParam() was removed entirely
 ```
+
+**Retired (superseded by AD-29, 2026-08-26):** Calendars previously ran a fully separate pipeline — live-fetching and client-side-parsing `.ics` subscription URLs configured in Settings via `normalizeIcsUrl()` → `fetchIcsViaGas()` (`GET /exec?action=ics&url=...`, server-side fetch per AD-10) → `parseICS()` (split by VEVENT, parse DTSTART/SUMMARY/LOCATION). This was disconnected from the Daily Briefing's own `scanGoogleCalendar()` scan and could show a different picture of "what's on the calendar" than Summary did. The frontend calls and the Calendar Subscriptions Settings UI were removed (PD-12); the backend `fetchIcsServerSide()`/`action=ics` handler and the `cals` config field were deliberately left in place, unused, rather than deleted — see IssuesTracker ISSUE-030 for the future cleanup item.
 
 ### 3b. GroupMe Message Scanning (AD-20)
 ```
@@ -338,10 +340,16 @@ Note: `actions` were plain strings before the child-tagging change; the dashboar
 { "emails": [{ "date": "ISO", "from": "", "app": "", "subject": "", "body": "", "activityId": "" }] }
 ```
 
-**GET /exec?action=ics&url=...** — Fetches one `.ics` feed server-side, category-agnostic
+**GET /exec?action=ics&url=...** — Fetches one `.ics` feed server-side, category-agnostic. **Retired (AD-29, 2026-08-26)** — no longer called by the frontend; left in place unused, see IssuesTracker ISSUE-030.
 ```json
 { "ok": true, "text": "raw ICS content" }
 ```
+
+**GET /exec?action=calendarEvents&cat=sports|school** — Returns that category's scanned Google Calendar events (AD-29), reading the same `CalendarEvents`/`SchoolCalendarEvents` sheets `scanGoogleCalendar()` writes on every briefing scan
+```json
+{ "events": [{ "summary": "", "team": "", "childLabel": "", "activityId": "", "date": "Thu, Aug 20", "time": "3:30 PM", "location": "", "dateISO": "2026-08-20" }] }
+```
+`childLabel` is resolved server-side via the same `activityLabel()`/`childNames()` join `generateSummaryWithClaude()` already uses. Date/time-shaped cell values are explicitly reformatted from any Sheets-coerced `Date` object back to plain strings before returning — see ISSUE-025.
 
 **GET /exec?action=getSettings** — Returns the Settings sheet's JSON (never includes the Anthropic key)
 
@@ -418,3 +426,4 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
   archiving in place of deletion (AD-26), a per-deployment family name
   field (AD-27), and closing the gap where the 6 AM trigger skipped
   the calendar scan entirely (AD-28).
+- **Session — 2026-08-26:** Migrated the Calendars tab off the `.ics` subscription pipeline onto scanned Google Calendar data via a new `action=calendarEvents` endpoint (AD-29), rewriting Data Flow #3 to match Email History's load-once/cache-client-side pattern and marking the old `.ics` flow and its `action=ics` endpoint as retired-but-left-in-place dead code. Documented the Sheets Date-object auto-coercion gotcha (ISSUE-025) inline on the new endpoint. Typography and responsive-nav changes from this session (Quicksand/Nunito Sans, DD-04; mobile bottom nav, PD-09) are UI-only and not reflected here, since this file's scope is backend/data-flow architecture, not visual design.

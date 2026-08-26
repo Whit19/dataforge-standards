@@ -1,8 +1,8 @@
 # HQ Dashboard — Project Roadmap
 
-**Last Updated:** 2026-08-19  
+**Last Updated:** 2026-08-26  
 **Project:** Family sports + school activity intelligence dashboard  
-**Current Phase:** Phase 3 complete (pivoted); Phase 4 mostly delivered. Phase 5's Google Calendar sync item is done and now fully verified end-to-end (AD-23, confirmed 2026-08-21). A Settings redesign (family-member grouping, activity archiving, calendar/display name split, editable family name) is designed and prompted but not yet deployed — see Decision Log AD-25 through AD-28 and PD-08. GroupMe integration and Phase 6 (PWA installability) remain in progress.
+**Current Phase:** Phase 3 complete (pivoted); Phase 4 mostly delivered. Phase 5's Google Calendar sync item is done and now fully verified end-to-end (AD-23, confirmed 2026-08-21), and the Calendars tab now reuses that same scanned data too (AD-29, 2026-08-26). Summary's mobile+desktop responsive/typography overhaul is done (PD-09 through PD-12, DD-04, 2026-08-26). A Settings redesign (family-member grouping, activity archiving, calendar/display name split, editable family name, Activity color picker) is designed and prompted but not yet deployed — see Decision Log AD-25 through AD-28 and PD-08. GroupMe integration and Phase 6 (PWA installability) remain in progress.
 
 ---
 
@@ -45,7 +45,9 @@ Incremental improvements to the existing Sports HQ system.
 | 7-Day Schedule shows all 7 days, grouped clearly | Medium | ✅ Done — see IssuesTracker ISSUE-012/013 |
 | Interactive To-Do list | Medium | ✅ Done — persistent tab, now synced across browsers via GAS (AD-24, closes out AD-18) |
 | Refresh Briefing wait time / timeout handling | Medium | Deferred — see IssuesTracker ISSUE-004, explicitly held for a dedicated session rather than folded into an unrelated fix |
-| Settings redesign — family members grouped by Sport/School, existing-vs-new activity flow, editable/deletable sources, archive instead of delete | High | Designed and prompted 2026-08-21, not yet deployed — see DecisionLog AD-25/AD-26/PD-08 |
+| Settings redesign — family members grouped by Sport/School, existing-vs-new activity flow, editable/deletable sources, archive instead of delete, Activity color picker (ISSUE-029), general layout modernization to match the new typography/design system | High | Designed and prompted 2026-08-21, not yet deployed — see DecisionLog AD-25/AD-26/PD-08. Scope expanded 2026-08-26 after the Summary/Calendars redesign left Settings visually inconsistent with the rest of the app |
+| Summary page mobile+desktop responsive/typography overhaul — filter/nav layout (PD-09/PD-10), typography system (DD-04), collapsible briefing cards (PD-11), Calendars migrated to the Google Calendar-scanned data source (AD-29) | High | ✅ Done (2026-08-26) — committed, deployed, confirmed working by Tom via live testing |
+| Verify Email History, To-Do, and Manual Updates tabs against the new typography/responsive design system | Medium | Not started (2026-08-26) — planned as the next tab-by-tab pass before Settings, since these three tabs predate the Summary/Calendars redesign |
 
 ---
 
@@ -140,7 +142,8 @@ Make it properly installable and shareable from the same single URL on both desk
 - Nutrition/hydration reminders on game days
 - Photo log for game memories
 - Rework the Manual Updates tab to be Activity-driven instead of a hardcoded app list, and actually wire it into the prompt (folds ISSUE-001 and the stale-tab problem into one pass)
-- Extend the Calendars tab to show more than 7 days out and filter by kid/sport/school (user-requested, 2026-08-19) — likely by reusing the new Google-Calendar-scanned, `activityId`-tagged data from AD-23 via a new unbounded-range GAS endpoint, rather than maintaining the separate `.ics` pipeline further. Two options discussed: extend the existing pipeline (removes the now-redundant `.ics` Settings config entirely) vs. leave the two pipelines separate (lower risk, less consolidation). Decision deliberately deferred, not made — see DecisionLog AD-23's Scope note.
+- ~~Extend the Calendars tab to reuse Google-Calendar-scanned data instead of maintaining a separate `.ics` pipeline (user-requested, 2026-08-19)~~ — ✅ **Done 2026-08-26**, see DecisionLog AD-29. Note: this closed the *data-source* consolidation only; the day/kid/sport filtering itself already existed before this session and simply carried over onto the new data source unchanged. A further "show more than 7 days out" extension is not part of AD-29 and remains a distinct, still-unscoped idea if wanted later.
+- Remove dead `.ics`-subscription backend code (`fetchIcsServerSide()`/`action=ics` handler, `cals` config field) once the new Calendars data path (AD-29) has proven stable for a while — see IssuesTracker ISSUE-030. Low priority, not urgent.
 - Personalization and/or multi-activity support as a paid tier for
   other families running their own self-hosted deployment (user idea,
   2026-08-21) — no design or commitment yet; captured alongside the
@@ -170,3 +173,4 @@ Make it properly installable and shareable from the same single URL on both desk
   personalizable family name) and closed a gap where the 6 AM daily
   trigger skipped the calendar scan entirely (AD-28) — all written up
   as 8 CC prompts this session, **none deployed yet.**
+- **Session — 2026-08-26:** Full UI/PWA polish pass, all deployed and confirmed working: Summary's filter/nav layout overhaul (PD-09/PD-10), collapsible briefing cards (PD-11), and a project-wide typography swap to Quicksand/Nunito Sans (DD-04, supersedes DD-01). Marked the "extend Calendars tab" backlog item done — Calendars now reads scanned Google Calendar data via a new endpoint (AD-29) instead of live `.ics` subscriptions, which were removed from Settings (PD-12). Six small bugs found and fixed along the way (ISSUE-023 through ISSUE-028); logged an Activity color-picker gap (ISSUE-029) into the upcoming Settings redesign's scope, and a dead-code cleanup item (ISSUE-030). Added new backlog items for verifying Email History/To-Do/Manual Updates against the new design system and for the eventual `.ics` code removal.

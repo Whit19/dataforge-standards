@@ -1,6 +1,6 @@
 # HQ Dashboard — Best Methods
 
-**Last Updated:** 2026-08-18  
+**Last Updated:** 2026-08-26  
 **Purpose:** Hard-won lessons learned during development. Read this before writing any code for this project. Prevents re-making known mistakes.
 
 ---
@@ -510,6 +510,44 @@ before assuming Cloud Logs are broken or missing.
 
 ---
 
+## Additions — Session 2026-08-26
+
+Three new lessons from this session's UI/PWA polish pass on Summary and
+Calendars. Numbered to continue the existing sequence (next available was
+BM-31). Same append-only convention as prior session sections.
+
+---
+
+### BM-31 — Google Sheets Silently Coerces Date/Time-Shaped Strings Into Real Date Objects on Write
+
+**Rule:** Writing a plain string like `"2026-08-26"` or `"9:00 AM"` to a Sheets cell (e.g. via `setValue`) gets auto-converted to an actual `Date` value, the same as if it had been typed into the sheet by hand. A later `getValues()`/`getValue()` read then returns a JS `Date` object, not the original string — and `JSON.stringify`-ing that produces a full ISO timestamp (`"2026-08-26T00:00:00.000Z"`), not the expected plain-string shape. Any endpoint reading date/time-formatted cells back out of a Sheet should explicitly check the returned type and reformat `Date` objects to the exact string shape the frontend expects, rather than assuming `getValues()` returns what was originally written.
+
+**Why:** This caused IssuesTracker ISSUE-025 — a `doGet` endpoint fetch that "succeeded" (events loaded) but silently failed a client-side string-equality date filter, with no error anywhere in the chain.
+
+**Where this bit us:** the new `action=calendarEvents` endpoint in `SportsEmailScanner.gs` — see DecisionLog AD-29.
+
+---
+
+### BM-32 — Flex `order` vs. `margin-left:auto` Can Fight Each Other in Ways That Look Like a Margin Bug
+
+**Rule:** When a flex-row element with `margin-left:auto` appears to be misplacing sibling elements rather than just itself, check its position in flex order before adjusting margins.
+
+**Why:** IssuesTracker ISSUE-027 — a badge element with `margin-left:auto` but no explicit flex `order` was dragging its entire parent row rightward, not just itself, because it was first in DOM/flex order. Setting `order:1` on the badge (moving it to the end of the flex flow) fixed it without touching the margin at all.
+
+**Where this bit us:** the Calendars week view's "Today" row in `sports-dashboard.html`.
+
+---
+
+### BM-33 — GitHub Actions Incidents Can Leave a Workflow Run Stuck "Queued" With Cancel Also Failing
+
+**Rule:** If a GitHub Pages deploy workflow gets stuck "Queued" and manual cancellation also fails, check githubstatus.com before assuming a local/repo-side problem. No local fix exists for this — the workaround is a trivial recommit (e.g. a one-line comment change) once GitHub's status page shows the incident resolved, which triggers a fresh workflow run rather than waiting on or fighting the stuck one.
+
+**Why:** During a live GitHub Actions incident (Aug 26, 2026, ~15:11–18:01 UTC per githubstatus.com), a `pages-build-deployment` run got stuck in "Queued" and manual cancellation failed too — both the queuing and cancellation paths were affected by the same incident.
+
+**Where this applies:** general GitHub Actions/Pages deployment triage, not tied to one file.
+
+---
+
 ## Session Notes
 
 > Append entries as new lessons are learned. Never delete entries — mark outdated ones as `[Superseded]`.
@@ -527,3 +565,10 @@ before assuming Cloud Logs are broken or missing.
   (check execution duration against known benchmarks before assuming logs
   are broken) — all three from this session's calendar-scan testing and
   debugging work.
+- **Session — 2026-08-26:** Added BM-31 (Google Sheets silently coerces
+  date/time-shaped strings into real Date objects on write — the root
+  cause behind ISSUE-025), BM-32 (flex `order` vs. `margin-left:auto` can
+  fight each other in ways that look like a margin bug), and BM-33
+  (GitHub Actions incidents can leave a workflow stuck "Queued" with
+  cancel also failing) — from this session's Summary/Calendars UI/PWA
+  polish pass.

@@ -1,6 +1,6 @@
 # HQ Dashboard — Data Issues & Bug Tracker
 
-**Last Updated:** 2026-08-19  
+**Last Updated:** 2026-08-26  
 **Purpose:** Track known bugs, data quality issues, edge cases, and open questions that need investigation or fixing.
 
 ---
@@ -193,6 +193,31 @@ codebase (email scanning for both categories happens inside
 **Resolution:**
 Deleted directly in the Apps Script Triggers UI — no code change needed.
 Confirmed by Tom.
+
+---
+
+### ISSUE-029 — Activity Color Is Not Currently Editable From Settings
+**Severity:** 🟢 Low  
+**Status:** Open — Deferred to the Settings redesign session  
+**Filed:** 2026-08-26
+
+**Description:**  
+Each Activity's `color` field (used for the Calendars tab's per-event color bars, auto-assigned from a rotating palette at Activity creation) has no color-picker UI on the Activity card in Settings — only Family Members and individual senders/GroupMe entries currently have one.
+
+**Notes:** Deferred to the upcoming Settings redesign session rather than fixed as a one-off, since Settings is getting a broader UI pass anyway.
+
+---
+
+### ISSUE-030 — `fetchIcsServerSide()`/`action=ics` Backend Handler and the `cals` Config Field Are Dead Code
+**Severity:** 🟢 Low  
+**Status:** Open  
+**Filed:** 2026-08-26
+
+**Description:**  
+Left in place intentionally during the Calendars data-source migration (AD-29) to reduce rollout risk. Nothing in the current frontend calls `action=ics` or reads/writes the `cals` Settings field anymore.
+
+**Proposed Fix:**  
+Safe to remove in a future cleanup pass once the new `action=calendarEvents` path has been confirmed stable for a while.
 
 ---
 
@@ -412,6 +437,88 @@ Email History showed every GroupMe-sourced row with the badge "GROUPME" regardle
 
 ---
 
+### ISSUE-023 — 7-Day Schedule and Action Items Sections Loaded Expanded by Default
+**Severity:** Was 🟢 Low (UX)  
+**Status:** Fixed (2026-08-26)  
+**Filed:** 2026-08-26
+
+**Description:**  
+The 7-Day Schedule and Action Items sections on Summary loaded expanded by default, inconsistent with the new collapsed-by-default behavior introduced for briefing cards (PD-11) in the same session.
+
+**Fix Applied:**  
+Default state changed to closed on page load, matching PD-11's card pattern.
+
+---
+
+### ISSUE-024 — Action Items Section Retained a Highlighted/Active Background After Being Collapsed
+**Severity:** Was 🟢 Low (UX)  
+**Status:** Fixed (2026-08-26)  
+**Filed:** 2026-08-26
+
+**Description:**  
+After collapsing, the Action Items section kept a highlighted/active background. Root cause: a leftover active/focus style wasn't being cleared on collapse.
+
+**Fix Applied:**  
+Fixed in the same pass as ISSUE-023.
+
+---
+
+### ISSUE-025 — Calendars Tab Loaded 10 Events Successfully but Displayed None
+**Severity:** Was 🟠 High  
+**Status:** Fixed (2026-08-26)  
+**Filed:** 2026-08-26
+
+**Description:**  
+After the AD-29 migration to `action=calendarEvents`, the Calendars tab reported a successful fetch (10 events loaded) but rendered nothing.
+
+**Root cause (confirmed, not guessed):** Google Sheets auto-converts cell values that look like dates/times (e.g. "2026-08-26", "9:00 AM") into real `Date` objects on write, so the new endpoint's `getValues()` returned JS `Date` objects instead of the plain strings that were originally written. `JSON.stringify` serialized these as full ISO timestamps (e.g. "2026-08-26T00:00:00.000Z"), which never string-matched the frontend's `isoDate(day)` comparison — so the fetch succeeded but every event silently failed the per-day filter with no visible error.
+
+**Fix Applied:**  
+The endpoint now detects `Date`-typed cells and reformats them to the exact expected string shape (`yyyy-MM-dd` / `h:mm a`) before returning.
+
+**See:** BestMethods (new entry this session) for the general lesson this exposed about Sheets' auto-coercion behavior.
+
+---
+
+### ISSUE-026 — Calendars Week-Range Label Wrapped Awkwardly on Mobile
+**Severity:** Was 🟢 Low  
+**Status:** Fixed (2026-08-26)  
+**Filed:** 2026-08-26
+
+**Description:**  
+`.cal-month-label` had a fixed width that didn't fit "August 23-29, 2026" at small font sizes.
+
+**Fix Applied:**  
+Responsive font-size/letter-spacing and flexible sizing.
+
+---
+
+### ISSUE-027 — "Today" Row Misaligned in the Calendars Week View
+**Severity:** Was 🟢 Low  
+**Status:** Fixed (2026-08-26)  
+**Filed:** 2026-08-26
+
+**Description:**  
+The Today badge's `margin-left:auto` combined with its first position in flex order was dragging the entire row (badge + day name + date) right instead of just the badge.
+
+**Fix Applied:**  
+Gave the badge `order:1` so it moves to the end of the row independently, without touching the margin.
+
+---
+
+### ISSUE-028 — Calendars Day-Name Text Rendered Smaller Than the Date Text Next to It
+**Severity:** Was 🟢 Low  
+**Status:** Fixed (2026-08-26)  
+**Filed:** 2026-08-26
+
+**Description:**  
+`.week-day-name` ("Wed"/"Thu") was `.65rem` vs. `.week-day-date`'s `1rem`, creating a mismatched size pairing.
+
+**Fix Applied:**  
+Matched the sizes.
+
+---
+
 ## Closed / Won't Fix Issues
 
 ---
@@ -465,3 +572,4 @@ Run these checks periodically or after any GAS / dashboard update:
   Opened ISSUE-021 (relative-date resolution bug), fix prompted, not yet
   deployed. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006 remain open/
   deferred, untouched.
+- **Session — 2026-08-26:** Full UI/PWA polish pass on Summary and Calendars. Fixed ISSUE-023/024 (7-Day Schedule and Action Items not matching the new collapsed-by-default card behavior, and a stuck highlight style). Fixed ISSUE-025 (Calendars tab loading events but displaying none — Sheets auto-coercing date/time strings to `Date` objects) and three small Calendars visual bugs (ISSUE-026/027/028). Logged ISSUE-029 (Activity color picker, deferred to the Settings redesign) and ISSUE-030 (dead `.ics` backend code, safe to remove later). ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-021 remain open/deferred, untouched.

@@ -191,7 +191,7 @@ Each entry has:
 
 **Rationale:** Bebas Neue gives an athletic, energetic feel appropriate for a sports app. DM Sans is highly readable at small sizes on mobile. DM Mono provides clear visual hierarchy for metadata like dates, tags, and app labels.
 
-**Status:** Active
+**Status:** **Superseded by DD-04** (2026-08-26) — Quicksand/Nunito Sans replaced this typography system project-wide, following feedback that it read "too digital." Kept here for history.
 
 ---
 
@@ -429,6 +429,30 @@ Each entry has:
 
 ---
 
+### PD-08 — "Family Members" Replaces "Children" as a UI Label
+
+**Decision:** Every visible Settings label reading "Children"/"Child" is
+relabeled to "Family members"/"Family member" — the section header, helper
+text, the "CHILD'S NAME" field label, and the per-Activity "CHILD(REN)"
+chip-picker label. This is a **label-only change**: the internal
+`children` array, `childIds` field name, and the `deleteChild()` function
+(all fixed in place by AD-13's standing rule) are unchanged.
+
+**Rationale:** Tom wants to add non-child family members (e.g. "Dad") the
+same way a kid gets added, without the UI implying only children belong
+there.
+
+**Alternatives Considered:** A full internal rename (`children` → `members`
+everywhere, including the Sheet's Settings tab shape) — explicitly
+declined by Tom as out of scope; the risk of touching a name threaded
+through GAS, the Claude prompt schema, and cached briefing JSON wasn't
+worth it for what is purely a cosmetic change.
+
+**Status:** Designed and prompted (CC_05_FamilyMemberLabelsAndGrouping.md,
+2026-08-21) — **not yet deployed.**
+
+---
+
 ### AD-23 — Google Calendar Direct Scan Replaces the `.ics` Pipeline for the Briefing
 
 **Decision:** The briefing's `CALENDAR EVENTS` section is no longer fed by the browser-side `.ics` fetch → GAS proxy (`action=ics`) → parse → `&cal=` param pipeline. A new `scanGoogleCalendar(category)` function in `SportsEmailScanner.gs` reads directly from the Google account the script is deployed under (`tjunker9@gmail.com`) via GAS's native `CalendarApp` service, using a two-pass matching strategy:
@@ -562,6 +586,76 @@ calendar scan + Claude call, times two categories).
 
 ---
 
+### AD-29 — Calendars Tab Reads From Scanned Google Calendar Data Instead of Live `.ics` Subscriptions
+
+**Decision:** The Calendars tab no longer live-fetches and client-side-parses `.ics` subscription URLs configured in Settings. A new `action=calendarEvents` backend endpoint (`SportsEmailScanner.gs`) reads the already-persisted `CalendarEvents`/`SchoolCalendarEvents` sheets — the same sheets written by `scanGoogleCalendar()` on every briefing scan (AD-23) — and resolves child labels via the existing `activityLabel()`/`childNames()` join at read time.
+
+**Rationale:** Single source of truth for calendar data; matches the "read from last scan" pattern Email History already uses; removes a redundant data path that had no relationship to the Daily Briefing's own calendar scan and could show a different picture of "what's on the calendar" than Summary did.
+
+**Alternatives Considered:**
+- Keep the two pipelines separate — rejected; this is exactly the disconnect that produced ISSUE-020/025-class confusion, and having two independently-sourced calendar views was never a deliberate design choice.
+
+**Status:** Active. The `.ics` subscription pipeline (`fetchIcsServerSide`, `action=ics`) and its Settings UI were removed from the frontend (see PD-12), but the backend handler itself and the `cals` config field were deliberately left in place as unused/dead code rather than deleted, to avoid risk during rollout — see IssuesTracker ISSUE-030 for the future cleanup item.
+
+---
+
+### DD-04 — Typography System Replaced: Quicksand / Nunito Sans (Supersedes DD-01)
+
+**Decision:** Bebas Neue / DM Sans / DM Mono retired project-wide in favor of Quicksand (display/headers) / Nunito Sans (everything else). The uppercase/letter-spaced/monospace treatment previously applied to labels, meta lines, tags, the date badge, and tab labels was dropped in favor of sentence case with little-to-no letter-spacing. Card meta-line separators changed from em dash to middot (e.g. "Alex · Bavarian Soccer · Playmetrics").
+
+**Rationale:** Tom's feedback that the prior system read "too digital." Reviewed via side-by-side interactive mockups of 5 font pairings before selecting Quicksand/Nunito Sans.
+
+**Status:** Active. **Supersedes DD-01** — see DD-01 for the original decision, kept here for history.
+
+---
+
+### PD-09 — Summary Page Filter/Nav Layout Overhaul for Mobile + Desktop Parity
+
+**Decision:** Multiple related UI changes to the Summary tab, reviewed via interactive mockup before implementation:
+- The three-tier Category/Child/Activity pill-row filter replaced with a single-row `.filter-row` of dropdowns (Category later split back out into its own control — see PD-10).
+- Tab navigation restyled with real active-state styling on desktop, and replaced with a fixed bottom icon nav on mobile (≤640px) since a top tab row isn't thumb-reachable on a phone.
+- The Settings tab entry relocated to a header gear icon — no other Settings changes.
+- The "Refresh Briefing" button replaced with a small icon-only circular button with a spin-while-loading state.
+
+**Rationale:** Mobile-first usability pass — the prior three-pill-row filter and top-tab nav didn't scale well to a phone screen, especially for one-handed/thumb use.
+
+**Status:** Active.
+
+---
+
+### PD-10 — Category (Sports/School) Control Split Out as Its Own Swipeable/Pill Control
+
+**Decision:** Following PD-09, Category was pulled out of the Family/Activity dropdown row into its own control above it: a swipeable two-segment slider on mobile (tap or swipe to switch), two pill buttons on desktop — both driving the same `setCategory()`/`updateCategoryControlUI()` state.
+
+**Rationale:** Category (Sports vs. School) is a more fundamental, frequently-used switch than Family/Activity filtering — giving it its own dedicated control makes it faster to reach and reduces contention in the combined filter row PD-09 introduced.
+
+**Status:** Active.
+
+---
+
+### PD-11 — Briefing Cards Collapsed by Default, Expandable on Tap
+
+**Decision:** Briefing cards on Summary previously rendered fully expanded (meta, title, tag, full description, bullets always visible), pushing the 7-Day Schedule and Action Items sections far down the page. Cards now render collapsed to a single row (meta/title/tag/chevron) by default, expanding on tap via `toggleCard()` using `scrollHeight`-based animation.
+
+**Rationale:** Gets more of the page's most time-sensitive sections (schedule, actions) above the fold without hiding any card content — just deferring it to a tap.
+
+**Alternatives Considered:**
+- Auto-expand urgent-tagged cards by default — rejected; all cards collapse by default regardless of tag/urgency, a deliberate choice for consistency over surfacing urgent items pre-expanded.
+
+**Status:** Active. See IssuesTracker ISSUE-023/024 for two same-session bugs this exposed in the 7-Day Schedule/Action Items sections, which hadn't originally been designed to also default-collapsed.
+
+---
+
+### PD-12 — Calendar Subscriptions Removed From Settings
+
+**Decision:** Per AD-29, the `.ics` subscription config UI (label/URL/linked sport/color per calendar) was removed from Settings entirely, since nothing reads it anymore.
+
+**Rationale:** Dead UI for a data path the Calendars tab no longer uses — leaving it in Settings would let a user configure something with no effect.
+
+**Status:** Active. The backend's `cals` config field and `action=ics` handler were left in place, unused, rather than removed in the same pass — see IssuesTracker ISSUE-030.
+
+---
+
 ## Session Notes
 
 > Add entries when decisions are made, revisited, or reversed.
@@ -580,3 +674,4 @@ calendar scan + Claude call, times two categories).
   entirely (AD-28). Relabeled "Children" to "Family members" in the UI,
   label-only (PD-08). All four decisions are designed and prompted via 8
   CC prompts generated this session — none deployed yet as of this entry.
+- **Session — 2026-08-26:** Full UI/PWA polish pass on Summary and Calendars, all deployed and confirmed working. Summary: filter/nav layout overhaul (PD-09), Category pulled into its own swipeable/pill control (PD-10), briefing cards collapsed-by-default (PD-11). Project-wide typography swap to Quicksand/Nunito Sans, superseding DD-01 (DD-04). Calendars: migrated off the `.ics` subscription pipeline onto scanned Google Calendar data via a new `action=calendarEvents` endpoint (AD-29), with Calendar Subscriptions removed from Settings (PD-12). Six bugs found and fixed along the way — see IssuesTracker ISSUE-023 through ISSUE-028.

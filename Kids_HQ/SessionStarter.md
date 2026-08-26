@@ -5,72 +5,40 @@ Repo: github.com/Whit19/dataforge-standards
 ## ⚠ Deployment Account — Read This First
 Always deploy the Web App from `tjunker9@gmail.com` — that's the account whose Gmail inbox the script actually scans. Deploying from any other Google account silently binds the deployment to that account instead (Apps Script's "Execute as: Me" locks to whoever was logged in at Deploy time), with no error until Refresh Briefing is clicked later. See IssuesTracker ISSUE-016 / DecisionLog AD-19 for the full diagnosis.
 
-## Current Status (as of 2026-08-21)
-**The Google Calendar scan from AD-23 is now confirmed working end-to-end.**
-All 9 steps of the prior session's testing checklist passed, with one real
-issue found and resolved along the way: the "Bavarian Soccer" and "WNS Lax"
-Activities weren't matching their named Google Calendars because renaming
-a calendar in Google Calendar's own UI only changes Tom's personal display
-of a calendar he doesn't own — CalendarApp still reads the calendar's real
-underlying name. Fixed for now by renaming the Activities to match the
-calendars' actual names (e.g. "Bavarian Soccer" → "U17/U18 Girls Blue").
-A durable fix — a separate `calMatchName` field so the calendar-matching
-term can differ from the display name — is designed and prompted (AD-25)
-but **not yet deployed**.
+## Current Status (as of Aug 26, 2026 session)
 
-Also this session: found and fixed a stale `scanSportsEmails` Time-Driven
-trigger (leftover from before the Sports/School unification, failing daily
-with "Script function not found") — deleted directly in the Apps Script
-Triggers UI, no code change needed. Found a real bug in relative-date
-handling: a briefing card resolved "next Tuesday" against today's date
-instead of the source message's own send date, producing a wrong date and
-garbled text (ISSUE-021, prompt generated, not yet deployed). Confirmed
-`runDailyBriefing()` (the 6 AM trigger) does NOT call `scanGoogleCalendar()`
-today, unlike the dashboard's on-demand Refresh Briefing — meaning the
-daily auto-briefing has been running on stale calendar data; a fix is
-prompted (AD-28) but not yet deployed.
+Summary and Calendars tabs have both been through a full mobile+desktop responsive/typography pass:
+- **Summary**: filter row split into a Category slider/pills control (PD-10) above a two-select Family/Activity row (PD-09), real desktop tab styling + fixed mobile bottom icon nav (PD-09), Settings relocated to a header gear icon (PD-09), icon-only refresh button (PD-09), briefing cards collapsed-by-default with tap-to-expand (PD-11), and 7-Day Schedule/Action Items sections fixed to also default-collapsed (ISSUE-023/024).
+- **Typography**: project-wide swap from Bebas Neue/DM Sans/DM Mono to Quicksand/Nunito Sans, with sentence-case labels replacing the prior uppercase/spaced/mono treatment (DD-04, supersedes DD-01).
+- **Calendars**: migrated off the `.ics` subscription pipeline entirely — now reads scanned Google Calendar data via a new `action=calendarEvents` endpoint (AD-29), reusing the same `CalendarEvents`/`SchoolCalendarEvents` sheets and child/activity matching the Daily Briefing already relies on. Calendar Subscriptions removed from Settings (PD-12). One data-formatting bug found and fixed post-deploy (ISSUE-025 — Sheets auto-coercing date/time strings to `Date` objects), plus three small visual fixes (ISSUE-026/027/028).
 
-**Major design work, not yet built:** a Settings redesign was scoped and
-mocked up interactively with Tom, covering: "Family members" replacing
-"Children" as a UI label (PD-08, label-only — internal `children`/
-`childIds` naming is unchanged); Sport and School activities grouped
-together per person instead of two flat lists; an existing-vs-new-activity
-flow with a required Display Name and an optional Calendar Match Name;
-inline-editable and deletable email-source/GroupMe chips; archiving an
-Activity instead of deleting it (AD-26), so history stays intact; and an
-editable per-deployment Family Name field (AD-27) that drives the
-dashboard's title/subtitle — first groundwork toward eventual
-personalization for other families (see ProjectRoadmap backlog). All of
-this is written up as 8 CC prompts (see TimeLog/session notes for the
-list) — **none have been applied yet.**
+All changes for this session are committed and deployed; confirmed working by Tom via live testing on both tabs.
 
-### Next planned focus — start here
-1. **Review last session's settings changes.** Before doing anything else,
-   confirm which of the 8 CC prompts from 2026-08-21 Tom has actually
-   applied and deployed since this was written, and what (if anything)
-   broke or needs adjustment. Do not assume any of them are live —
-   verify first.
-2. If not yet applied: walk through applying the 8 CC prompts in the
-   documented order (daily-trigger calendar scan and temp-debug removal
-   first, then the data-model fields, then the three frontend Settings
-   prompts last, since they depend on the data-model changes).
-3. Once deployed, spot-check: relative-date resolution on a new
-   ambiguous-date message; the 6 AM trigger's next natural run (or a
-   manual `runDailyBriefing` test) actually logging a Google Calendar
-   match line for both categories; the new Settings UI (family member
-   grouping, archive/restore, editable chips, family name field) against
-   real data.
-4. Longer-standing open items, still untouched: ISSUE-001 (Manual
-   Updates), ISSUE-006 (Email History not refetching after Refresh
-   Briefing), GroupMe OAuth setup (Phase 5), PWA dashboard wiring + icons
-   (Phase 6).
+## Next Session's Priorities
 
-### Testing checklist — Google Calendar scan: COMPLETE (2026-08-21)
-All 9 steps from the prior version of this checklist passed. See Decision
-Log AD-23's Status note and IssuesTracker ISSUE-020 for the one real issue
-this testing surfaced and how it was resolved. This checklist is kept here
-for reference only — no further action needed unless new calendar-matching
-problems appear.
+1. **Review this session's changes.** Before doing anything else, confirm
+   nothing broke or needs adjustment from the Summary/Calendars overhaul
+   above — this session's changes are now the ones needing first-pass
+   review next time, per the usual continuity convention.
+2. **Settings UI redesign** — full mockup-and-review pass, same process as
+   Summary/Calendars. Known scope so far: add a color-picker to the
+   Activity card (ISSUE-029), general layout modernization to match the
+   new typography/design system (Settings hasn't been touched since
+   before this session's changes, so it's currently visually inconsistent
+   with the rest of the app).
+3. **Verify Email History, To-Do, and Manual Updates tabs** against the
+   new design system (typography, spacing, any inherited pre-redesign
+   styling) — planned to go tab-by-tab in this order before Settings,
+   since those three tabs predate this session's changes and likely have
+   similar small inherited issues to what was found in Summary/Calendars.
+4. **Optional cleanup**: remove dead `.ics`/`action=ics` backend code
+   (ISSUE-030) once the new Calendars data path has proven stable for a
+   while — not urgent.
+5. Carried over from before this session, still open: `calMatchName`
+   durable fix extension (AD-25), relative-date resolution bug
+   (ISSUE-021), daily briefing calendar-scan parity (AD-28), ISSUE-001
+   (Manual Updates not wired to prompt) — none of these were touched
+   this session.
 
 ## What This Is
 A personal dashboard for managing multiple kids' sports teams *and* school activities in one place. It aggregates emails from configured senders, syncs calendars, and uses Claude AI (via Google Apps Script) to generate a daily briefing per category (Sports / School) with a priority, app cards, schedule timeline, and action items — filterable by which kid it's about.

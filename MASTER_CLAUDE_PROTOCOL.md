@@ -1,6 +1,6 @@
 # Master Claude Protocol — DataForge
 **Apply this to every Claude Project and every session. No exceptions.**
-Last updated: 2026-08-20
+Last updated: 2026-08-27
 
 ---
 
@@ -131,6 +131,8 @@ SessionStarter]. Ready."
 
 **All code changes are delivered as Claude Code prompts for VS Code — not inline in chat.**
 
+*Scope note: this section governs changes to project source code (private repos). End-of-session updates to the 7 `dataforge-standards` MD docs follow their own, different workflow — see Section 5b, updated 2026-08-27.*
+
 ### Why
 - Fewer tokens consumed in chat
 - Changes apply directly to the correct files
@@ -217,13 +219,21 @@ Claude Code in VS Code.
 - `BestMethods.md` — add lessons as they are learned
 - `TimeLog.md` — duration + one-sentence summary per session
 
-### 5b. MD file update workflow (end of every session)
-1. Claude generates a CC prompt MD file for each changed doc (one per file)
-2. Tom downloads the CC prompt MD files and pastes into Claude Code in VS Code — files written to disk
-3. Tom commits and pushes to `dataforge-standards` repo — GitHub is the source of truth
-4. Claude fetches the latest version automatically at the next session start via URL
+### 5b. MD file update workflow (end of every session) — updated 2026-08-27
 
-No manual re-upload to Claude Project needed. GitHub commit = live for next session.
+**Default path — Claude Code session with a local `dataforge-standards` clone:**
+1. Tom gives Claude Code a plain-language summary of what happened this session — facts only. No assumed line numbers, no assumed "current text reads X" snippets, no pre-assigned AD/PD/ISSUE/BM numbers. Can be typed directly into Claude Code, or pasted in from a Claude.ai chat conversation that did the actual design/analysis work.
+2. Claude Code reads each affected file's **current, live content** directly — via its own file tools against the local clone — before writing anything to it.
+3. Claude Code determines the next-available AD/PD/ISSUE/BM number itself, by checking the live file at write time (e.g. `grep -oE "^### (AD|PD|DD|BM|ISSUE)-[0-9]+" *.md | sort -t- -k2 -n -u | tail -20`). Numbers are never pre-assigned by Tom in the summary — see the rationale below for why.
+4. Claude Code writes the changes directly to disk. No intermediate `CC_*.md` prompt file is generated for docs updates.
+5. Once Tom says to proceed, Claude Code commits and pushes `dataforge-standards` directly, using the commit message format from Section 16.
+6. **Notion does not sync automatically** when this happens in Claude Code — see Section 17. Do a short Claude.ai chat check-in afterward if the Notion row needs updating for this session, or update it by hand.
+
+**Fallback path — Claude.ai chat only, no Claude Code available in the thread:** generate one CC prompt MD file per changed doc (Section 4's format/naming — `CC_[ShortDescription].md`), for Tom to paste into a separate Claude Code session, which writes to disk and commits. Use this only when there's no Claude Code session to write directly in.
+
+**Why direct writing is the default now:** the original flow had Tom pre-drafting CC prompts (in a chat session, working from that session's own memory of file state) with specific AD/PD/ISSUE/BM numbers already baked in, while a separate Claude Code session was independently writing to the same files in parallel. That's a race condition, not a file-count problem — two different bugs found this way got assigned the same ISSUE number, and a batch of BestMethods entries were prompted to insert at a number three sessions' worth of entries had already passed. Direct writing collapses this to one point where "what's the next number" gets decided, immediately before it's used, so there's nothing to go stale.
+
+No manual re-upload to Claude Project needed either way. GitHub commit = live for next session.
 
 **Do not rely on screenshots to capture updated MD content — always get the text.**
 
@@ -392,12 +402,10 @@ the one where they were first created.
 
 At session end, Tom will say "Update the docs" — only then generate updates. For each file that changed:
 
-1. Claude generates a CC prompt MD file (one per file) targeting `[project]/[filename].md` in the `dataforge-standards` repo
-2. Tom downloads the CC prompt MD files and pastes into Claude Code in VS Code — files written to disk
-3. Tom commits and pushes `dataforge-standards` — GitHub is the source of truth
-4. No Claude Project re-upload needed — Claude fetches latest via URL at next session start
-5. **Sync Notion.** Update the `Last Updated` date property on the project's Notion page (Projects data source, page ID `37462bde-ae68-80a2-ab5a-c2f6fcbae3c6` for Kids HQ) to the session's date. Use the `notion-update-page` tool with `update_properties`, setting `date:Last Updated:start` to today's date and `date:Last Updated:is_datetime` to `0`. This happens every time docs are updated at session end — not just when something notable changed — so the Notion row always reflects the most recent session date.
-6. **Log session to Daily Summaries.** Create a new page in the shared "Daily Summaries" database (data source id `2284bd95-1027-4c7a-938a-e56a66dfa60d`) via `notion-create-pages`, with `Name` = `"{Project Name} — {session date, YYYY-MM-DD}"`, `Date` = the session's date, `Project` = relation to this project's row in the Projects database, and page body content = the exact same Session Summary generated for this session (Section 16) — reuse it verbatim, don't write a separate summary. This applies to every project following this protocol, every time "Update the docs" runs, not just Kids HQ.
+1. **Update the docs.** Follow Section 5b's workflow (updated 2026-08-27) — a Claude Code session with a local `dataforge-standards` clone writes directly to disk and commits/pushes once Tom confirms; fall back to the CC-prompt-file path only when the update is happening in a Claude.ai chat with no Claude Code session available.
+2. No Claude Project re-upload needed either way — Claude fetches latest via URL at next session start.
+3. **Sync Notion** *(chat sessions only — see Section 17; a Claude Code session doing step 1 does not have Notion access and skips this)*. Update the `Last Updated` date property on the project's Notion page (Projects data source, page ID `37462bde-ae68-80a2-ab5a-c2f6fcbae3c6` for Kids HQ) to the session's date. Use the `notion-update-page` tool with `update_properties`, setting `date:Last Updated:start` to today's date and `date:Last Updated:is_datetime` to `0`. This happens every time docs are updated at session end via chat — not just when something notable changed — so the Notion row always reflects the most recent session date.
+4. **Log session to Daily Summaries** *(chat sessions only, same caveat as step 3)*. Create a new page in the shared "Daily Summaries" database (data source id `2284bd95-1027-4c7a-938a-e56a66dfa60d`) via `notion-create-pages`, with `Name` = `"{Project Name} — {session date, YYYY-MM-DD}"`, `Date` = the session's date, `Project` = relation to this project's row in the Projects database, and page body content = the exact same Session Summary generated for this session (Section 16) — reuse it verbatim, don't write a separate summary. This applies to every project following this protocol, every time "Update the docs" runs in chat, not just Kids HQ.
 
 **Files to consider per session (only update if changed):**
 - `SessionStarter.md` — almost always needs updating (status, completed items, next priorities)

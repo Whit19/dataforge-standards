@@ -175,40 +175,58 @@ familyName: ''   // PENDING (AD-27) — optional; drives the dashboard's
 ```
 GAS trigger → runDailyBriefing()
   → for category in ['sports', 'school']:
+      scanGoogleCalendar(category) — AD-28, see note below
       scanEmails(category) → Gmail → {Cat}Emails sheet + {Cat}EmailHistory sheet
+      scanGroupMe(category) → {Cat}EmailHistory sheet (AD-20)
       generateSummaryWithClaude(category)
         → read {Cat}EmailHistory sheet (merged with this scan, fresh data wins — AD-14)
-        → read {Cat}CalendarEvents sheet (last pushed from dashboard)
+        → read {Cat}CalendarEvents sheet (just written by scanGoogleCalendar() above)
         → build category-specific prompt, with a KNOWN CHILDREN legend
         → POST to Claude API
         → storeSummary(category) → {Cat}Summary sheet
 ```
 
-**Pending change (AD-28, not yet deployed):** `runDailyBriefing()`
-currently does NOT call `scanGoogleCalendar()` for either category —
-confirmed via a manual run's Cloud log showing no
-"Google Calendar: matched X event(s)..." line. This means the 6 AM
-auto-briefing runs on whatever calendar data was last written by a
-manual dashboard Refresh Briefing click, not fresh data. A fix is
-prompted to add a `scanGoogleCalendar(category)` call immediately
-before `scanEmails(category)` in this flow, matching Data Flow #2b's
-existing call order.
+**AD-28 confirmed deployed (2026-08-27 doc audit):** this section previously
+described `runDailyBriefing()` as NOT calling `scanGoogleCalendar()` — a gap
+designed and prompted 2026-08-21 but never confirmed live. Direct inspection
+this session found `scanGoogleCalendar(category)` already called first, matching
+`doGet(?action=generate)`'s call order — apparently shipped with the same
+2026-08-21 batch (git `cbdc0b6`) but never marked as such in either this file
+or DecisionLog. Corrected in both places this session. This flow calls the
+underlying functions directly, independent of the `action=generate` split
+described in Data Flow #2 — it isn't affected by that change.
 
-### 2. On-Demand Refresh from Dashboard
+### 2. On-Demand Refresh from Dashboard (AD-30, 2026-08-27 — supersedes single `action=generate` call)
 ```
-User clicks Refresh Briefing → generate() in JS
-  → fetch GET /exec?action=generate&cat={active} — no calendar data sent by the
-    dashboard at all anymore (AD-23; see 2b below for where calendar data now
-    comes from instead)
-  → GAS: scanGoogleCalendar(category) → scan Gmail → call Claude
-    (prompt includes todayISO + no-stale-content rule, AD-16) → store
-  → return { summary, generatedAt } → renderOutput() → cached as lastBriefingData
+User clicks Refresh Briefing (desktop button or mobile pull-to-refresh) → generate() in JS
+  → runGenerateSteps(category, signal) drives 4 separate requests in sequence,
+    each independently retryable (fetchStepWithRetry(), up to 3 attempts, 2s
+    apart — every step is idempotent server-side, so a dropped connection
+    just retries that same step):
+      1. GET /exec?action=scanCalendar&cat={active}   → scanGoogleCalendar(category)
+      2. GET /exec?action=scanEmail&cat={active}       → scanEmails(category)
+      3. GET /exec?action=scanGroupMe&cat={active}     → scanGroupMe(category)
+      4. GET /exec?action=generateSummary&cat={active} → generateSummaryWithClaude(
+           category, [] ) — passes [] for emailRows deliberately; the function
+           already merges the full {Cat}EmailHistory sheet itself (the same
+           sheet step 2 just wrote), so there's no need to thread rows across
+           what are now separate stateless requests
+  → each step call shows real progress client-side (label + fill bar, e.g.
+    "Scanning email… (2/4)", shared between the desktop button and mobile
+    pull-to-refresh)
+  → step 4's response — { summary, generatedAt }, same shape action=generate
+    always returned — → renderOutput() → cached as lastBriefingData
     → renderBriefingFiltered() applies the active Child AND Activity filters
       (PD-04, PD-06) AND a deterministic isPastISO() backstop client-side (drops
       any past-dated item regardless of what Claude returned, AD-16)
       → renderTimelineGrouped() buckets the 7-Day Schedule by day using each
         item's dateISO
 ```
+**Retired path, kept for compatibility:** the original combined `GET /exec?
+action=generate&cat=` handler (running all 4 steps in one GAS execution) is
+still present server-side, but no longer called by the dashboard — see API
+Contracts below and DecisionLog AD-30 for why (a single ~60-140s connection
+was too exposed to a phone's screen locking mid-request, ISSUE-004).
 
 ### 2b. Google Calendar Scanning (AD-23)
 ```
@@ -286,20 +304,30 @@ Local edit (add/edit/remove Child, Activity, sender, or Calendar)
       → GAS strips any API key field, writes to the Settings sheet
 
 Fresh browser, GAS URL already known, no local settings
-  → auto-triggers pullSettingsFromGas(silent) once on load
+  → auto-triggers pullSettingsFromGas(silent) AND pullTodosFromGas(silent) once
+    on load (ISSUE-034, 2026-08-27 — previously only settings were pulled here,
+    leaving a fresh device's To-Do list empty until something else happened to
+    trigger a todos pull)
 
 Manual "☁ Load Settings from Cloud" button
-  → pullSettingsFromGas(false) → same fetch, shows a status message either way
+  → pullSettingsFromGas(false) AND pullTodosFromGas(false) — same ISSUE-034 fix,
+    applied to the manual path too
 ```
 
-### 6. To-Do List (AD-18, synced to GAS as of AD-24)
+### 6. To-Do List (AD-18, synced to GAS as of AD-24; due dates + grouping + inline editing as of PD-15)
 ```
 Add/toggle/delete a To-Do item
   → loadTodos()/saveTodos() → localStorage['gdhq_todos'] AND, as of AD-24,
     pushTodosToGas() → GET /exec?action=saveTodos&todos=[JSON], fire-and-forget,
     same last-write-wins pattern as Settings sync (AD-11). Array of
-    { id, text, done, addedAt }.
-  → renderTodos() re-renders the To-Do tab's DOM
+    { id, text, dueDate, done, addedAt } — dueDate (PD-15, optional, "" or
+    absent for older items) added with no backend schema change needed, since
+    getTodos/saveTodos store the array as opaque JSON.
+  → renderTodos() groups into Overdue (dueDate set + isPastISO) / Upcoming
+    (dueDate set + future) / No due date / Done, each sorted by dueDate, and
+    re-renders the To-Do tab's DOM
+  → startEditTodo()/saveEditTodo() (PD-15): clicking a row swaps it for inline
+    text + date inputs and a Save button — no modal, edits both fields in place
 
 On page load
   → pullTodosFromGas(silent) → GET /exec?action=getTodos → overwrites local
@@ -308,9 +336,10 @@ On page load
 
 Action Item "+ To-Do" button (Summary tab)
   → addTodoFromAction(idx) → dedupes by exact text match against existing todos,
-    then calls saveTodos() (which now also syncs to GAS) + renderTodos() (a
-    same-session bug, ISSUE-014, was fixed here — renderTodos() was originally
-    missing after saveTodos())
+    carries the action's own dateISO through as the new to-do's dueDate (PD-15
+    — no free-text date parsing), then calls saveTodos() (which now also syncs
+    to GAS) + renderTodos() (a same-session bug, ISSUE-014, was fixed here —
+    renderTodos() was originally missing after saveTodos())
 ```
 
 ---
@@ -333,7 +362,14 @@ Action Item "+ To-Do" button (Summary tab)
 ```
 Note: `actions` were plain strings before the child-tagging change; the dashboard's `renderBriefingFiltered()` accepts both shapes so old cached briefings still render. `dateISO` (AD-16) is likewise absent on any briefing cached before this session's change — the dashboard's `isPastISO()`/`renderTimelineGrouped()` treat a missing `dateISO` as "leave alone" (shown under an "Other" bucket, never dropped), not as an error.
 
-**GET /exec?action=generate&cat=&cal=JSON** — Regenerates that category's briefing, returns same shape
+**GET /exec?action=generate&cat=** — Regenerates that category's briefing in one GAS execution (scan Calendar → scan Email → scan GroupMe → call Claude, all sequential), returns same shape as the default endpoint above. **Retired from frontend use (AD-30, 2026-08-27)** — no longer called by the dashboard, kept server-side for compatibility. Superseded by the 4 endpoints below, split out so the client gets real per-step progress and each connection is short enough to survive a phone backgrounding mid-request (ISSUE-004).
+
+**GET /exec?action=scanCalendar&cat=** → `scanGoogleCalendar(category)`, returns `{ ok: true }`
+**GET /exec?action=scanEmail&cat=** → `scanEmails(category)`, returns `{ ok: true }`. Sender attribution (`detectApp()`, called once per message) is longest-match-wins across `From + ' ' + Subject` combined as of AD-31 — previously first-array-match across `From` only, which let a broad shared-platform domain entry (e.g. `sportsengine.com`) silently claim emails that actually belonged to a different Activity on the same platform, either because a more specific entry lost on array order or because the identifying org name only appeared in the Subject line, never in From.
+**GET /exec?action=scanGroupMe&cat=** → `scanGroupMe(category)`, returns `{ ok: true }`
+**GET /exec?action=generateSummary&cat=** → `generateSummaryWithClaude(category, [])`, returns `{ summary, generatedAt }` (falls through to the same default-endpoint response code rather than duplicating it)
+
+All 4 (AD-30) run the exact same 4 functions `action=generate` always called, in the same order, just as separately-addressable requests — each is idempotent (safe to retry; re-scanning/re-generating just overwrites the same sheet). The dashboard drives them in sequence via `runGenerateSteps()`, with per-step retry (`fetchStepWithRetry()`, up to 3 attempts) on the client. `generateSummary` passes `[]` for emailRows deliberately — see Data Flow #2 above.
 
 **GET /exec?action=history&cat=[&app=AppName]** — Returns email history
 ```json
@@ -427,3 +463,21 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
   field (AD-27), and closing the gap where the 6 AM trigger skipped
   the calendar scan entirely (AD-28).
 - **Session — 2026-08-26:** Migrated the Calendars tab off the `.ics` subscription pipeline onto scanned Google Calendar data via a new `action=calendarEvents` endpoint (AD-29), rewriting Data Flow #3 to match Email History's load-once/cache-client-side pattern and marking the old `.ics` flow and its `action=ics` endpoint as retired-but-left-in-place dead code. Documented the Sheets Date-object auto-coercion gotcha (ISSUE-025) inline on the new endpoint. Typography and responsive-nav changes from this session (Quicksand/Nunito Sans, DD-04; mobile bottom nav, PD-09) are UI-only and not reflected here, since this file's scope is backend/data-flow architecture, not visual design.
+- **Session — 2026-08-27:** Split `action=generate` into 4 separately-
+  callable, independently-retryable steps (AD-30) — rewrote Data Flow #2
+  and the API Contracts section accordingly, marked the original combined
+  endpoint retired-but-kept (same treatment as `action=ics` got last
+  session). Corrected Data Flow #1 — `runDailyBriefing()` was documented
+  as NOT calling `scanGoogleCalendar()` (AD-28, "not yet deployed"), but
+  direct inspection this session found it already does, apparently
+  shipped back on 2026-08-21 (git `cbdc0b6`) and never confirmed in either
+  this file or DecisionLog; DecisionLog AD-25/26/27/28 all got the same
+  correction, see that file. Updated Data Flow #5 (Settings Sync) and #6
+  (To-Do List) for two PD-15 changes: To-Do items gained a `dueDate` field
+  (opaque to the backend, no schema change) and "Load Settings from
+  Cloud"/the auto-pull-on-load path now also pull To-Dos (ISSUE-034).
+  Noted AD-31's `detectApp()` change (longest-match across From+Subject,
+  not first-match across From only) on the `action=scanEmail` endpoint.
+  Visual-only changes from this session (accent color system PD-13, Email
+  History/To-Do redesigns PD-14/15's non-data-model parts) are not
+  reflected here, same scope boundary as last session's typography note.

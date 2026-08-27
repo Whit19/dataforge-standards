@@ -21,44 +21,6 @@
 
 ---
 
-### ISSUE-001 — Manual Updates Not Passed to Claude Prompt
-**Severity:** 🟠 High  
-**Status:** Open  
-**Filed:** Session 1 (Mar 2026)
-
-**Description:**  
-The Manual Updates tab allows users to paste content from any sports app. However, this content is never included in the Claude prompt when generating a briefing. The textarea values are collected but not sent to GAS.
-
-**Update (2026-08-17):** Still open — reconfirmed by inspecting `generate()` and both prompt builders in the current unified dashboard; no reference to `e-teamsnap` etc. outside the tab's own markup. Additionally, this tab's 7 hardcoded app text areas (TeamSnap/SportsEngine/GameChanger/GroupMe/Playmetrics/League/Carpool Kids) now predate the Child→Activity/sender model from Decision Log AD-12 — they don't necessarily reflect what the user has actually configured as senders anymore. Recommend reworking both gaps together: rebuild this tab to generate one textarea per configured Activity (using its senders/name), then wire the content into the prompt.
-
-**Proposed Fix:**  
-1. Rebuild the Manual Updates tab to render one entry per configured Activity, not a hardcoded app list
-2. Read those values in the `generate()` JS function
-3. Encode as a `?manual=[JSON]` GET param (or fold into the existing `?cal=` param)
-4. In GAS `doGet()`, parse manual content and add it to the prompt as a third section
-
----
-
-### ISSUE-004 — GAS Generate Call Timeout on Slow Networks
-**Severity:** 🟡 Medium  
-**Status:** Open  
-**Filed:** Session 1 (Mar 2026)
-
-**Description:**  
-The `action=generate` call can take 30-60 seconds (Gmail scan + Claude API call). On slow mobile connections, the 90-second client timeout occasionally fires, showing an error even when GAS successfully completed the job in the background.
-
-**Update (2026-08-17, later session):** Confirmed still relevant — Tom flagged Refresh Briefing feeling slow. A completed refresh was observed finishing well inside the 90s window (not an active failure, just wait-time UX). Deliberately deferred to its own future session rather than folded into an unrelated fix.
-
-**Expected Behavior:**  
-User should see the fresh briefing even if the initial fetch times out, as long as GAS completed successfully.
-
-**Proposed Fix:**  
-Implement a polling pattern: on timeout during generate, auto-retry `doGet()` (default — returns stored summary) every 10 seconds for up to 3 attempts. If a fresh `generatedAt` timestamp appears, render it.
-
-**Notes:** Low-priority until user-reported; 90s timeout covers most cases.
-
----
-
 ### ISSUE-005 — Google Calendar Embed URL Conversion Fragile
 **Severity:** 🟡 Medium  
 **Status:** Open  
@@ -196,13 +158,15 @@ Confirmed by Tom.
 
 ---
 
-### ISSUE-029 — Activity Color Is Not Currently Editable From Settings
+### ISSUE-029 — Activity `color` Field Has No Settings UI, and (as of PD-13) No Reader Left Either
 **Severity:** 🟢 Low  
 **Status:** Open — Deferred to the Settings redesign session  
 **Filed:** 2026-08-26
 
 **Description:**  
-Each Activity's `color` field (used for the Calendars tab's per-event color bars, auto-assigned from a rotating palette at Activity creation) has no color-picker UI on the Activity card in Settings — only Family Members and individual senders/GroupMe entries currently have one.
+Each Activity's `color` field, auto-assigned from a rotating palette at Activity creation, has no color-picker UI on the Activity card in Settings — only Family Members and individual senders/GroupMe entries currently have one.
+
+**Update (2026-08-27):** The field's only actual reader — the Calendars tab's per-event color bar — was removed in this session's PD-13 accent-color pass (bars now follow the Sports/School accent instead). The field itself stays in the data model and Settings UI for now, but the open question during the Settings redesign session is no longer just "add a picker" — it's whether this field is worth keeping at all now that nothing reads it.
 
 **Notes:** Deferred to the upcoming Settings redesign session rather than fixed as a one-off, since Settings is getting a broader UI pass anyway.
 
@@ -519,6 +483,107 @@ Matched the sizes.
 
 ---
 
+### ISSUE-001 — Manual Updates Not Passed to Claude Prompt
+**Severity:** Was 🟠 High  
+**Status:** Fixed (2026-08-27) — closed by removal, not by wiring it up  
+**Filed:** Session 1 (Mar 2026)
+
+**Description:**  
+The Manual Updates tab allows users to paste content from any sports app. However, this content is never included in the Claude prompt when generating a briefing. The textarea values are collected but not sent to GAS.
+
+**Update (2026-08-17):** Still open — reconfirmed by inspecting `generate()` and both prompt builders in the current unified dashboard; no reference to `e-teamsnap` etc. outside the tab's own markup. This tab's 7 hardcoded app text areas now predate the Child→Activity/sender model from Decision Log AD-12 — they don't necessarily reflect what the user has actually configured as senders anymore.
+
+**Fix Applied:**  
+Confirmed dead UI (the textarea values were never read anywhere in the file, on either the Gmail-scan or prompt-building path) and removed the tab entirely — both nav buttons, the panel, and its CSS — rather than rebuilding it per the original proposed fix. See DecisionLog PD-16.
+
+---
+
+### ISSUE-004 — GAS Generate Call Timeout on Slow Networks
+**Severity:** Was 🟡 Medium  
+**Status:** Fixed (2026-08-27)  
+**Filed:** Session 1 (Mar 2026)
+
+**Description:**  
+The `action=generate` call can take 30-60 seconds (Gmail scan + Claude API call). On slow mobile connections, the 90-second client timeout occasionally fires, showing an error even when GAS successfully completed the job in the background.
+
+**Update (2026-08-17, later session):** Confirmed still relevant — Tom flagged Refresh Briefing feeling slow. Deliberately deferred to its own future session rather than folded into an unrelated fix.
+
+**Update (2026-08-27):** Recurred in an amplified form once the call routinely ran 60-140s (Gmail + Calendar + GroupMe + Claude, all sequential) — a phone's screen locking or the browser backgrounding mid-request killed the client-side connection while GAS kept running to completion regardless. Confirmed directly: the Apps Script Executions log showed a run "Completed" while the client simultaneously showed "Failed to reach your Google Apps Script."
+
+**Fix Applied:**  
+Not the originally-proposed polling pattern (implemented as an interim patch mid-session, then superseded) — instead split `action=generate` into 4 independently-retryable steps, each idempotent, with per-step retry replacing the need to poll and guess whether the backend finished. See DecisionLog AD-30.
+
+---
+
+### ISSUE-031 — Daily Briefing Cards Showed the Activity Name Twice
+**Severity:** Was 🟢 Low  
+**Status:** Fixed (2026-08-27)  
+**Filed:** 2026-08-27
+
+**Description:**  
+The card meta line read e.g. "Brooke · Flag Football · Flag Football" — the third segment was `c.source` (Claude's app/sender label), which on most cards just repeated the activity name rather than adding information.
+
+**Fix Applied:**  
+Dropped `c.source` from the kicker; rebuilt it to match Calendars/Email History's pattern (family member name(s), individually colored via `kids[].color`, · activity name in the accent color). Caught a related layout bug while doing this — since the kicker became HTML (colored spans) instead of plain text, it needed wrapping in its own `.card-kicker` span, since `.card-meta` is `display:flex` with a gap and would otherwise have inserted unwanted gaps between each inline element inside a multi-child kicker.
+
+---
+
+### ISSUE-032 — Calendars Events Showed the Activity Name Twice
+**Severity:** Was 🟢 Low  
+**Status:** Fixed (2026-08-27)  
+**Filed:** 2026-08-27
+
+**Description:**  
+Event rows read e.g. "Alex · Bavarian Soccer · Bavarian Soccer" — `teamName` was joining both `act.name` and `ev.team`, even though both hold the same activity name (`ev.team` is stamped from it at scan time by `scanGoogleCalendar()`).
+
+**Fix Applied:**  
+Use `act.name` alone, falling back to `ev.team` only when `act` itself isn't found.
+
+---
+
+### ISSUE-033 — Filter-Dropdown Default-Option Text Fix Only Applied to Static HTML, Not the JS That Immediately Overwrites It
+**Severity:** Was 🟢 Low  
+**Status:** Fixed (2026-08-27)  
+**Filed:** 2026-08-27
+
+**Description:**  
+A prompt to remove icons and capitalize the "All family"/"All activities" default dropdown options specified only the static HTML markup. That markup is immediately overwritten on page load — and on every category/filter change — by `renderChildSwitch()`/`renderActivitySwitch()`, which construct the same default option from their own template literals. Applying the fix to only the static HTML would have been invisible in practice.
+
+**Fix Applied:**  
+Applied the same text change to both the static HTML defaults and the two JS render functions that immediately overwrite them.
+
+**Notes:** General pattern worth watching for — any UI element with both a static HTML default and a JS function that unconditionally re-renders it on load has two sources of truth that must be kept in sync. See BestMethods.
+
+---
+
+### ISSUE-034 — "Load Settings from Cloud" Never Also Pulled To-Dos
+**Severity:** Was 🟡 Medium  
+**Status:** Fixed (2026-08-27)  
+**Filed:** 2026-08-27
+
+**Description:**  
+On a fresh device/browser, clicking "☁ Load Settings from Cloud" correctly pulled Family/Activities via `pullSettingsFromGas()`, but never also pulled To-Dos — so a new device showed an empty To-Do list even though the cloud had saved items, until some other unrelated action happened to trigger `pullTodosFromGas()`.
+
+**Fix Applied:**  
+`pullTodosFromGas()` now also fires alongside `pullSettingsFromGas()`, from both the manual "Load Settings from Cloud" button and the automatic first-load pull for an unconfigured device.
+
+---
+
+### ISSUE-035 — Emails Misattributed to Wrong Family Member/Activity via Shared Platform Domain
+**Severity:** Was 🟠 High  
+**Status:** Fixed (2026-08-27)  
+**Filed:** 2026-08-27
+
+**Description:**  
+A "Top Center Lacrosse Recorded Your Payment" email (Whit's TC Lax activity) was attributed to Dad's Fighting Sue Hockey instead. Two compounding causes in `detectApp()`: (1) it returned the FIRST sender match found across all Activities' senders, in array order, rather than the most specific one — Dad's broad `sportsengine.com` entry could out-"win" a more specific entry purely by being checked first; (2) it only searched the email's From header, but some SportsEngine notification templates use a generic "SportsEngine" display name with the actual org name only in the Subject line, so no From-header match — no matter how specific — could ever catch those.
+
+**Fix Applied:**  
+Two-part fix, see DecisionLog AD-31 and BestMethods BM-37 — (1) match resolution changed to prefer the longest/most specific matching string regardless of array order, (2) search widened from From-only to From+Subject combined. Settings UI's "Match" field label updated to reflect it's no longer domain/email-only.
+
+**Notes:** if a single email's From+Subject text contains two different Activities' specific match strings, whichever is longer wins — a real but rare accepted limitation, not resolved by this fix (would require manual per-email correction, not a feature that exists). Requires redeploy from `tjunker9@gmail.com`; confirmed done by Tom for both parts.
+
+---
+
 ## Closed / Won't Fix Issues
 
 ---
@@ -573,3 +638,28 @@ Run these checks periodically or after any GAS / dashboard update:
   deployed. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006 remain open/
   deferred, untouched.
 - **Session — 2026-08-26:** Full UI/PWA polish pass on Summary and Calendars. Fixed ISSUE-023/024 (7-Day Schedule and Action Items not matching the new collapsed-by-default card behavior, and a stuck highlight style). Fixed ISSUE-025 (Calendars tab loading events but displaying none — Sheets auto-coercing date/time strings to `Date` objects) and three small Calendars visual bugs (ISSUE-026/027/028). Logged ISSUE-029 (Activity color picker, deferred to the Settings redesign) and ISSUE-030 (dead `.ics` backend code, safe to remove later). ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-021 remain open/deferred, untouched.
+- **Session — 2026-08-27:** Full visual/functional pass across Summary,
+  Calendars, Email History, and To-Do. Closed ISSUE-001 (Manual Updates
+  never wired to the prompt) by removing the tab entirely, not by
+  building the wiring — a long-standing top-priority open item. Closed
+  ISSUE-004 (GAS generate-call timeout on slow networks) via a proper
+  architectural fix (4 independently-retryable steps, DecisionLog AD-30)
+  after it recurred in an amplified, directly-confirmed form (Executions
+  log showing "Completed" while the client showed a network error).
+  Found and fixed five smaller same-session bugs: ISSUE-031/032
+  (duplicated activity name in Daily Briefing cards and Calendars
+  events), ISSUE-033 (a filter-dropdown text fix that only touched
+  static HTML, missing the JS render function that immediately
+  overwrites it), ISSUE-034 (To-Do cross-device sync gap on "Load
+  Settings from Cloud"), and ISSUE-035 (emails misattributed to the
+  wrong family member/activity via a shared platform domain — DecisionLog
+  AD-31, two-part fix). Updated ISSUE-029's description — its one actual
+  reader (Calendars' event color bar) was removed by this session's own
+  PD-13, so the open question is no longer just "needs a picker." ISSUE-005,
+  ISSUE-006, ISSUE-021, ISSUE-030 remain open/deferred, untouched.
+  (Reconciled same-day against a separately-drafted set of doc-update
+  prompts that had independently assigned ISSUE-031/032 to this same
+  sender-misattribution bug and the mobile-refresh bug already covered
+  above as ISSUE-004's closure — renumbered the genuinely-new one to
+  ISSUE-035 to avoid colliding with the duplicate-kicker/sync-gap bugs
+  already filed under 031-034.)

@@ -5,40 +5,89 @@ Repo: github.com/Whit19/dataforge-standards
 ## ⚠ Deployment Account — Read This First
 Always deploy the Web App from `tjunker9@gmail.com` — that's the account whose Gmail inbox the script actually scans. Deploying from any other Google account silently binds the deployment to that account instead (Apps Script's "Execute as: Me" locks to whoever was logged in at Deploy time), with no error until Refresh Briefing is clicked later. See IssuesTracker ISSUE-016 / DecisionLog AD-19 for the full diagnosis.
 
-## Current Status (as of Aug 26, 2026 session)
+## Current Status (as of Aug 27, 2026 session)
 
-Summary and Calendars tabs have both been through a full mobile+desktop responsive/typography pass:
-- **Summary**: filter row split into a Category slider/pills control (PD-10) above a two-select Family/Activity row (PD-09), real desktop tab styling + fixed mobile bottom icon nav (PD-09), Settings relocated to a header gear icon (PD-09), icon-only refresh button (PD-09), briefing cards collapsed-by-default with tap-to-expand (PD-11), and 7-Day Schedule/Action Items sections fixed to also default-collapsed (ISSUE-023/024).
-- **Typography**: project-wide swap from Bebas Neue/DM Sans/DM Mono to Quicksand/Nunito Sans, with sentence-case labels replacing the prior uppercase/spaced/mono treatment (DD-04, supersedes DD-01).
-- **Calendars**: migrated off the `.ics` subscription pipeline entirely — now reads scanned Google Calendar data via a new `action=calendarEvents` endpoint (AD-29), reusing the same `CalendarEvents`/`SchoolCalendarEvents` sheets and child/activity matching the Daily Briefing already relies on. Calendar Subscriptions removed from Settings (PD-12). One data-formatting bug found and fixed post-deploy (ISSUE-025 — Sheets auto-coercing date/time strings to `Date` objects), plus three small visual fixes (ISSUE-026/027/028).
+Full visual/functional pass across Summary, Calendars, Email History, and
+To-Do — all deployed and confirmed working by Tom via live testing.
 
-All changes for this session are committed and deployed; confirmed working by Tom via live testing on both tabs.
+- **Sports/School accent color system** (PD-13): a `--accent`/
+  `--accent-light`/`--accent-mid` CSS variable trio, blue by default,
+  swapped to amber via a `body.cat-school` class toggled in
+  `updateCategoryControlUI()`. Applied across Summary, Calendars, and
+  Email History chrome. To-Do deliberately does NOT follow this system —
+  it uses a separate fixed-green `--todo-accent` set instead, via a
+  `body.tab-todo` class, since to-dos aren't Sports/School-specific.
+- **Email History redesign** (PD-14): dropped the old colored source-app/
+  activity pill badges entirely. Rows now show family member name(s) —
+  colored via their own `kids[].color`, reusing the `childColorSpansForIds()`
+  helper originally built for Calendars — followed by activity name in the
+  current accent color, subject on its own line, date top-right. Filtering
+  and tap-to-expand-full-body are unchanged.
+- **To-Do redesign** (PD-15): optional due dates, grouped into ⚠️ Overdue /
+  📅 Upcoming / No due date / Done, click-to-edit in place (text + date,
+  no modal), Sports/School filter controls hidden on this tab (never
+  applied to to-dos), moved in nav order to sit between Summary and
+  Calendars (both desktop tab-nav and mobile bottom-nav). To-Do's
+  already-existing cross-device sync (`getTodos`/`saveTodos` → a `Todos`
+  sheet) was confirmed working, not rebuilt — the due-date field just
+  rides along in the same opaque JSON blob.
+- **Daily Briefing refresh hardening** (AD-30): the single ~90s
+  `action=generate` call was split into four independently-retryable
+  steps (`scanCalendar` → `scanEmail` → `scanGroupMe` → `generateSummary`),
+  each with its own elapsed-time log line, driving a real progress bar on
+  both the desktop refresh button and mobile pull-to-refresh. Replaces an
+  earlier poll-based patch that papered over (rather than fixed) mobile
+  connection drops causing false "failed to reach Apps Script" errors
+  when the backend had actually succeeded.
+- **Manual Updates tab removed entirely** (PD-16) — confirmed dead UI
+  (the seven textareas were never read anywhere in the file), closing
+  ISSUE-001 by removal rather than by wiring it up. Settings' placement
+  was evaluated against moving into the freed nav slot and deliberately
+  left in the header gear icon (reaffirms PD-09's mobile-ergonomics
+  rationale rather than reversing it).
+- **Sender-attribution bug found and fixed in two passes** (AD-31): emails
+  from shared-platform senders (e.g. multiple orgs all sending from
+  `*.sportsengine.com`) were being attributed to whichever activity's
+  sender entry happened to be checked first, regardless of which org
+  actually sent the email. Fixed by (1) making `detectApp()` prefer the
+  most specific (longest) matching string instead of the first match, then
+  (2) widening the search from the From header only to From + Subject
+  combined, since some notification templates use a generic display name
+  with the real org name only in the subject line.
+- Several small bugs caught and fixed along the way: duplicate headers on
+  Daily Briefing cards and Calendars events, a static-markup-vs-JS-render
+  gap where a filter-dropdown text fix only touched the HTML and not the
+  functions that immediately overwrite it, and a To-Do cross-device sync
+  gap where "Load Settings from Cloud" never also pulled To-Dos.
+- **Doc audit finding, not new work this session:** while updating these
+  docs, direct inspection of the live `SportsEmailScanner.gs` confirmed
+  AD-25 (`calMatchName`), AD-26 (Activity archiving), AD-27 (`familyName`
+  field — visibly live in every screenshot this session as the
+  "{Family} Family HQ" title), and AD-28 (daily-trigger calendar-scan
+  parity) are all already deployed and active, not "designed, not yet
+  deployed" as DecisionLog previously stated. All four were apparently
+  shipped together around 2026-08-21 (git commit `cbdc0b6`) but the docs
+  were never updated to reflect it — corrected in this pass, see
+  DecisionLog for each entry's updated status.
 
 ## Next Session's Priorities
 
-1. **Review this session's changes.** Before doing anything else, confirm
-   nothing broke or needs adjustment from the Summary/Calendars overhaul
-   above — this session's changes are now the ones needing first-pass
-   review next time, per the usual continuity convention.
-2. **Settings UI redesign** — full mockup-and-review pass, same process as
-   Summary/Calendars. Known scope so far: add a color-picker to the
-   Activity card (ISSUE-029), general layout modernization to match the
-   new typography/design system (Settings hasn't been touched since
-   before this session's changes, so it's currently visually inconsistent
-   with the rest of the app).
-3. **Verify Email History, To-Do, and Manual Updates tabs** against the
-   new design system (typography, spacing, any inherited pre-redesign
-   styling) — planned to go tab-by-tab in this order before Settings,
-   since those three tabs predate this session's changes and likely have
-   similar small inherited issues to what was found in Summary/Calendars.
-4. **Optional cleanup**: remove dead `.ics`/`action=ics` backend code
-   (ISSUE-030) once the new Calendars data path has proven stable for a
-   while — not urgent.
-5. Carried over from before this session, still open: `calMatchName`
-   durable fix extension (AD-25), relative-date resolution bug
-   (ISSUE-021), daily briefing calendar-scan parity (AD-28), ISSUE-001
-   (Manual Updates not wired to prompt) — none of these were touched
-   this session.
+1. **Settings UI redesign** — Tom's stated next focus. Full mockup-and-review
+   pass, same process as every other page this session and last. Known
+   scope so far: add a color-picker to the Activity card (ISSUE-029),
+   general layout modernization to match the current typography/design/
+   accent system (Settings hasn't been touched since before the Aug 26
+   session, so it's visually inconsistent with the rest of the app now).
+   Also worth deciding during this pass: now that Calendars no longer uses
+   each Activity's `color` field for its event bar (removed Aug 26 session
+   — bars follow the accent instead), is that field still worth keeping in
+   the Activity card UI at all?
+2. Carried over from before, still open/deferred, none touched this
+   session: relative-date resolution bug (ISSUE-021), dead `.ics`/
+   `action=ics` backend code cleanup (ISSUE-030). (`calMatchName` (AD-25)
+   and daily briefing calendar-scan parity (AD-28), both previously listed
+   here as open, are confirmed already deployed — see Current Status
+   above and DecisionLog.)
 
 ## What This Is
 A personal dashboard for managing multiple kids' sports teams *and* school activities in one place. It aggregates emails from configured senders, syncs calendars, and uses Claude AI (via Google Apps Script) to generate a daily briefing per category (Sports / School) with a priority, app cards, schedule timeline, and action items — filterable by which kid it's about.
@@ -64,27 +113,41 @@ Browser (sports-dashboard.html)
   │     senders) → Calendars (each linked to one Activity)
   ├── Global Child filter pill row + Sports/School switch
   ├── On page load: GET /exec?cat={active} → fetches last stored summary
-  ├── On Refresh Briefing: GET /exec?action=generate&cat={active} — GAS scans
-  │     Google Calendar directly server-side now (AD-23); the dashboard no
-  │     longer sends any calendar data in this request
-  ├── On Load Calendars (Calendars tab week view ONLY, decoupled from the
-  │     briefing — AD-23): GET /exec?action=ics&url={one feed at a time},
-  │     fetched server-side through GAS, not browser-side proxies
+  ├── On Refresh Briefing (desktop button or mobile pull-to-refresh): four
+  │     separately-retryable GET calls in sequence — action=scanCalendar,
+  │     action=scanEmail, action=scanGroupMe, action=generateSummary (cat=
+  │     {active} on each) — replacing a single combined action=generate
+  │     call (AD-30). Each step logs its own elapsed time server-side; the
+  │     dashboard shows a real progress bar across all four, and retries
+  │     just the failed step (up to 3x) rather than the whole sequence.
+  ├── Calendars tab reads scanned Google Calendar data via
+  │     GET /exec?action=calendarEvents&cat={active} — no separate "Load
+  │     Calendars" step; loads automatically on tab switch, same
+  │     CalendarEvents/SchoolCalendarEvents sheets the briefing scan
+  │     writes to (AD-23, AD-29). The old .ics-based week view is gone.
   ├── On Email History tab: GET /exec?action=history&cat={active}
   └── Settings sync: GET /exec?action=getSettings / ?action=saveSettings
+        (Load Settings from Cloud also pulls To-Dos alongside Settings —
+        both fire together, from both the button and the auto-pull-on-load
+        path for an unconfigured device)
 
 Google Apps Script (SportsEmailScanner.gs)
   │
-  ├── doGet(?action=generate&cat=)  → scans Google Calendar directly (AD-23) +
-  │     scans Gmail for that category's Activities' senders + calls Claude +
-  │     stores summary
+  ├── doGet(?action=scanCalendar&cat=)   → scans Google Calendar directly (AD-23), writes CalendarEvents/SchoolCalendarEvents
+  ├── doGet(?action=scanEmail&cat=)      → scans Gmail for that category's Activities' senders, writes EmailHistory (AD-30, AD-31)
+  ├── doGet(?action=scanGroupMe&cat=)    → scans configured GroupMe groups
+  ├── doGet(?action=generateSummary&cat=) → calls Claude on the already-scanned data, stores Summary
+  ├── doGet(?action=calendarEvents&cat=) → returns scanned Calendar sheet data for the Calendars tab's week view
+  ├── doGet(?action=generate&cat=)  → the original combined version of the 4 steps above, in one execution — kept
+  │     server-side for compatibility, no longer called by the dashboard (AD-30)
   ├── doGet(?action=history&cat=)   → returns that category's EmailHistory sheet as JSON
-  ├── doGet(?action=ics&url=)       → fetches one .ics feed server-side (no CORS issue)
+  ├── doGet(?action=ics&url=)       → fetches one .ics feed server-side — retired, no longer called by the dashboard (AD-29), left in place unused
   ├── doGet(?action=getSettings)    → returns Settings sheet JSON (API key always stripped)
   ├── doGet(?action=saveSettings&settings=) → writes Settings sheet (API key always stripped)
+  ├── doGet(?action=getTodos) / (?action=saveTodos&todos=) → To-Do cross-device sync (AD-24); each item may carry an optional dueDate (PD-15)
   ├── doGet(?cat=) default          → returns that category's stored Summary sheet as JSON
   ├── doPost()                      → legacy, unused
-  └── Daily trigger at 6 AM        → runs runDailyBriefing() for both categories automatically
+  └── Daily trigger at 6 AM        → runs runDailyBriefing() for both categories automatically (calls the same scan/summary functions directly, not through the split doGet actions above — unaffected by AD-30)
 ```
 
 ---
@@ -115,14 +178,15 @@ Children, Activities (sport/school, which kid(s), days back/forward), email send
 ---
 
 ## Dashboard Tabs
+Nav order (both desktop tab-nav and mobile bottom-nav): Summary, To-Do, Calendars, Email History — Settings is the header gear icon, not a nav tab. Manual Updates is gone (removed entirely, PD-16).
+
 | Tab | Purpose |
 |-----|---------|
-| ⚡ Summary | Home screen — priority, cards, day-grouped 7-Day Schedule, Action Items (each with a "+ To-Do" button). Filterable by Category/Child/Activity. |
-| 📅 Calendars | Weekly list view, navigate by week, filterable by the same Category/Child/Activity cascade, Load Calendars button |
-| 📬 Email History | Rolling email log, filterable by the same Category/Child/Activity cascade (no separate per-sender filter row anymore) |
-| ✅ To-Do | Persistent checklist, synced across browsers via GAS (AD-24). Add manually, or via "+ To-Do" on any Action Item. |
-| ✏️ Manual Updates | Paste text as fallback input — **currently not wired into the briefing prompt at all; see ISSUE-001** |
-| ⚙ Settings | Web App URL, Children, Activities (collapsed accordion, click to expand/edit), global Scan & Briefing Window, Calendars |
+| ⚡ Summary | Home screen — priority, cards, day-grouped 7-Day Schedule, Action Items (each with a "+ To-Do" button that carries the action's own `dateISO` through as the new to-do's due date). Filterable by Category/Child/Activity. Follows the Sports/School accent color (blue/amber, PD-13). |
+| ✅ To-Do | Persistent checklist, synced across browsers via GAS (AD-24). Optional due date per item, grouped into Overdue/Upcoming/No due date/Done, click-to-edit in place. Sports/School switch and Family/Activity filters are hidden on this tab — to-dos aren't filtered by either. Uses a fixed green accent, independent of Sports/School (PD-15). |
+| 📅 Calendars | Weekly list view, navigate by week, filterable by the same Category/Child/Activity cascade. Reads scanned Google Calendar data (`action=calendarEvents`) — no `.ics` fetching, loads automatically on tab switch. Event bar follows the Sports/School accent; each event's family member name(s) are colored via their own configured color instead of the old per-Activity color field (PD-13/PD-14). |
+| 📬 Email History | Rolling email log, filterable by the same Category/Child/Activity cascade. Rows show family member name(s) (own color) · activity name (accent color) · subject · date — no source/app badges anymore (PD-14). Tap a row to expand the full email body. |
+| ⚙ Settings | Web App URL, Children, Activities (collapsed accordion, click to expand/edit), global Scan & Briefing Window, Calendars. Entry point is the header gear icon, not a nav tab (PD-09, reaffirmed PD-16). |
 
 ---
 
@@ -156,6 +220,8 @@ Existing pre-Child-model settings auto-migrate into an `(unsorted)` default Acti
 - **Model-output reliability pattern**, established and reused multiple times (ISSUE-010, ISSUE-011, ISSUE-013, and now ISSUE-020's `activityId`): whenever a prompt asks Claude to compute or tag something, pair it with a deterministic client-side check that doesn't fully trust the model's compliance. (BestMethods BM-20, BM-25)
 - **Google Calendar scanned directly, replacing `.ics` for the briefing** — two-pass matching (named-calendar match, then title/description match on the default calendar) via GAS's native `CalendarApp`, no CORS/proxy dependency at all for this data path. (AD-23, BM-26)
 - **To-Do list synced to GAS**, closing out the earlier local-only trade-off, using the same pattern as Settings sync. (AD-24)
+- **Daily Briefing refresh split into 4 independently-retryable steps**, replacing a single ~60-140s combined call — fixes a real mobile bug where a phone's screen locking mid-request could kill the client connection while the backend kept running and succeeded anyway, showing a false error. (AD-30, closes ISSUE-004)
+- **Sender matching now prefers the most specific match, across From + Subject** — `detectApp()` previously returned the first array match on the From header only, which meant activities sharing a broad platform domain (e.g. multiple orgs all on `*.sportsengine.com`) could silently steal each other's emails depending on activity order, and some notification templates with a generic From display name (real org name only in the Subject) couldn't be matched at all. Now resolves to the longest matching string found in From+Subject combined, independent of activity order. (AD-31, closes ISSUE-035)
 
 ---
 
@@ -186,8 +252,8 @@ Existing pre-Child-model settings auto-migrate into an `(unsorted)` default Acti
 ---
 
 ## Possible Next Features
-- Rework Manual Updates to be Activity-driven and actually wire it into the prompt (ISSUE-001)
-- Refresh Briefing timeout/wait-time handling — polling pattern (ISSUE-004), deliberately deferred, revisit when ready
+- ~~Rework Manual Updates to be Activity-driven and actually wire it into the prompt~~ — moot as of 2026-08-27; the tab was removed entirely instead (PD-16), not reworked.
+- ~~Refresh Briefing timeout/wait-time handling~~ — resolved 2026-08-27 via a different fix than the originally-planned polling pattern: split into 4 independently-retryable steps with a real progress bar (AD-30, closes ISSUE-004).
 - Email History not refetching after Refresh Briefing (ISSUE-006) — still open, not incidentally fixed by the filter-cascade rework
 - Extend the Calendars tab to show more than 7 days out, filterable by kid/sport/school — likely by reusing the Google-Calendar-scanned data from AD-23 (decision deferred, see ProjectRoadmap backlog)
 - PWA manifest + service worker (installable) — drafted, dashboard wiring + icons still pending

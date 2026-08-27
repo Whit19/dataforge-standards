@@ -1,8 +1,8 @@
 # HQ Dashboard — Project Roadmap
 
-**Last Updated:** 2026-08-26  
+**Last Updated:** 2026-08-27  
 **Project:** Family sports + school activity intelligence dashboard  
-**Current Phase:** Phase 3 complete (pivoted); Phase 4 mostly delivered. Phase 5's Google Calendar sync item is done and now fully verified end-to-end (AD-23, confirmed 2026-08-21), and the Calendars tab now reuses that same scanned data too (AD-29, 2026-08-26). Summary's mobile+desktop responsive/typography overhaul is done (PD-09 through PD-12, DD-04, 2026-08-26). A Settings redesign (family-member grouping, activity archiving, calendar/display name split, editable family name, Activity color picker) is designed and prompted but not yet deployed — see Decision Log AD-25 through AD-28 and PD-08. GroupMe integration and Phase 6 (PWA installability) remain in progress.
+**Current Phase:** Phase 3 complete (pivoted); Phase 4 mostly delivered. Phase 5's Google Calendar sync item is done and now fully verified end-to-end (AD-23, confirmed 2026-08-21), and the Calendars tab now reuses that same scanned data too (AD-29, 2026-08-26). Summary's mobile+desktop responsive/typography overhaul is done (PD-09 through PD-12, DD-04, 2026-08-26). A Sports/School accent color system now spans Summary/Calendars/Email History (PD-13), with Email History (PD-14) and To-Do (PD-15) both fully redesigned and deployed, and the dead Manual Updates tab removed entirely (PD-16, closes ISSUE-001). Daily Briefing refresh reliability fixed on mobile (AD-30, closes ISSUE-004) and a two-part sender-attribution bug fixed (AD-31, closes ISSUE-035) — both 2026-08-27. A Settings redesign (family-member grouping, editable/deletable sources, Activity color picker (ISSUE-029), general layout modernization) is Tom's stated next focus — note the underlying `calMatchName`/archiving/family-name fields it partly depends on (AD-25/26/27) and the daily-trigger parity fix (AD-28) were confirmed already deployed during 2026-08-27's doc audit, despite being previously logged "not yet deployed"; only the UI/layout pass itself remains undone. GroupMe integration and Phase 6 (PWA installability) remain in progress.
 
 ---
 
@@ -20,7 +20,7 @@ The baseline system is live and working.
 - Claude AI summarization (priority card, cards, timeline, actions)
 - .ics calendar parsing with team filters and weekly view
 - Email history browsing with per-app filtering
-- Manual update input as fallback (still not wired to the prompt — see IssuesTracker ISSUE-001)
+- ~~Manual update input as fallback (still not wired to the prompt)~~ — removed entirely 2026-08-27 rather than wired up; auto-scan (Gmail + Google Calendar) already covers what this was meant to provide. Closed IssuesTracker ISSUE-001 by removal, see DecisionLog PD-16.
 - Settings: Web App URL + team calendar subscriptions (localStorage)
 - Daily 6 AM auto-briefing trigger
 
@@ -36,18 +36,21 @@ Incremental improvements to the existing Sports HQ system.
 | Loading skeletons / better empty states | Medium | Pending |
 | Error handling improvements (clearer messages) | Medium | Pending |
 | "Last refreshed" staleness indicator | Low | Pending |
-| Manual update content included in Claude prompt | Medium | Pending — ISSUE-001 |
+| Manual update content included in Claude prompt | Medium | ✅ Resolved (2026-08-27), by removal not by building it — Manual Updates tab confirmed dead UI (its textareas were never read anywhere) and removed entirely rather than wired into the prompt. See IssuesTracker ISSUE-001, DecisionLog PD-16 |
 | Sender whitelist UI in Settings (no code edit needed) | Medium | ✅ Done — delivered as part of the Child→Activity Settings rebuild (Decision Log AD-12) |
 | Filter navigation cleanup (single Category→Child→Activity cascade) | Medium | ✅ Done — replaced separate per-sender (Email History) and per-calendar-name (Calendars) filter rows with one shared cascade (PD-05) |
 | Settings Activities: collapse to reduce page length | Medium | ✅ Done — accordion cards, collapsed by default, new activities auto-expand |
 | Days Back / Days Forward: global instead of per-Activity | Low | ✅ Done — one "Scan & Briefing Window" setting, with migration from old per-activity values (AD-15) |
 | Briefing excludes already-passed content | High | ✅ Done — see IssuesTracker ISSUE-011, DecisionLog AD-16 |
 | 7-Day Schedule shows all 7 days, grouped clearly | Medium | ✅ Done — see IssuesTracker ISSUE-012/013 |
-| Interactive To-Do list | Medium | ✅ Done — persistent tab, now synced across browsers via GAS (AD-24, closes out AD-18) |
-| Refresh Briefing wait time / timeout handling | Medium | Deferred — see IssuesTracker ISSUE-004, explicitly held for a dedicated session rather than folded into an unrelated fix |
-| Settings redesign — family members grouped by Sport/School, existing-vs-new activity flow, editable/deletable sources, archive instead of delete, Activity color picker (ISSUE-029), general layout modernization to match the new typography/design system | High | Designed and prompted 2026-08-21, not yet deployed — see DecisionLog AD-25/AD-26/PD-08. Scope expanded 2026-08-26 after the Summary/Calendars redesign left Settings visually inconsistent with the rest of the app |
+| Interactive To-Do list | Medium | ✅ Done — persistent tab, synced across browsers via GAS (AD-24, closes out AD-18). Extended 2026-08-27 with optional due dates, Overdue/Upcoming/No due date/Done grouping, and click-to-edit in place (PD-15) |
+| Refresh Briefing wait time / timeout handling | Medium | ✅ Resolved (2026-08-27) — see IssuesTracker ISSUE-004, DecisionLog AD-30. Not the originally-planned polling pattern; superseded by splitting the refresh into 4 independently-retryable steps with a real progress bar |
+| Settings redesign — family members grouped by Sport/School, existing-vs-new activity flow, editable/deletable sources, archive instead of delete, Activity color picker (ISSUE-029), general layout modernization to match the new typography/design system | High | Not started. Note: DecisionLog AD-25 (`calMatchName`)/AD-26 (Activity archiving) — the backend/data-model fields this row's "archive instead of delete" and calendar-matching scope depend on — were confirmed already deployed during a 2026-08-27 doc audit (previously mis-tracked as "not yet deployed"); the UI/layout modernization itself, including the color-picker question (ISSUE-029) and general visual consistency, is still fully open and is Tom's stated next focus |
 | Summary page mobile+desktop responsive/typography overhaul — filter/nav layout (PD-09/PD-10), typography system (DD-04), collapsible briefing cards (PD-11), Calendars migrated to the Google Calendar-scanned data source (AD-29) | High | ✅ Done (2026-08-26) — committed, deployed, confirmed working by Tom via live testing |
-| Verify Email History, To-Do, and Manual Updates tabs against the new typography/responsive design system | Medium | Not started (2026-08-26) — planned as the next tab-by-tab pass before Settings, since these three tabs predate the Summary/Calendars redesign |
+| Verify Email History, To-Do, and Manual Updates tabs against the new typography/responsive design system | Medium | ✅ Done (2026-08-27) for Email History and To-Do — both fully redesigned (PD-14/PD-15), not just verified. Manual Updates is moot — removed entirely rather than verified (see above) |
+| Sports/School accent color system — blue/amber driven by the category switch, applied across Summary/Calendars/Email History chrome; To-Do deliberately excluded in favor of a fixed green | High | ✅ Done (2026-08-27) — PD-13 (system + Summary/Calendars/Email History), PD-15 (To-Do's fixed-green exclusion) |
+| Email History redesign — family-member color instead of source-app/activity badges | Medium | ✅ Done (2026-08-27) — PD-14 |
+| Sender-attribution accuracy — shared-platform-domain senders (e.g. multiple SportsEngine orgs) mis-attributed to the wrong Activity | High | ✅ Done (2026-08-27) — DecisionLog AD-31, two-part fix (match specificity, then From+Subject search). Tom still needs to add a `top center lacrosse` sender entry in Settings for his specific TC Lax case — see AD-31 |
 
 ---
 
@@ -141,7 +144,8 @@ Make it properly installable and shareable from the same single URL on both desk
 - Household task integration (chores tied to sports schedule)
 - Nutrition/hydration reminders on game days
 - Photo log for game memories
-- Rework the Manual Updates tab to be Activity-driven instead of a hardcoded app list, and actually wire it into the prompt (folds ISSUE-001 and the stale-tab problem into one pass)
+- ~~Rework the Manual Updates tab to be Activity-driven instead of a hardcoded app list, and actually wire it into the prompt (folds ISSUE-001 and the stale-tab problem into one pass)~~ — moot as of 2026-08-27; the tab was removed entirely instead (PD-16), not reworked.
+- Now that Calendars no longer uses each Activity's own `color` field for its event bar (removed 2026-08-27 — bars follow the Sports/School accent instead, see PD-13/PD-14 and IssuesTracker ISSUE-029), decide during the upcoming Settings redesign whether that color-picker field is still worth keeping in the Activity card UI at all, or should be dropped alongside the redesign.
 - ~~Extend the Calendars tab to reuse Google-Calendar-scanned data instead of maintaining a separate `.ics` pipeline (user-requested, 2026-08-19)~~ — ✅ **Done 2026-08-26**, see DecisionLog AD-29. Note: this closed the *data-source* consolidation only; the day/kid/sport filtering itself already existed before this session and simply carried over onto the new data source unchanged. A further "show more than 7 days out" extension is not part of AD-29 and remains a distinct, still-unscoped idea if wanted later.
 - Remove dead `.ics`-subscription backend code (`fetchIcsServerSide()`/`action=ics` handler, `cals` config field) once the new Calendars data path (AD-29) has proven stable for a while — see IssuesTracker ISSUE-030. Low priority, not urgent.
 - Personalization and/or multi-activity support as a paid tier for
@@ -174,3 +178,26 @@ Make it properly installable and shareable from the same single URL on both desk
   trigger skipped the calendar scan entirely (AD-28) — all written up
   as 8 CC prompts this session, **none deployed yet.**
 - **Session — 2026-08-26:** Full UI/PWA polish pass, all deployed and confirmed working: Summary's filter/nav layout overhaul (PD-09/PD-10), collapsible briefing cards (PD-11), and a project-wide typography swap to Quicksand/Nunito Sans (DD-04, supersedes DD-01). Marked the "extend Calendars tab" backlog item done — Calendars now reads scanned Google Calendar data via a new endpoint (AD-29) instead of live `.ics` subscriptions, which were removed from Settings (PD-12). Six small bugs found and fixed along the way (ISSUE-023 through ISSUE-028); logged an Activity color-picker gap (ISSUE-029) into the upcoming Settings redesign's scope, and a dead-code cleanup item (ISSUE-030). Added new backlog items for verifying Email History/To-Do/Manual Updates against the new design system and for the eventual `.ics` code removal.
+- **Session — 2026-08-27:** Closed out the "verify Email History/To-Do/
+  Manual Updates" item from last session — Email History and To-Do were
+  fully redesigned rather than just verified (PD-14, PD-15), and Manual
+  Updates was removed entirely rather than verified, closing ISSUE-001
+  in the process. Added the Sports/School accent color system (PD-13).
+  Resolved the long-open "Refresh Briefing timeout" item (ISSUE-004,
+  originally scoped for a polling pattern) via a different, better fix —
+  splitting the refresh into 4 independently-retryable steps (AD-30).
+  Fixed a two-part sender-attribution bug affecting shared-platform-domain
+  senders (AD-31). Doc-audit finding, not new work: AD-25/AD-26 (and
+  AD-27/AD-28, tracked in DecisionLog/TechnicalArchitecture rather than
+  here) were mis-tracked as "not yet deployed" and are actually already
+  live — corrected in this pass; the Settings redesign row above is
+  updated to reflect that its remaining scope is the UI/layout pass, not
+  the underlying fields. **Same-day follow-up:** reconciled this pass
+  against a separately-drafted set of doc-update prompts that hadn't seen
+  it yet — updated the `**Current Phase:**` header and struck through the
+  Phase 1 Manual Updates bullet and the stale "rework Manual Updates"
+  backlog item (all three were missed in the first pass), added a backlog
+  item questioning the Activity `color` field's future, and filed the
+  sender-attribution bug as IssuesTracker ISSUE-035 (the other prompt's
+  proposed ISSUE-031/032 numbers collided with different bugs already
+  filed there this session).

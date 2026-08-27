@@ -548,6 +548,46 @@ BM-31). Same append-only convention as prior session sections.
 
 ---
 
+### BM-34 — A Fixed UI-Text Change Is Invisible If a JS Render Function Immediately Overwrites the Same Element on Load
+
+**Rule:** Before treating a static-HTML text/markup fix as done, check whether any JS function rebuilds that same element's content on page load or on a state change it can't avoid firing (e.g. a filter re-render). If one exists, the same fix has to be applied there too, or the static markup's correction never survives past the first render.
+
+**Why:** ISSUE-033 — a prompt to remove icons and capitalize the "All family"/"All activities" default dropdown options specified only the static HTML. `renderChildSwitch()`/`renderActivitySwitch()` immediately overwrite that markup from their own template literals on every page load and filter change, so fixing only the HTML would have shipped a change that looked correct in the diff but was invisible in the running app.
+
+**Where this applies:** any UI element with both a static HTML default and a JS function that unconditionally re-renders it — a recurring shape in this codebase (the same class of gap, for a different reason, is why BM-16's DOM-shadowing bug and AD-13 were hard to spot from the markup alone).
+
+---
+
+### BM-35 — A Phone's Screen-Lock/Backgrounding Can Kill a Long-Lived Client Connection While the Server Keeps Running
+
+**Rule:** For any client request that triggers real server-side work taking longer than a few seconds, don't assume a client-side network error means the server-side work failed too — mobile OSes and browsers aggressively suspend background network activity, which can sever an open connection mid-request even though the server-side execution (Apps Script, a long-running Lambda, etc.) is entirely independent of whether the client stayed connected and will run to completion regardless. Prefer several short, independently-retryable requests over one long-lived one wherever the underlying work can be decomposed that way — each short request is far less likely to span a backgrounding event, and a dropped one is cheap to retry without re-doing already-completed work.
+
+**Why:** Directly confirmed this session — a pull-to-refresh on mobile showed "Failed to reach your Google Apps Script" while the Apps Script Executions log simultaneously showed the same run as "Completed." The fix (DecisionLog AD-30) wasn't a longer timeout or a smarter error message — it was decomposing one ~60-140s `action=generate` call into 4 short, independently-retryable steps.
+
+**Where this applies:** any client-server architecture with a request that can run long (here, GAS Web App calls), especially for a UI used on mobile.
+
+---
+
+### BM-36 — When a Prompt's Stated Rationale for a Bug Doesn't Match What You Find, Trust the Code
+
+**Rule:** A prompt's "Context" section can describe why something is a certain way based on incomplete or stale information (e.g. assuming a CSS rule follows a variable it doesn't, or miscounting how many lines need deleting). Verify the specific claim against the actual current file before applying the described fix — the fix's *intent* is usually still right, but the literal snippet or line count handed to you may not be.
+
+**Why:** Two same-session examples: a prompt describing To-Do's heading as "currently colored via `var(--accent)`" turned out to reference a `.sh` rule that had only ever used `var(--ink)` — the requested fix (make it fixed-green) was still correctly applied, but the premise about *why* was wrong, worth flagging rather than silently repeating. Separately, a prompt describing 5 dead Tabler-icon CSS rules to delete only listed 4 in its code snippet, with content-code values that didn't match the live file at all — grep-verifying actual usage before deleting caught the discrepancy.
+
+**Where this applies:** any prompt-driven code change with a stated "here's what's currently there" premise — cheap to verify with a quick grep/read before trusting it, expensive to have documented an inaccurate reason after the fact.
+
+---
+
+### BM-37 — Sender/Email Matching Needs Specificity + Multiple Fields, Not Just a Domain
+
+**Rule:** Matching an email to "who/what it's about" by checking a single substring against a single field (e.g. sender domain against the From header) breaks in two predictable ways once real-world data is involved: (1) shared platform domains — one email service provider hosting many different organizations (SportsEngine, TeamSnap, etc.) — mean a broad domain-only match can't distinguish between orgs sharing that platform; whichever config entry happens to be checked first silently wins, which is an ordering bug, not a real identification. (2) The identifying text isn't always where you'd expect — some notification templates put a generic sender name in the From header and the real org name only in the Subject line. The durable fix is two-part: always resolve ambiguous matches by specificity (longest/most-specific match wins, not first-found), and search every field that could plausibly carry the identifying text, not just the one that usually does.
+
+**Why:** A Top Center Lacrosse payment-confirmation email was silently attributed to a different family activity (Fighting Sue Hockey) purely because both shared the `sportsengine.com` domain and Fighting Sue Hockey's broad entry happened to be checked first — and even after fixing match ordering, the org name turned out to only appear in the Subject line for that notification template, not From at all.
+
+**Where this applies:** `detectApp()` in `SportsEmailScanner.gs` — see DecisionLog AD-31, IssuesTracker ISSUE-035.
+
+---
+
 ## Session Notes
 
 > Append entries as new lessons are learned. Never delete entries — mark outdated ones as `[Superseded]`.
@@ -572,3 +612,16 @@ BM-31). Same append-only convention as prior session sections.
   (GitHub Actions incidents can leave a workflow stuck "Queued" with
   cancel also failing) — from this session's Summary/Calendars UI/PWA
   polish pass.
+- **Session — 2026-08-27:** Added BM-34 (a fixed UI-text change is
+  invisible if a JS render function immediately overwrites the same
+  element on load — from ISSUE-033), BM-35 (a phone's screen-lock/
+  backgrounding can kill a long-lived client connection while the server
+  keeps running — the root cause behind the ISSUE-004 recurrence, fixed
+  by decomposing into short retryable steps per AD-30), and BM-36 (when a
+  prompt's stated rationale for a bug doesn't match what you find, trust
+  the code — verify the specific claim before applying the described
+  fix) — from this session's Summary/Calendars/Email History/To-Do polish
+  pass and the daily-briefing reliability work. Added BM-37 (sender/email
+  matching needs specificity + multiple fields, not just a domain) in a
+  same-day follow-up pass reconciling this session's doc updates against
+  a separately-drafted set of prompts.

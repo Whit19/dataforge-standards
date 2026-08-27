@@ -509,8 +509,11 @@ trade-off between a meaningful display name and a working calendar match.
   display names on cards/briefings for any oddly-named subscribed
   calendar.
 
-**Status:** Designed and prompted (CC_03_CalMatchNameField.md,
-2026-08-21) — **not yet deployed.**
+**Status:** Active. Designed and prompted (CC_03_CalMatchNameField.md,
+2026-08-21), shipped shortly after (git `cbdc0b6`) but never marked as
+such here — corrected 2026-08-27 after direct inspection of the live
+`SportsEmailScanner.gs` confirmed `calMatchTermFor()` reading
+`calMatchName` with the documented fallback to `name`.
 
 ---
 
@@ -532,8 +535,11 @@ intact and restorable.
   destructive and irreversible for what is usually just a seasonal team
   ending, not a mistake to undo.
 
-**Status:** Designed and prompted (CC_04_ArchivedAndFamilyNameFields.md,
-CC_07_ArchiveUIAndFamilyName.md, 2026-08-21) — **not yet deployed.**
+**Status:** Active. Designed and prompted (CC_04_ArchivedAndFamilyNameFields.md,
+CC_07_ArchiveUIAndFamilyName.md, 2026-08-21), shipped shortly after (git
+`cbdc0b6`) but never marked as such here — corrected 2026-08-27 after
+direct inspection confirmed the `archived` filter and restore-Activity UI
+are both live in the current code.
 
 ---
 
@@ -558,8 +564,11 @@ directly per deployment — rejected in favor of a Settings-UI field, since
 it's no more effort to build and removes a code-editing step from onboarding
 a new family later.
 
-**Status:** Designed and prompted (CC_04_ArchivedAndFamilyNameFields.md,
-CC_07_ArchiveUIAndFamilyName.md, 2026-08-21) — **not yet deployed.**
+**Status:** Active. Designed and prompted (CC_04_ArchivedAndFamilyNameFields.md,
+CC_07_ArchiveUIAndFamilyName.md, 2026-08-21), shipped shortly after (git
+`cbdc0b6`) but never marked as such here — corrected 2026-08-27; the
+"{familyName} Family HQ" title has been visibly live in every screenshot
+Tom's shared since (e.g. "Junker Family HQ").
 
 ---
 
@@ -579,10 +588,15 @@ parity gap should be closed.
 **Alternatives Considered:** None — this was an unintentional gap between
 the two trigger paths, not a deliberate design choice being revisited.
 
-**Status:** Designed and prompted (CC_08_DailyTriggerCalendarScan.md,
-2026-08-21) — **not yet deployed.** Flagged for a runtime sanity-check
-against GAS's 6-minute execution ceiling once deployed (Gmail scan +
-calendar scan + Claude call, times two categories).
+**Status:** Active. Designed and prompted (CC_08_DailyTriggerCalendarScan.md,
+2026-08-21), shipped shortly after (git `cbdc0b6`) but never marked as
+such here — corrected 2026-08-27 after direct inspection confirmed
+`runDailyBriefing()` calls `scanGoogleCalendar(cat)` before `scanEmails(cat)`
+for both categories. The flagged 6-minute execution-ceiling concern is
+resolved by observation, not just theory: this session's real per-step
+timing (Calendar ~5s + Email ~23s + GroupMe ~3s + Claude ~36s ≈ 72s per
+category) puts both categories combined at roughly 2.5 minutes, well
+under the ceiling.
 
 ---
 
@@ -656,6 +670,82 @@ calendar scan + Claude call, times two categories).
 
 ---
 
+### PD-13 — Sports/School Accent Color System
+
+**Decision:** A `--accent`/`--accent-light`/`--accent-mid` CSS variable trio, defined at `:root` to default to the existing blue values, then overridden to amber under a `body.cat-school` class — toggled in `updateCategoryControlUI()`, which already runs on every category switch and once on initial load. Applied across Summary chrome (title, nav, priority bar, card titles/meta, refresh button), Calendars chrome (week label, nav buttons, today badge, event bar), and — added a session-end follow-up after Tom reviewed the live pages — the settings-trigger gear, header underline, and both filter dropdowns, which were initially left blue as "Settings UI" but read as persistent header chrome in practice.
+
+**Rationale:** Reviewed via mockup — blue-for-Sports/amber-for-School gives an at-a-glance category cue across the whole app, consistent with the category switch itself already using both colors.
+
+**Alternatives Considered:**
+- Hardcoding two full parallel color palettes (one per category) — rejected in favor of overriding just the three CSS variables everything else already references, so the swap is a single toggle rather than a maintained duplicate stylesheet.
+
+**Status:** Active. To-Do deliberately does NOT participate in this system — see PD-15. Unrelated small polish item from the same nav-bar work: the bottom-nav's active-tab highlight was color-only and easy to miss — added a background pill (`--accent-light`) and a subtle shadow so it reads clearly at a glance.
+
+---
+
+### PD-14 — Email History Redesign: Family-Member Color Instead of App/Activity Badges
+
+**Decision:** Dropped the colored source-app and activity pill badges entirely. Rows now show a kicker line — family member name(s) individually colored via their own `kids[].color` (new `childColorSpansForIds()` helper, reused by Calendars — see PD-13's Calendars work) · activity name in the current accent color — above the subject, with the date moved to the row's top-right. Filtering (Category/Child/Activity cascade) and tap-to-expand-full-body are unchanged.
+
+**Rationale:** Reviewed via mockup (Option B layout, Option A/B accent treatment merged) — consistent family-member-color identity across Calendars and Email History, rather than each tab inventing its own visual language for "whose event/email is this."
+
+**Status:** Active.
+
+---
+
+### PD-15 — To-Do Redesign: Due Dates, Grouping, Inline Editing, Fixed Green
+
+**Decision:** To-Do items gain an optional `dueDate` field (safe to add — the backend stores the array as opaque JSON, no schema change needed). The list groups into ⚠️ Overdue / 📅 Upcoming / No due date / Done, each sorted by due date. Existing items are click-to-edit in place (text + date inputs, Save button) rather than needing a modal. The Sports/School switch and Family/Activity filter row are hidden on this tab specifically, since to-dos aren't filtered by either. To-Do moved in nav order to sit between Summary and Calendars in both nav bars. Separately, after Tom reviewed the live page: To-Do is deliberately excluded from PD-13's accent system — it uses its own fixed-green `--todo-accent`/`--todo-accent-light`/`--todo-accent-mid` set instead (same #28a86a as the existing `--green`, kept as a separate token trio so `--green` itself stays untouched), applied via a `body.tab-todo` class toggled in `showTab()`. That override redefines `--accent` itself (placed after `body.cat-school` in source order so it wins when both classes are present) rather than overriding each header selector individually, so the main title/underline/settings gear — and the active nav-item highlight — all follow automatically while To-Do is the active tab.
+
+**Rationale:** To-dos aren't Sports/School-specific, so both the filter controls and the category-driven color were actively misleading on this tab — reviewed via mockup and confirmed live.
+
+**Status:** Active.
+
+---
+
+### PD-16 — Manual Updates Tab Removed Entirely
+
+**Decision:** The Manual Updates tab and its seven hardcoded per-app textareas are removed from both nav bars and the DOM entirely, rather than finally wired into the Claude prompt as ISSUE-001 had proposed. Settings' placement was evaluated against moving into the freed bottom-nav slot and deliberately left in the header gear icon. In the same pass, mobile bottom-nav icons were switched from the Tabler icon-font glyphs to plain emoji (matching what desktop's tab-nav already used — Tom preferred that look), and the now-unused Tabler filled-icon override rules (`ti-bolt`, `ti-calendar`, `ti-mail`, `ti-check`, `ti-edit`) were deleted; `ti-settings` (still used by the header gear) and the shared `.ti-solid` base rule/`@font-face` were kept, since they're still needed.
+
+**Rationale:** Confirmed dead UI — the textarea values were never read anywhere in the file, on either the Gmail-scan or prompt-building path. Closing ISSUE-001 by removal reflects that the underlying senders/Activity model (AD-12) has fully superseded what Manual Updates was trying to work around; keeping Settings in the header reaffirms PD-09's mobile-ergonomics rationale rather than reversing it now that a nav slot is free. The icon swap piggybacked on the same nav-bar edit rather than being separately motivated.
+
+**Alternatives Considered:**
+- Rebuild it to generate one textarea per configured Activity and actually wire it into the prompt, per ISSUE-001's original recommendation — rejected; with senders/GroupMe/Google Calendar all already covering live data ingestion, a manual-paste fallback no longer earns its UI footprint.
+- Move Settings into the bottom-nav slot Manual Updates leaves behind — evaluated and rejected, staying in the header.
+
+**Status:** Active.
+
+---
+
+### AD-30 — Daily Briefing Refresh Split Into 4 Independently-Retryable Steps
+
+**Decision:** `action=generate` (a single ~60-140s GAS execution running Calendar scan → Email scan → GroupMe scan → Claude call sequentially) is replaced, from the dashboard's perspective, by four separate actions — `scanCalendar`, `scanEmail`, `scanGroupMe`, `generateSummary` — calling the exact same four functions in the same order, each now independently loggable (`Logger.log` elapsed-ms per step) and independently retryable. The dashboard drives them in sequence with a real progress bar (label + fill, e.g. "Scanning email… (2/4)") shared between the desktop refresh button and mobile pull-to-refresh, retrying any single failed step up to 3x (each step is idempotent — re-scanning or re-generating just overwrites the same sheet) rather than treating one dropped connection as a failure of the whole sequence. The original combined `action=generate` handler is kept, unused by the dashboard, for compatibility.
+
+**Rationale:** Tom reported the refresh taking over 2 minutes 20 seconds with zero visible progress, and separately reported "Failed to reach your Google Apps Script" errors on mobile pull-to-refresh even though the Apps Script Executions log showed the same run completing successfully — root-caused to a phone's screen locking or the browser backgrounding mid-request killing the client-side connection while the GAS execution kept running to completion regardless, independent of the client. An earlier same-session patch (`pollForFreshBriefing()`, polling the read-only endpoint after a failure to see if the backend finished anyway) treated the symptom; splitting into steps with per-step retry addresses the actual cause, since a dropped connection now just retries the one step that failed rather than needing to guess whether the whole thing eventually finished. The per-step log lines also gave real diagnostic data instead of guessing: a clean run breaks down as roughly Calendar 5s / Email 23s / GroupMe 3s / Claude 36s ≈ 72s total (Tom reviewed this breakdown and chose to leave both the Claude call and email-scan volume as-is rather than trade quality/data freshness for further speed).
+
+**Alternatives Considered:**
+- Keep the poll-based recovery patch — rejected once the step-split design was on the table, since it only ever reacted after a failure rather than reducing the chance of one, and couldn't tell the client which step (if any) had actually succeeded.
+- A fake/estimated progress bar (animate toward ~90s without real per-step signal) — rejected in favor of real per-step progress, once splitting the backend into separately-callable steps was already the right fix for the reliability problem.
+
+**Status:** Active.
+
+---
+
+### AD-31 — `detectApp()` Matches Most-Specific Sender Across From + Subject, Not First-in-Array Across From Only
+
+**Decision, part 1:** `detectApp()` previously returned the first sender in `allSenders` whose `match` string was a substring of the email's `From` header — array order, which follows Activity-creation order, silently decided ambiguous cases. Now sorts by longest matching string instead: whichever registered sender string is the closest, most specific match wins, independent of which Activity it's registered under or when that Activity was created.
+
+**Decision, part 2:** Even with specificity-based matching, some SportsEngine notification templates use a generic "SportsEngine" display name in `From`, with the real org name only appearing in the Subject line (e.g. `Subject: "Top Center Lacrosse Recorded Your Payment"`). `detectApp()` now searches `From + ' ' + Subject` combined, same longest-match-wins rule, so a specific org name has something to match against even when it never appears in the From header at all.
+
+**Rationale:** Confirmed bug — a broad domain-only sender entry (`sportsengine.com`) registered under one activity (Dad's Fighting Sue Hockey) was silently claiming emails that actually belonged to a different activity on the same shared platform domain (Whit's TC Lax / Top Center Lacrosse), purely because of config order or because the org name never appeared in From at all — not because of any real identifying match.
+
+**Alternatives Considered:**
+- Resolving the two-activity-mentioned-in-one-email edge case (a recap email whose combined From+Subject text happens to contain two different activities' specific match strings) — explicitly not attempted; whichever string is longer wins arbitrarily in that genuine ambiguity, and there's no reliable way to resolve it without a manual-correction feature that doesn't exist. Accepted as a known limit, discussed with Tom.
+
+**Status:** Active. Part 1 alone doesn't retroactively fix Tom's specific Top Center Lacrosse case — he still needs to add a `top center lacrosse` sender entry under Whit's TC Lax activity in Settings (a config action, not a code change) for that org's mail to attribute correctly going forward.
+
+---
+
 ## Session Notes
 
 > Add entries when decisions are made, revisited, or reversed.
@@ -675,3 +765,18 @@ calendar scan + Claude call, times two categories).
   label-only (PD-08). All four decisions are designed and prompted via 8
   CC prompts generated this session — none deployed yet as of this entry.
 - **Session — 2026-08-26:** Full UI/PWA polish pass on Summary and Calendars, all deployed and confirmed working. Summary: filter/nav layout overhaul (PD-09), Category pulled into its own swipeable/pill control (PD-10), briefing cards collapsed-by-default (PD-11). Project-wide typography swap to Quicksand/Nunito Sans, superseding DD-01 (DD-04). Calendars: migrated off the `.ics` subscription pipeline onto scanned Google Calendar data via a new `action=calendarEvents` endpoint (AD-29), with Calendar Subscriptions removed from Settings (PD-12). Six bugs found and fixed along the way — see IssuesTracker ISSUE-023 through ISSUE-028.
+- **Session — 2026-08-27:** Full visual/functional pass across Summary,
+  Calendars, Email History, and To-Do, all deployed and confirmed working.
+  Sports/School accent color system (PD-13), Email History redesigned
+  around family-member color (PD-14), To-Do redesigned with due dates/
+  grouping/inline editing and deliberately excluded from the accent system
+  in favor of a fixed green (PD-15), Manual Updates removed entirely,
+  closing ISSUE-001 by removal (PD-16). Daily Briefing refresh split into
+  4 independently-retryable steps with a real progress bar, replacing an
+  earlier poll-based patch (AD-30). Sender-attribution bug fixed in two
+  passes — specificity-based matching, then widened to search Subject as
+  well as From (AD-31). Several smaller bugs found and fixed along the
+  way — see IssuesTracker ISSUE-031 through ISSUE-034. Doc-audit finding
+  (not new work): AD-25/26/27/28, all previously logged "not yet
+  deployed," were confirmed already live — corrected in this pass rather
+  than left inaccurate.

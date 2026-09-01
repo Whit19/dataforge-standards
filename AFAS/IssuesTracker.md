@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-08-03
+Last updated: 2026-09-01
 
 ---
 
@@ -98,17 +98,6 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 
 ---
 
-### ISSUE-023 — BANK_FEES/LOAN_PAYMENTS sign convention regression
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-08-03 |
-| Priority | High |
-| Description | plaid_sync.py's INFLOW_CATEGORIES set incorrectly includes "BANK_FEES" and "LOAN_PAYMENTS", causing these transactions to post as positive (income) instead of negative (expense) — directly contradicting BestMethods.md's own documented sign convention, which lists both as outflows. Scoping query confirmed 25 historical rows affected across CHASE/ASSOCIATED_PERSONAL/AMEX, ~$136K+ net misrepresented, concentrated in large recurring items (Chase Credit Card autopay, Rocket Mortgage, University Club Collection, recurring Amex/misc autopay entries). |
-| Next Step | Draft plaid_sync.py CC prompt removing BANK_FEES/LOAN_PAYMENTS from INFLOW_CATEGORIES, plus a historical correction UPDATE (cannot be fixed by re-running enrichment — sign is set once at ingestion and /transactions/sync won't replay settled transactions). Review the 25 affected rows individually first in case a genuine BANK_FEES refund is mixed in (documented as a rare exception in the code's own comment) — don't blanket-flip without checking. |
-
----
-
 ### ISSUE-024 — plaid_sync.py's description column is dead code; no fallback against Plaid merchant_name drift
 | Field | Value |
 |-------|-------|
@@ -137,16 +126,52 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 | Status | Open |
 | Opened | 2026-08-03 |
 | Priority | Low |
-| Description | Bizjtix ($2,700, CHASE), WISCONSINGOV ($318.93, ASSOCIATED_PERSONAL), Retail/RETAIL (x2, CHASE), Bayshore D (ASSOCIATED_PERSONAL), Musa I (x2, ASSOCIATED_PERSONAL), Shorewood (ASSOCIATED_PERSONAL), TEMPORARY FUNDS HOLD (ASSOCIATED_PERSONAL — possibly a bank-side pending/hold artifact, not real spend), SHEBOYGAN (ASSOCIATED_PERSONAL — Plaid's RENT_AND_UTILITIES_OTHER_UTILITIES code suggests a utility, but no matching "Other" subcategory currently exists under Bills & Utilities), Google Cloud ($0.06, AMEX), Railway ($5.00, AMEX). Not blocking — these sit under Plaid's genuinely broad catch-all codes where a blanket category_map mapping would risk misclassifying unrelated future merchants. "Center" and "Product" from the original 16-row list were identified and resolved this session (see DecisionLog 2026-08-03). |
+| Description | Bizjtix ($2,700, CHASE), WISCONSINGOV ($318.93, ASSOCIATED_PERSONAL), Retail/RETAIL (x2, CHASE), Bayshore D (ASSOCIATED_PERSONAL), Musa I (x2, ASSOCIATED_PERSONAL), Shorewood (ASSOCIATED_PERSONAL), TEMPORARY FUNDS HOLD (ASSOCIATED_PERSONAL — possibly a bank-side pending/hold artifact, not real spend), SHEBOYGAN (ASSOCIATED_PERSONAL — Plaid's RENT_AND_UTILITIES_OTHER_UTILITIES code suggests a utility, but no matching "Other" subcategory currently exists under Bills & Utilities), Google Cloud ($0.06, AMEX). Not blocking — these sit under Plaid's genuinely broad catch-all codes where a blanket category_map mapping would risk misclassifying unrelated future merchants. "Center" and "Product" from the original 16-row list were identified and resolved in Session 14 (see DecisionLog 2026-08-03). Railway ($5.00, AMEX) identified and resolved 2026-09-01 (see DecisionLog) — removed from this list. |
 | Next Step | Tom to identify remaining merchants; Claude drafts final merchant_patterns/manual-correction SQL once identified. |
+
+---
+
+### ISSUE-032 — Azure SQL auto-pause collides with the automated monthly timer trigger
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-09-01 |
+| Priority | Medium |
+| Description | FinanceDB (Free tier Serverless) can auto-pause between runs. The 2026-09-01 03:00 UTC automated monthly_sync/timer_sync run hit Azure SQL error 40613 ("Database not currently available") because the DB was paused, then failed all retries with "Login timeout expired." Both functions logged "Succeeded" in Application Insights despite the internal SQL work failing entirely — function-level status does not reflect actual sync success. This occurrence was resolved manually (DB resumed, endpoints retriggered by hand), but the underlying collision risk remains for every future monthly run. |
+| Next Step | Add retry-with-backoff to db.py's SQL connection logic for error 40613, so a close collision with the auto-pause window can self-heal without manual intervention. Discussed but not implemented this session. |
 
 ---
 
 ## Resolved Issues (archive — recent)
 
+### RESOLVED — ISSUE-023 — BANK_FEES/LOAN_PAYMENTS sign convention regression
+- Resolved: 2026-09-01
+- The Session 14 fix (remove BANK_FEES/LOAN_PAYMENTS from plaid_sync.py's INFLOW_CATEGORIES) had been drafted but never deployed — same deploy-gap pattern as ISSUE-019 below. Confirmed still live via a Power BI screenshot showing Rocket Mortgage/University Club Collection posting positive. Scope grew from Session 14's ~25-row estimate to 32 rows (2026-02-26 through 2026-09-01) since the bug kept running an extra month. Fix deployed and verified via VS Code's "Files (Read-only)" remote view; historical correction (amount = -amount) run on all 32 rows, verified 0 remaining. Live verification against a new real transaction still pending — no qualifying transaction has occurred since deploy; follow up against the next Amex/Chase autopay or mortgage payment. See DecisionLog 2026-09-01.
+
+### RESOLVED — ISSUE-027 — Apple/Associated Personal merchant-name-drift + pending/settled duplicate
+- Resolved: 2026-09-01
+- Associated Bank's feed sometimes truncates "Apple Card" autopay descriptions to a bare "Apple," which fell through to the generic %APPLE% catch-all and miscategorized as Subscriptions/Apps & Software instead of Payment/Apple Card (June/July/August 2026 rows; March/April/May had been separately hand-corrected). Also found a pending/settled duplicate pair for the same underlying transaction. Fixed: deleted the stale pending row, added an exact-match (verified via direct code read, not assumption) merchant_patterns entry for bare "Apple," corrected the 3 miscategorized rows. See DecisionLog 2026-09-01.
+
+### RESOLVED — ISSUE-028 — HSA transaction history duplicated 2x–4x (unstable transaction_id hashing)
+- Resolved: 2026-09-01
+- import_hsa_transactions.py hashed raw, unparsed CSV text for transaction_id; Bank of America's export-formatting drift between two monthly exports changed every row's hash, re-inserting the full account history under new IDs on each affected reimport instead of no-op'ing via MERGE (~400+ duplicate groups). Fixed to hash normalized values, verified idempotent via a real two-run test. Cleanup script caught and corrected mid-review to avoid deleting 157 of 159 orphaned rows Session 13 had explicitly preserved. Result: 835 rows deleted, 461 canonical rows remain, 0 duplicate groups. See DecisionLog 2026-09-01.
+
+### RESOLVED — ISSUE-029 — UnicodeEncodeError (cp1252 vs UTF-8) across 5 monthly import/enrich scripts
+- Resolved: 2026-09-01
+- Box-drawing summary print output crashed on Windows terminals defaulting to cp1252. Crash occurred after DB commit, so no data was affected — confirmed by checking the DB directly. Same sys.stdout.reconfigure(encoding="utf-8") fix applied and verified against real runs in import_hsa_transactions.py, enrich_hsa_csv.py, import_hsa_holdings.py, import_apple_csv.py, enrich_apple_csv.py. See DecisionLog 2026-09-01.
+
+### RESOLVED — ISSUE-030 — import_apple_csv.py MERGE unconditionally overwrote enrichment metadata on every re-run
+- Resolved: 2026-09-01
+- Any re-run of import_apple_csv.py against already-enriched data reset category_source/category_confidence to hardcoded import-time defaults and could flip in_budget back to 1 — confirmed as a real production risk (not just a test artifact) discovered when a same-session test re-run corrupted 131 rows. category/subcategory themselves were unaffected. First fix attempt (two WHEN MATCHED clauses) was invalid T-SQL, caught via a real test before deploying. Corrected fix uses a single WHEN MATCHED with CASE expressions, protecting already-enriched rows (including category_source='manual') while still updating never-enriched rows normally. See DecisionLog 2026-09-01.
+
+### RESOLVED — ISSUE-031 — manual category corrections left type/in_budget as stale inherited values
+- Resolved: 2026-09-01
+- The 3 manually-corrected Apple/Associated Personal rows (ISSUE-027) and 1 legacy Session 13 HSA row set category/subcategory correctly but left type/in_budget unchanged from before the correction, causing the wrong Power BI Expense/Income/Other bucket despite the correct category label — caught via a Power BI pivot review, not anticipated in advance. Fixed all 4 rows using category_map's correct type/in_budget values for their category. New BestMethods lesson added: manual corrections must always set type/in_budget together with category/subcategory. See DecisionLog 2026-09-01.
+
 ### RESOLVED — ISSUE-019 — Power BI Monthly Spend showed Apple-only data for June/July 2026
 - Resolved: 2026-08-03
 - Root cause: plaid_sync.py stored the full personal_finance_category JSON object in plaid_category_raw instead of a clean category string, so category_map's exact-string match silently never worked for Plaid-synced sources. Compounded by a separate bug where enrich_transactions.py's isna()-gated retry logic never actually reprocessed rows previously written by apply_fallback(). Both fixed (CC prompts deployed); 64 affected rows backfilled via script 59, re-enriched, and verified. 26 of the remaining 42 unmatched rows resolved via category_map/merchant_patterns additions (scripts 60/61). 14 rows remain — tracked separately as ISSUE-026, not blocking. Power BI visual reconfirmation (manual refresh + Monthly Spend page check) still pending as of session end. See DecisionLog 2026-08-03 for full diagnostic trail.
+- **RECURRENCE (2026-09-01):** the Session 14 code fix was correctly written but never actually deployed to Finance-ingest-Tom-v6 — the bug silently kept creating new JSON-blob rows for a full month (732 affected, not the original 64). "Resolved" had only ever been true for the historical backfill, not the ingestion path. Now genuinely deployed and verified (VS Code "Files (Read-only)" remote view confirmed the live INFLOW_CATEGORIES/extraction logic), 732 rows backfilled, 0 remaining. See DecisionLog 2026-09-01. New BestMethods lesson added: a "Resolved" status describes a fix being drafted/committed, not necessarily deployed — any Function-App-deployed file needs an explicit deploy-and-verify step before an issue is genuinely closed.
 
 ### RESOLVED — ISSUE-015 — Deployed Function App silently crash-looped for 6+ weeks (dotenv)
 - Resolved: 2026-08-01

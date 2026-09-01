@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-08-03
+Last updated: 2026-09-01
 
 ---
 
@@ -704,3 +704,110 @@ one already exists under a different case rather than assuming a gap —
 this project's collation is case-insensitive on that table's PK, so
 '%Foo%' and '%FOO%' are the same row.
 *Source: Session 13 — scripts 56/57 collisions*
+
+---
+
+### A "RESOLVED" issue status means a fix was drafted and committed — not necessarily deployed
+
+Twice in the same session (ISSUE-019's plaid_category_raw JSON bug, ISSUE-023's
+BANK_FEES/LOAN_PAYMENTS sign regression), a fix that was correctly written and
+committed to the local repo in a *past* session had never actually been
+deployed to Finance-ingest-Tom-v6. Both bugs kept running silently for a full
+month after being marked "Resolved" in IssuesTracker.md — the historical
+backfill fixed existing bad rows at the time, but the ingestion-side bug that
+kept creating new ones was never actually stopped. Any CC prompt that changes
+a Function-App-deployed file (plaid_sync.py, timer_sync.py, monthly_sync.py,
+http_ingest.py, balance_sync.py, nwm_sync.py, db.py, requirements.txt) must
+include an explicit, mandatory deploy step AND a verification step that
+checks the *deployed* file's actual content — e.g. via VS Code's Azure
+Functions extension "Files (Read-only)" remote view, since Kudu/Advanced
+Tools is not available on this project's Flex Consumption plan (see below).
+Local correctness is not deployment.
+*Source: Session 15 — ISSUE-019 and ISSUE-023 recurrence*
+
+---
+
+### SQL Server MERGE permits only one WHEN MATCHED...UPDATE clause per statement
+
+Conditional field-level protection (e.g. "only overwrite column X if the
+existing row hasn't been enriched yet") needs a CASE expression inside a
+single WHEN MATCHED clause, not two separate WHEN MATCHED clauses — SQL
+Server rejects a second WHEN MATCHED...UPDATE outright ("An action of type
+'WHEN MATCHED' cannot appear more than once in a 'UPDATE' clause"). Multiple
+WHEN MATCHED clauses are only valid when one of them is a DELETE.
+
+```sql
+-- WRONG — SQL Server error 10714, every matched-row update silently fails
+WHEN MATCHED AND t.category_source IS NULL THEN UPDATE SET ...
+WHEN MATCHED THEN UPDATE SET ...
+
+-- CORRECT — one WHEN MATCHED, CASE per protected column
+WHEN MATCHED THEN
+    UPDATE SET
+        category_source = CASE WHEN t.category_source IS NULL
+                                     OR t.category_source IN ('historical','unmatched')
+                                THEN s.category_source ELSE t.category_source END,
+        ...
+```
+
+A first draft using two WHEN MATCHED...UPDATE clauses was caught by a real
+test run against SQL Server before being deployed — as drafted, it would
+have made every future matched-row update silently no-op, a worse regression
+than the bug it was meant to fix.
+*Source: Session 15 — import_apple_csv.py MERGE enrichment-protection fix*
+
+---
+
+### transaction_id generation must hash normalized (parsed) values, never raw upstream text
+
+import_hsa_transactions.py's `_make_transaction_id()` hashed the raw,
+unparsed CSV date and amount strings. When Bank of America changed its
+export formatting between two monthly exports (leading zeros added to
+dates, amount field quoting/whitespace changed), the same real transaction
+hashed to a different ID each time, silently defeating the MERGE's
+idempotency and re-inserting the account's entire multi-year history on
+every affected reimport (~400+ duplicate groups, 835 rows to clean up).
+Any transaction_id scheme should hash values only after they've been parsed
+into a stable, normalized form (`YYYY-MM-DD`, a fixed-precision decimal) —
+never the raw text a CSV export happens to contain that day.
+*Source: Session 15 — import_hsa_transactions.py transaction_id fix*
+
+---
+
+### An import script's MERGE that unconditionally overwrites enrichment metadata is not safe to re-run against already-processed data — even as a test
+
+Only enrich_*.py scripts (gated on `category IS NULL`) are safe to re-run
+idempotently. import_*.py scripts, before this session's fix, could
+silently clobber real category_source/category_confidence/in_budget
+provenance on any re-run against previously-imported data — confirmed as a
+real production risk, not just a testing artifact, since the same MERGE
+would fire from an innocuous overlapping CSV export (a month whose export
+re-includes the tail end of the prior month), not only from deliberate
+re-testing. Before re-running any import_*.py script against data it may
+have already processed, check whether its MERGE protects existing
+enrichment metadata — do not assume idempotency just because the script
+uses MERGE.
+*Source: Session 15 — import_apple_csv.py re-run corrupted 131 rows' category_source, flipped in_budget on 10*
+
+---
+
+### Manual category corrections must set type and in_budget together with category/subcategory — never leave them as inherited stale values
+
+A manual correction that only updates category/subcategory can leave a row
+in the wrong Power BI Expense/Income/Other bucket even though the category
+label itself displays correctly — Power BI's grouping is driven by `type`,
+not `category`. Pull the correct type/in_budget from category_map's own row
+for that category whenever hand-correcting a transaction, not just the
+category/subcategory pair.
+*Source: Session 15 — 3 Apple/ASSOCIATED_PERSONAL rows + 1 legacy Session 13 HSA row found with stale type/in_budget after correction*
+
+---
+
+### Kudu/Advanced Tools is not available in the Azure Portal nav for Flex Consumption plans
+
+Confirmed this session: Finance-ingest-Tom-v6's "Development Tools" blade
+only shows "Recommended services" — no Advanced Tools/Kudu link exists for
+this plan type. VS Code's Azure Functions extension "Files (Read-only)"
+remote view is the working alternative for inspecting actual deployed file
+contents when verifying a deploy landed.
+*Source: Session 15 — verifying the ISSUE-019/ISSUE-023 redeploys*

@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-08-03 (Session 14: ISSUE-019 root cause — plaid_category_raw JSON mismatch, enrich_transactions.py retry-logic and fallback-default bugs fixed; ISSUE-023 sign regression found, not yet fixed)
+Last updated: 2026-09-01 (Session 15: corrected timer_sync.py's stale "Daily Trigger" documentation to Monthly — matches the actual deployed cron and the deliberate design confirmed this session)
 
 ---
 
@@ -13,7 +13,7 @@ Plaid API
     │
     ▼
 Azure Function (Python)
-  ├── Timer Trigger (daily 02:00 UTC)
+  ├── Timer Trigger (monthly, 1st @ 03:00 UTC)
   └── HTTP Trigger (manual)
     │
     ├── Enrichment Engine (enrichment.py / enrich_apple_csv.py)
@@ -114,7 +114,7 @@ AI Agent Layer (Phase 5)
 #### Triggers
 | Trigger | File | Schedule / Endpoint |
 |---------|------|-------------------|
-| Timer | timer_sync.py | Daily 02:00 UTC — incremental sync |
+| Timer | timer_sync.py | Monthly, 1st @ 03:00 UTC (`0 0 3 1 * *`) — confirmed 2026-09-01: this is the correct, deliberate design, not a stale "Daily" leftover — balance_sync + nwm_sync |
 | HTTP | http_ingest.py | Manual trigger for testing |
 
 #### Python Files
@@ -135,7 +135,7 @@ AI Agent Layer (Phase 5)
 | enrich_hsa_csv.py | Enrichment for HSA CSV import — mirrors enrich_apple_csv.py, scoped to source='HSA', category_map step removed (never applicable to this source). Created 2026-08-01. | ✅ Live |
 | import_hsa_holdings.py | Imports Bank of America HSA "Fund Summary" CSV into dbo.holdings — value-only (no units/price in this export). Snapshot date parsed from filename. Created 2026-08-01. | ✅ Live — 2 holdings |
 | db.py | DB connection — username/password local, Managed Identity in Azure | ✅ Ready |
-| timer_sync.py | Daily timer trigger | ✅ Ready |
+| timer_sync.py | Monthly timer trigger (1st @ 03:00 UTC) | ✅ Ready |
 | http_ingest.py | Manual HTTP trigger — added http_balance_ingest route 2026-06-15 (/api/balance_ingest) | ✅ Ready |
 | get_plaid_tokens.py | Local Flask tool for Plaid token acquisition | ✅ Ready — located at C:\DEV_Projects\AFAS\scripts — hardcoded PLAID_CLIENT_ID/PLAID_SECRET removed 2026-08-01, now loaded from local.settings.json at module scope |
 | requirements.txt | Pinned dependencies | ✅ Ready |

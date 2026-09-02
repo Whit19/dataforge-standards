@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ---
 
@@ -62,18 +62,6 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 
 ---
 
-### ISSUE-020 — category_confidence not populated for Plaid-synced sources
-
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-08-01 |
-| Priority | Low |
-| Description | Data Health page's vw_category_health shows real low_confidence_count for CHASE (318), ASSOCIATED_PERSONAL (193), AMEX (14), while APPLE and HSA (both CSV-imported sources) show 0. Hypothesis, not confirmed: enrich_transactions.py (used for Plaid-synced sources) may not be setting category_confidence='HIGH' on newer rows the way enrich_apple_csv.py/enrich_hsa_csv.py do. |
-| Next Step | Review enrich_transactions.py directly to confirm whether/how it sets category_confidence, rather than continuing to infer from the symptom. |
-
----
-
 ### ISSUE-021 — import_baird_holdings.py has a broken local.settings.json path
 
 | Field | Value |
@@ -83,40 +71,6 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 | Priority | Low |
 | Description | Found while fixing get_plaid_tokens.py's hardcoded credentials: import_baird_holdings.py's local.settings.json path resolution points at Run_Monthly/local.settings.json, which doesn't exist. Currently harmless — that script never actually reads a PLAID_* value from local.settings.json — but would silently break if a future edit added one. |
 | Next Step | Fix the path resolution to match the working pattern used elsewhere (same fix applied to get_plaid_tokens.py this session). Not urgent — dead code path today. |
-
----
-
-### ISSUE-022 — Extent of pre-existing March 2026 HSA merchant_patterns batch unconfirmed
-
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-08-01 |
-| Priority | Low |
-| Description | Two separate attempts to add new HSA merchant_patterns this session (Payroll Deduction, Employer Contribution) both turned out to be case-insensitive duplicate-key collisions with patterns already created 2026-03-05/07 — before this session's HSA reconnection work began. Suggests a fuller categorization pass was already done on this account at some point while it was still Plaid-connected. A diagnostic query (patterns created 2026-03-04 to 2026-03-08) was given to Tom to confirm the full extent — not yet run. |
-| Next Step | Run the diagnostic query, review results, note in Category_Taxonomy.md or BestMethods whether this session's merchant_patterns additions filled real gaps or were mostly redundant. |
-
----
-
-### ISSUE-024 — plaid_sync.py's description column is dead code; no fallback against Plaid merchant_name drift
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-08-03 |
-| Priority | Medium |
-| Description | tx.get("description", "") in plaid_sync.py always returns empty — Plaid's transaction object has no field called description, so this column has never been populated. Discovered while investigating why "Center" and "Product" displayed instead of "North Shore CTR LLC" and "TradingViewV*Product" — Plaid's merchant_name field is sometimes over-resolved/generic, and the code only falls back to the fuller name field when merchant_name is completely absent, not merely low-quality. Confirmed separately that Plaid's own merchant_name resolution for a given vendor can change year over year (TradingView: matched an existing pattern in 2025, resolved to generic "Product" in 2026), meaning a merchant_patterns rule that works today can silently stop matching later with no code change on our end. |
-| Next Step | Repurpose the description column to store Plaid's raw name field at ingestion, giving a fallback text source when merchant_name is low-quality, and a way to detect/diagnose future merchant-name drift without waiting for a human to recognize a truncated name. |
-
----
-
-### ISSUE-025 — enrich_apple_csv.py suspected of the same type/in_budget fallback bug as enrich_transactions.py
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-08-03 |
-| Priority | Medium |
-| Description | Apple-sourced transactions were still not appearing correctly under Expense on Power BI's Monthly Spend page after the CHASE/ASSOCIATED_PERSONAL/AMEX fix (ISSUE-019) was deployed and verified. Apple transactions are enriched by a separate script, enrich_apple_csv.py, which was not reviewed this session — the same apply_fallback()-style type='Other'/in_budget=0 bug found in enrich_transactions.py is suspected but not confirmed. |
-| Next Step | Upload/review enrich_apple_csv.py directly — do not assume the same bug exists without seeing the code, per project debugging protocol. |
 
 ---
 
@@ -131,18 +85,54 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 
 ---
 
-### ISSUE-032 — Azure SQL auto-pause collides with the automated monthly timer trigger
+### ISSUE-037 — enrich_hsa_csv.py unmatched-fallback gap (mirrors ISSUE-025)
 | Field | Value |
 |-------|-------|
 | Status | Open |
-| Opened | 2026-09-01 |
-| Priority | Medium |
-| Description | FinanceDB (Free tier Serverless) can auto-pause between runs. The 2026-09-01 03:00 UTC automated monthly_sync/timer_sync run hit Azure SQL error 40613 ("Database not currently available") because the DB was paused, then failed all retries with "Login timeout expired." Both functions logged "Succeeded" in Application Insights despite the internal SQL work failing entirely — function-level status does not reflect actual sync success. This occurrence was resolved manually (DB resumed, endpoints retriggered by hand), but the underlying collision risk remains for every future monthly run. |
-| Next Step | Add retry-with-backoff to db.py's SQL connection logic for error 40613, so a close collision with the auto-pause window can self-heal without manual intervention. Discussed but not implemented this session. |
+| Opened | 2026-09-02 |
+| Priority | Low |
+| Description | Same shape as ISSUE-025's original bug (now fixed in enrich_apple_csv.py): enrich_hsa_csv.py's `_UPDATE_UNMATCHED_SQL` only sets `category_source = 'unmatched'`, leaving `category`/`subcategory`/`type`/`in_budget` NULL for genuinely unmatched HSA rows. Found on read-through while confirming ISSUE-020's HSA fix, not yet confirmed against real data — unlike Apple (0 unmatched rows confirmed live), HSA's actual unmatched-row count wasn't checked this session. |
+| Next Step | Check the live unmatched-row count for source='HSA'. If non-zero, draft the same default-fallback fix applied to enrich_apple_csv.py. No CC prompt drafted yet. |
 
 ---
 
 ## Resolved Issues (archive — recent)
+
+### RESOLVED — ISSUE-036 — Marquette University payroll deposits misclassified via overly generic merchant_pattern
+- Resolved: 2026-09-02
+- Two payroll deposits misfired to Children/School Lunch via an overly generic `%MARQUETTE UN%` merchant_pattern (priority 10) that beat more specific sibling patterns on an alphabetical tie-break. `plaid_category_raw` correctly said `INCOME_SALARY` the whole time — the merchant_pattern step ran first (per this project's documented enrichment order) and preempted category_map's correct mapping before category_map ever got a chance to run. Corrected via script 69: historical fix on the 2 affected rows plus a new priority-5 pattern → Pay/Tom, matching the existing Godfrey/Heraeus payroll pattern convention. See DecisionLog 2026-09-02.
+
+### RESOLVED — ISSUE-035 — enrich_transactions.py blanket-updated every loaded row regardless of whether anything changed
+- Resolved: 2026-09-02
+- write_results() unconditionally rewrote all 7,865 loaded 2024+ rows on every run, costing ~4 minutes per run and eroding `updated_at`'s reliability as a "was this genuinely touched" signal (used elsewhere in this project to confirm whether a SQL fix actually landed on specific rows). Fixed to write back only rows where at least one enrichment column actually changed. Tom caught two genuine bugs in the first drafted fix before it ran: a pandas NaN-comparison OR-logic error (`mask | (isna() != isna())` can't retract a false-positive `NaN != NaN`, must compute equality-or-both-NaN first, then invert) and a snapshot-timing bug that would have silently defeated the ISSUE-019 `--unenriched-only` retry path (must snapshot after the reset, not before). Both corrected and verified: `--unenriched-only` run showed 15/15 rows correctly flagged changed (matching Step 1/2/4's own match counts exactly); full run showed 0/7,865 changed, completing in 1.2s instead of ~4 minutes; `updated_at` confirmed byte-identical on a 10-row sample across both runs. See DecisionLog 2026-09-02.
+
+### RESOLVED — ISSUE-034 — 159 orphaned HSA rows confirmed as genuine duplicates, deleted
+- Resolved: 2026-09-02
+- The 159 HSA rows with NULL `account_id` that Session 13 explicitly decided to leave alone (predating full visibility into the later full-history CSV import that happened in that same session) were confirmed this session to be genuinely redundant: 157 exact date+amount matches and 2 near-matches on manual review, all already covered by rows imported via the full-history CSV pull. Deleted via script 68 — reverses the Session 13 "leave as-is" decision now that the reason for it no longer applies. See DecisionLog 2026-09-02.
+
+### RESOLVED — ISSUE-033 — 14,571-row account_id backfill gap (AMEX/APPLE/ASSOCIATED_PERSONAL/CHASE)
+- Resolved: 2026-09-02
+- 14,571 rows across AMEX/APPLE/ASSOCIATED_PERSONAL/CHASE had NULL `account_id`, predating account linkage in the pipeline (~Feb–Mar 2026 cutover per source). Backfilled via script 66. HSA's 159 pre-existing NULL rows deliberately excluded from this backfill — see ISSUE-034 (handled separately, as a deletion rather than a backfill, since those rows are duplicates rather than legitimately-orphaned). See DecisionLog 2026-09-02.
+
+### RESOLVED — ISSUE-032 — Azure SQL auto-pause collides with the automated monthly timer trigger
+- Resolved: 2026-09-02 (verified present in live code during doc sync)
+- FinanceDB (Free tier Serverless) can auto-pause between runs; the 2026-09-01 03:00 UTC automated monthly_sync/timer_sync run hit Azure SQL error 40613 ("Database not currently available") with no retry handling, failing silently while still logging "Succeeded" at the function level. Fix: retry-with-backoff on error 40613 added to db.py's get_sql_connection() (10/20/40/80/160s exponential backoff, ~5 min worst case; any other connection error still raises immediately, unretried). Confirmed present in the live file during this doc sync — read directly, not assumed. This confirms the code exists, not that it has been exercised against a real auto-pause event in production; a deliberate test (manually pause the DB in the Portal, trigger http_ingest) is still recommended — see SessionStarter's Pick Up Here.
+
+### RESOLVED — ISSUE-025 — enrich_apple_csv.py's unmatched-fallback path left category/subcategory/type/in_budget NULL
+- Resolved: 2026-09-02 (verified present in live code during doc sync)
+- Confirmed as a real but so-far-dormant bug: `_UPDATE_UNMATCHED_SQL` only set `category_source = 'unmatched'`, leaving the other 4 enrichment columns NULL, which would exclude any genuinely unmatched Apple row from every Power BI view that filters on `type = 'Expense'` — the same visible symptom as ISSUE-019, for a different root cause. A live scoping query confirmed this had caused zero actual impact so far (0 APPLE rows currently unmatched) — this was a pre-emptive fix, not a backfill. Fix applies Category_Taxonomy.md's documented unmatched default (Uncategorized/General/Expense/In Budget=Yes/LOW confidence), matching enrich_transactions.py's own apply_fallback() exactly. Confirmed present in the live file during this doc sync; also confirmed via a synthetic-row test (not real data) that a row falling back this way is correctly excluded from re-processing on the next run, since `category` is no longer NULL. See DecisionLog 2026-09-02.
+
+### RESOLVED — ISSUE-020 — category_confidence not tiered by merchant_pattern priority for Apple/HSA sources
+- Resolved: 2026-09-02 (verified present in live code during doc sync)
+- Root cause confirmed (previous "Open" description's hypothesis had the direction backwards): enrich_transactions.py already ties category_confidence to merchant_pattern priority (HIGH ≤10, MEDIUM ≤20, LOW otherwise); enrich_apple_csv.py and enrich_hsa_csv.py instead hardcoded category_confidence='HIGH' for every pattern match regardless of priority — so the same kind of low-specificity match reads LOW on Plaid-synced sources but HIGH on Apple/HSA, purely by which script processed it. Decision: standardize on the tiered model everywhere (see DecisionLog 2026-09-02). Both scripts updated to select `priority` and compute the same tiered confidence; historical carry-forward path (no priority signal available) stays HIGH in both, unchanged. Confirmed present in both live files during this doc sync, and confirmed via synthetic-row tests (not real data) against real merchant_patterns rows spanning all 3 tiers plus the historical path, in both scripts.
+
+### RESOLVED — ISSUE-024 — plaid_sync.py's description column was dead code; no fallback against Plaid merchant_name drift
+- Resolved: 2026-09-02
+- tx.get("description", "") always returned empty — Plaid's transaction object has no field called description. Repurposed to capture Plaid's raw, unresolved `name` field at ingestion, giving a fallback text source for diagnosing future merchant-name drift (see ISSUE-024's original discovery, and ISSUE-027) without waiting for a human to notice a truncated/generic merchant_name after the fact. Deployed to Finance-ingest-Tom-v6 and verified against live production sync after Tom manually triggered http_ingest: 4 new rows confirmed with description populated, including a real-world validating case (merchant_name_raw='Apple', description='Apple Card').
+
+### RESOLVED — ISSUE-022 — Extent of pre-existing March 2026 HSA merchant_patterns batch confirmed
+- Resolved: 2026-09-02
+- Diagnostic query run: confirmed 2 of the 4 HSA merchant_patterns collisions found in Session 13 (Payroll Deduction, Employer Contribution) were exact duplicates of the pre-existing March 2026 batch of ~2,866 general-purpose patterns; the other 2 were genuinely new. No surprises found, no further action needed.
 
 ### RESOLVED — ISSUE-023 — BANK_FEES/LOAN_PAYMENTS sign convention regression
 - Resolved: 2026-09-01
@@ -188,6 +178,7 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 ### RESOLVED — ISSUE-018 — MAIN - Brokerage vs MAIN - BKG naming drift
 - Resolved: 2026-08-01
 - August 2026 Baird export used "MAIN - Brokerage" instead of canonical "MAIN - BKG" for all security holdings. Corrected via SQL (script 50) after confirming no symbol overlap between the two names (clean rename, not duplicated data). Root habit not addressed — worth double-checking next month's export uses the correct name from the start.
+- **RECURRENCE (2026-09-02):** the same drift happened a second time on the July 2026 export (23 rows) — the Session 12 "Resolved" status was only ever half-true, since script 50 apparently never actually landed on this data despite being logged as having fixed it (same "resolved-but-not-actually-run" pattern as ISSUE-019/ISSUE-023). Data corrected this session via script 67. A permanent code-level fix — `ACCOUNT_NAME_NORMALIZATION` dict + `normalize_account_name()` in import_baird_holdings.py, called on the Account Name column before `holding_id` construction, raising loudly on any unrecognized name instead of silently importing under a drifted one — confirmed present in the live file during this doc sync. This is a code-review confirmation, not a production test: the fix hasn't yet processed a real monthly Baird export. Keep watching the next monthly import to confirm it actually fires as intended (either passing a correctly-named export through cleanly, or raising loudly on a drifted one).
 
 ### RESOLVED — ISSUE-010 — Plaid Balance Product Not Authorized
 - Resolved: 2026-06-17

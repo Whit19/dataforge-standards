@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-01 (Session 15 sync)
+Last updated: 2026-09-02 (Session 16 sync)
 
 ---
 
@@ -54,16 +54,16 @@ payment.
 
 ---
 
-## ⚠️ Open — ISSUE-032: Azure SQL auto-pause collides with the automated monthly timer (2026-09-01)
+## RESOLVED (code) — ISSUE-032: Azure SQL auto-pause collides with the automated monthly timer (2026-09-01, code fix 2026-09-02)
 
 The 2026-09-01 03:00 UTC automated monthly_sync/timer_sync run hit Azure SQL
 error 40613 (DB auto-paused) and failed all retries — but both functions
 still logged "Succeeded" in Application Insights, since function-level
 status does not reflect internal SQL failure. This occurrence was resolved
 manually (DB resumed, http_ingest/http_balance_ingest/http_nwm_sync
-retriggered by hand). The underlying collision risk remains unmitigated —
-a db.py retry-with-backoff on error 40613 was discussed but not
-implemented. See ISSUE-032.
+retriggered by hand). Retry-with-backoff on error 40613 added to db.py
+2026-09-02, confirmed present in live code — but not yet exercised against
+a real auto-pause event (see Pick Up Here #5). See ISSUE-032.
 
 **Lesson: function-level "Succeeded" status does not prove the internal SQL
 work succeeded. Check Application Insights traces, not just the
@@ -84,47 +84,23 @@ top-level status, when verifying an automated sync actually ran.**
 
 ## Pick Up Here — Next Session
 
-1. **Verify ISSUE-023 against a real new transaction** — no qualifying
-   LOAN_PAYMENTS/BANK_FEES transaction has synced since the fix deployed;
-   check the next Amex autopay (~9/25), Chase autopay (~9/26), or mortgage
-   payment posts negative.
-2. **Implement ISSUE-032's db.py retry-with-backoff** on Azure SQL error
-   40613, so a close collision between the monthly timer and the auto-pause
-   window can self-heal without manual intervention.
-3. **Confirm ISSUE-019 fully closed on the Power BI side** — manual dataset
-   refresh, verify Monthly Spend page shows CHASE/ASSOCIATED_PERSONAL/AMEX
-   alongside APPLE (the underlying data is now confirmed correct at the
-   source; the visual hasn't been separately reconfirmed).
-4. **Review enrich_apple_csv.py (ISSUE-025)** — confirm/deny whether it has
-   the same type/in_budget fallback issue found and fixed elsewhere —
-   still not reviewed.
-5. **Fix ISSUE-024 (dead description column)** — repurpose to capture
-   Plaid's raw name field, giving a fallback against merchant_name drift
-   like the TradingView and "Apple"/"Apple Card" cases found this session
-   and last.
-6. **ISSUE-026 — identify remaining 13 merchants** (Bizjtix, WISCONSINGOV,
+1. **Build the Power BI "Needs Review" page** — surfaces
+   `category_reviewed = 0` rows (421 as of 2026-09-02) so Tom can screenshot
+   the page and work through them interactively next session. First thing
+   next session, per Tom's explicit request.
+2. **Work through the 421 flagged rows** — Tom screenshots the Power BI
+   Needs Review page; categorize via cards with best-guess suggestions.
+3. **ISSUE-026 — identify remaining merchants** (Bizjtix, WISCONSINGOV,
    Retail x2, Bayshore D, Musa I x2, Shorewood, TEMPORARY FUNDS HOLD,
-   SHEBOYGAN, Google Cloud — Railway resolved 2026-09-01) — low priority,
+   SHEBOYGAN, Google Cloud) — not yet started this session, low priority,
    not blocking.
-7. **Fix enrich_transactions.py's stale docstring** — module docstring
-   documents the opposite enrichment priority order from what the code
-   actually runs (merchant_patterns first, category_map fallback-only).
-   Quick fix, not urgent.
-8. **Run the ISSUE-022 diagnostic query** (carried over) — confirm what the
-   pre-existing 2026-03-05/07 HSA merchant_patterns batch actually covers.
-9. **Investigate ISSUE-020** — category_confidence not populated for
-   CHASE/ASSOCIATED_PERSONAL/AMEX the way it is for APPLE/HSA (carried over).
-10. **Wire principal_sync.py into the automated pipeline** (carried over).
-11. **ISSUE-012 — Category_Taxonomy audit** (carried over).
-12. **ISSUE-014 — subcategory-mirror recurrence root cause** (carried over).
-13. **ISSUE-016 — add run_log writes to plaid_sync.py's daily sync**
-    (carried over).
-14. **ISSUE-017 — HSA-Baird and other non-canonical Baird accounts**
-    (carried over).
-15. **ISSUE-021 — fix import_baird_holdings.py's broken local.settings.json
-    path** (carried over, low priority).
-16. **budget_targets table still not seeded** (carried over).
-17. **Connect Phase 4 Power BI views** (carried over).
+4. **enrich_hsa_csv.py's unmatched-fallback gap** (ISSUE-037, new, mirrors
+   ISSUE-025) — needs a real data check (how many HSA rows are actually
+   unmatched) before deciding whether a fix is warranted.
+5. **Real-world test ISSUE-032's db.py retry logic**, if confirmed present
+   but not yet exercised against a genuine auto-pause — manually pause the
+   DB in the Azure Portal, trigger http_ingest, confirm it retries and
+   succeeds rather than failing outright.
 
 ---
 
@@ -132,7 +108,7 @@ top-level status, when verifying an automated sync actually ran.**
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
 | NOTE | — | 8 Apple Uncategorized rows intentionally parked — category_source = 'manual', in_budget = 1 | Owner review when ready |
-| NOTE | — | run_log missing entries for all daily transaction syncs (see Pick Up Here #3) | Add run_log writes to plaid_sync.py |
+| NOTE | — | run_log missing entries for all daily transaction syncs (see ISSUE-016) | Add run_log writes to plaid_sync.py |
 
 ---
 
@@ -158,7 +134,7 @@ top-level status, when verifying an automated sync actually ran.**
 | plaid_client.py | Plaid SDK wrapper | ✅ Ready |
 | balance_sync.py | Associated balance pull | ✅ Live |
 | nwm_sync.py | NWM Tom + Amy cash value sync | ✅ Live — both Items reconnected 2026-08-01 |
-| principal_sync.py | **NEW 2026-08-01** — Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Standalone local script only — not wired into http_ingest.py or any timer yet (see Pick Up Here #10). | ✅ Working — confirmed live: 1 account, 11 securities, 11 holdings, $2,096,195.86 total value |
+| principal_sync.py | **NEW 2026-08-01** — Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Standalone local script only — not wired into http_ingest.py or any timer yet (carried-over item, not in this session's Pick Up Here top 5). | ✅ Working — confirmed live: 1 account, 11 securities, 11 holdings, $2,096,195.86 total value |
 | import_hsa_transactions.py | Imports Bank of America HSA cash-ledger CSV (Run_Monthly/imports/HSA/HSA_Transactions_*.csv) into dbo.transactions. type/in_budget set deterministically at import (not enrichment-dependent) — 4 known non-spending description types whitelisted, everything else treated as real spending/income typed by amount sign. Created 2026-08-01. transaction_id now hashes normalized (parsed) date/amount instead of raw CSV text — fixed 2026-09-01 after BofA's export-formatting drift caused ~400 duplicate groups (see DecisionLog); added a watermark check that warns if old-dated rows produce unexpectedly new IDs. UTF-8 stdout fix applied. | ✅ Live — 461 canonical rows (835 duplicates cleaned up 2026-09-01), 0 uncategorized, 0 untyped |
 | enrich_hsa_csv.py | Enrichment for HSA CSV import — mirrors enrich_apple_csv.py's pattern/historical fallback chain, scoped to source='HSA'. Created 2026-08-01. UTF-8 stdout fix applied 2026-09-01. | ✅ Live |
 | import_hsa_holdings.py | Imports Bank of America HSA "Fund Summary" CSV (value-only, no units/price available in this export) into dbo.holdings. Snapshot date parsed from filename. Created 2026-08-01. UTF-8 stdout fix applied 2026-09-01. | ✅ Live — 2 holdings, $24,163.69 total |
@@ -169,7 +145,7 @@ top-level status, when verifying an automated sync actually ran.**
 | timer_sync.py | Monthly timer trigger (1st @ 03:00 UTC) | ✅ Ready — confirmed 2026-09-01 this is the correct, deliberate design (not a stale "Daily" leftover); TechnicalArchitecture.md corrected to match |
 | http_ingest.py | Manual HTTP triggers — http_ingest, http_balance_ingest, http_nwm_sync | ✅ Ready |
 | get_plaid_tokens.py | Local Flask tool for Plaid token acquisition | ✅ Ready — added Plaid Link update-mode support (existing-token field per institution) and NW Mutual Tom/Amy cards, both 2026-08-01 |
-| db.py | DB connection | ✅ Ready — retry-with-backoff on Azure SQL error 40613 (auto-pause collision) flagged, not yet implemented (ISSUE-032) |
+| db.py | DB connection | ✅ Ready — retry-with-backoff on Azure SQL error 40613 (auto-pause collision) added 2026-09-02, confirmed present in live code (ISSUE-032). Not yet exercised against a real auto-pause event — see Pick Up Here #5. |
 
 ---
 
@@ -234,7 +210,17 @@ Session 15 (2026-09-01):
                            64_issue023_sign_correction.sql
                            65_apple_merchant_pattern_and_duplicate.sql
 
-Current high watermark: **65**
+Session 16 (2026-09-02):
+                           66_backfill_missing_account_id_pre_fe.sql
+                           67_baird_main_brokerage_rename_fix_ju.sql
+                           68_hsa_orphaned_null_account_id_dupli.sql
+                           69_marquette_payroll_misclassificatio.sql
+                           70_venmo_check_review_backlog_classif.sql
+                           71_category_reviewed_reset.sql
+
+Current high watermark: **71** (confirmed live 2026-09-02 — re-confirm
+live rather than trust this number next session too, per this session's
+own recurring lesson about stale watermarks)
 
 ---
 
@@ -279,4 +265,4 @@ ad-hoc SQL to verify a data load — that's what it's for.
 | Cash (Associated — 7 accounts) | ~$150,085 (2026-06-17 figure) | **NOT reconfirmed this session** — balance sync ran successfully today (7/7 upserted) but total not re-queried. Query dbo.account_balances for exact current figure before reporting. |
 | Liabilities | -$662,472.00 (Mortgage $162,472 + LOC $500,000) | Verified |
 | **Total Net Worth (approx, pending cash confirmation)** | **~$10.71M** | Up from $8.27M — increase is almost entirely the newly-discovered Principal 401k account, not market movement |
-*Excludes HSA-Baird and any other non-canonical Baird accounts (never captured in any import — see Pick Up Here #2).*
+*Excludes HSA-Baird and any other non-canonical Baird accounts (never captured in any import — see ISSUE-017).*

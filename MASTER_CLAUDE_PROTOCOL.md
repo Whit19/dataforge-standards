@@ -405,7 +405,7 @@ At session end, Tom will say "Update the docs" — only then generate updates. F
 1. **Update the docs.** Follow Section 5b's workflow (updated 2026-08-27) — a Claude Code session with a local `dataforge-standards` clone writes directly to disk and commits/pushes once Tom confirms; fall back to the CC-prompt-file path only when the update is happening in a Claude.ai chat with no Claude Code session available.
 2. No Claude Project re-upload needed either way — Claude fetches latest via URL at next session start.
 3. **Sync Notion** *(chat sessions only — see Section 17; a Claude Code session doing step 1 does not have Notion access and skips this)*. Update the `Last Updated` date property on the project's Notion page (Projects data source, page ID `37462bde-ae68-80a2-ab5a-c2f6fcbae3c6` for Kids HQ) to the session's date. Use the `notion-update-page` tool with `update_properties`, setting `date:Last Updated:start` to today's date and `date:Last Updated:is_datetime` to `0`. This happens every time docs are updated at session end via chat — not just when something notable changed — so the Notion row always reflects the most recent session date.
-4. **Log session to Daily Summaries** *(chat sessions only, same caveat as step 3)*. Create a new page in the shared "Daily Summaries" database (data source id `2284bd95-1027-4c7a-938a-e56a66dfa60d`) via `notion-create-pages`, with `Name` = `"{Project Name} — {session date, YYYY-MM-DD}"`, `Date` = the session's date, `Project` = relation to this project's row in the Projects database, and page body content = the exact same Session Summary generated for this session (Section 16) — reuse it verbatim, don't write a separate summary. This applies to every project following this protocol, every time "Update the docs" runs in chat, not just Kids HQ.
+4. **Log session to Daily Summaries** *(chat sessions only, same caveat as step 3)*. Create a new page in the shared "Daily Summaries" database (data source id `2284bd95-1027-4c7a-938a-e56a66dfa60d`) via `notion-create-pages`, with `Name` = `"{Project Name} — {session date, YYYY-MM-DD}"`, `Date` = the session's date, `Project` = relation to this project's row in the Projects database, and page body content = the exact same Session Summary generated for this session (Section 16, now bulleted/numbered per that section's format) — reuse it verbatim, don't write a separate summary. This applies to every project following this protocol, every time "Update the docs" runs in chat, not just Kids HQ.
 
 **Files to consider per session (only update if changed):**
 - `SessionStarter.md` — almost always needs updating (status, completed items, next priorities)
@@ -448,10 +448,11 @@ At the end of every session, Claude generates both of the following without
 being asked — as part of the standard session close:
 
 ### Session Summary
-A 3–5 sentence plain-English summary of what was accomplished. Covers:
-- What was built or fixed
-- Any significant debugging or environment issues resolved
-- Current status of the project
+A bulleted or numbered list of what was accomplished — not a single prose paragraph. One item per fix/finding/decision, written plainly (what happened, not just an issue number). Optionally lead with one short sentence of framing if the session had a clear throughline, but the substance goes in the list. Covers:
+
+What was built or fixed
+Any significant debugging or environment issues resolved
+Current status of the project
 
 ### GitHub Commit Message
 A conventional commit format message ready to paste into GitHub:

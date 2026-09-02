@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-09-01
+Last updated: 2026-09-02
 
 ---
 
@@ -208,6 +208,51 @@ Confirmed via a real test: re-running --unenriched-only on 64 known
 A successful-looking run is not proof of a successful re-enrichment; check
 the actual before/after category_source distribution.
 *Source: ISSUE-019 follow-on / Session 14 — enrich_transactions.py fix*
+
+---
+
+### pandas: OR-ing a correction term onto `!=` cannot fix a NaN-vs-NaN false positive
+
+`NaN != NaN` evaluates `True` in pandas — so a naive
+`(df != original).any(axis=1)` change-detection mask flags every row with a
+legitimately-still-NULL column (e.g. subcategory) as "changed" on every
+single run, even when nothing actually changed. The instinctive fix —
+OR-ing an `isna() != isna()` correction term onto the already-computed
+mask — does not work: OR can only ever add `True` values to a mask, never
+retract a `True` the `!=` comparison already produced. Compute
+equality-or-both-NaN first, then invert, instead.
+
+```python
+# WRONG — cannot retract the NaN/NaN false positive != already produced
+changed = (df != original).any(axis=1)
+changed = changed | (df.isna() != original.isna()).any(axis=1)
+
+# CORRECT — equality-or-both-NaN, computed first, then inverted
+both_nan = df.isna() & original.isna()
+values_equal = (df == original) | both_nan
+changed = ~values_equal.all(axis=1)
+```
+Caught via a standalone pandas test before running the fix against real
+data, not from inspection — the given (wrong) form looked plausible on
+read-through.
+*Source: ISSUE-035 / Session 16 — enrich_transactions.py write-back fix*
+
+---
+
+### Snapshot timing must respect what a retry path needs to detect
+
+When comparing before/after state to decide what changed, the snapshot's
+timing matters as much as its content. enrich_transactions.py's
+`--unenriched-only` mode resets a previously-fallback'd row's enrichment
+columns to NULL before re-running the pipeline (see the retry-reset lesson
+above) — if the pre-enrichment snapshot for change-detection were taken
+*before* that reset, a row that resets to NULL and then re-converges to
+the exact same fallback values it started with would compare as
+"unchanged" and get silently skipped, defeating the entire point of the
+retry (refreshing `last_enriched_at` to prove the retry actually ran).
+Snapshot after the reset, not before, whenever a reset-then-recompute path
+exists upstream of a change-detection comparison.
+*Source: ISSUE-035 / Session 16 — enrich_transactions.py write-back fix*
 
 ---
 
@@ -598,6 +643,24 @@ without relying on manually recognizing a truncated name in a review query.
 
 ---
 
+### `merchant_name_raw` can silently genericize over time, not just drift to a different specific string
+
+Historical Venmo transactions carried identifying detail in
+`merchant_name_raw` (e.g. `DDA PUR VENMO *MAR *2055...`) that let
+merchant_patterns distinguish a recurring payment from a generic one;
+current Venmo rows arrive as the bare string `"Venmo"` with no
+distinguishing text at all. Same failure class as the Apple Card→bare-"Apple"
+and TradingView→"Product" cases above (ISSUE-024/ISSUE-027), but total
+rather than partial — there's currently no field left to pattern-match
+against for these rows once the detail is gone. Worth re-checking once
+`description` (ISSUE-024's fix — Plaid's raw, unresolved `name` field,
+captured at ingestion regardless of merchant_name quality) has been
+populating for a while, in case it retains identifying detail that
+`merchant_name` no longer does.
+*Source: Session 16 — Venmo/Check review backlog cleanup (script 70)*
+
+---
+
 ## CC Prompt Delivery (Claude → Claude Code)
 
 ### Never combine multiple full-file rewrites into one CC prompt
@@ -707,9 +770,9 @@ this project's collation is case-insensitive on that table's PK, so
 
 ---
 
-### A "RESOLVED" issue status means a fix was drafted and committed — not necessarily deployed
+### "RESOLVED" means a fix was drafted and committed — not necessarily deployed or executed
 
-Twice in the same session (ISSUE-019's plaid_category_raw JSON bug, ISSUE-023's
+Twice in one session (ISSUE-019's plaid_category_raw JSON bug, ISSUE-023's
 BANK_FEES/LOAN_PAYMENTS sign regression), a fix that was correctly written and
 committed to the local repo in a *past* session had never actually been
 deployed to Finance-ingest-Tom-v6. Both bugs kept running silently for a full
@@ -723,7 +786,19 @@ checks the *deployed* file's actual content — e.g. via VS Code's Azure
 Functions extension "Files (Read-only)" remote view, since Kudu/Advanced
 Tools is not available on this project's Flex Consumption plan (see below).
 Local correctness is not deployment.
-*Source: Session 15 — ISSUE-019 and ISSUE-023 recurrence*
+
+**Extends to SQL scripts and local-only scripts too, not just Function-App
+deploys** (Session 16): ISSUE-018 (Baird `MAIN - Brokerage` vs `MAIN - BKG`
+naming drift) recurred a second time despite a "Resolved" log entry from
+Session 12 — the SQL fix (script 50) that was logged as having run against
+the affected data apparently never actually executed. Same failure shape as
+the deploy gap above, one level down the stack: "committed" ≠ "deployed" for
+Function-App code, and "drafted" ≠ "executed" for SQL scripts / local
+scripts. Don't mark an issue Resolved in IssuesTracker until deployment (for
+Function-App-deployed files) or execution (for SQL scripts / local scripts)
+is independently verified against live data or live code — a drafted fix
+and a confirmed-run fix are different states and must be logged differently.
+*Source: Session 15 — ISSUE-019 and ISSUE-023 recurrence; Session 16 — ISSUE-018 recurrence*
 
 ---
 
@@ -800,6 +875,22 @@ not `category`. Pull the correct type/in_budget from category_map's own row
 for that category whenever hand-correcting a transaction, not just the
 category/subcategory pair.
 *Source: Session 15 — 3 Apple/ASSOCIATED_PERSONAL rows + 1 legacy Session 13 HSA row found with stale type/in_budget after correction*
+
+---
+
+### Manual-correction scripts must also set `category_reviewed = 1`, not just `category_source = 'manual'`
+
+`category_reviewed` is meant to mean "a human looked at this and confirmed
+it" — but the column had been silently ignored by every correction script
+to date, including several written earlier in this very session, which is
+exactly how it ended up holding effectively-meaningless inherited values
+from a past bulk import instead of a real reviewed/unreviewed signal. A
+one-time reset (script 71, Session 16) reclassified the column honestly:
+421 rows now genuinely need review, 16,286 are genuinely reviewed. Every
+manual-correction script going forward must set `category_reviewed = 1`
+alongside `category_source = 'manual'` — the same discipline the earlier
+type/in_budget lesson above already established for that pair.
+*Source: Session 16 — category_reviewed reset (script 71)*
 
 ---
 

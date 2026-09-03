@@ -1,6 +1,6 @@
 # Master Claude Protocol — DataForge
 **Apply this to every Claude Project and every session. No exceptions.**
-Last updated: 2026-08-27
+Last updated: 2026-09-03
 
 ---
 
@@ -243,6 +243,44 @@ No manual re-upload to Claude Project needed either way. GitHub commit = live fo
 - **No screenshots for critical info** — tokens, API keys, emails, IDs must be copy/pasted as text, never captured in images.
 - **Keep SessionStarter lean** — it is loaded every session and consumes tokens. Link to other docs for detail.
 - **DecisionLog is append-only** — never edit or delete past entries; mark superseded decisions as `Superseded by [ID]`.
+
+### 5d. Git Branch Discipline — all repos
+
+**Applies to every repo Claude Code commits to — `dataforge-standards`
+and every private project repo (AFAS, etc.) alike.** This section
+exists because CC has, on more than one occasion, committed real
+session work to a newly created feature/docs branch instead of `main`,
+without being asked to — orphaning already-correct, already-tested
+fixes off of `main` until caught manually via GitHub's UI.
+
+**Before making any commit, CC must:**
+1. Run `git branch --show-current` (or equivalent) and confirm the
+   result is `main`.
+2. If it is not `main`: run `git checkout main` and `git pull` first.
+   Do not commit to whatever branch happens to be currently checked
+   out without first confirming it's `main`.
+3. Never create a new branch on Claude's or CC's own initiative. A
+   branch is only created when Tom explicitly asks for one by name
+   (e.g. for a deliberate PR-review workflow) — "let's make a branch
+   for this" or similar, said in plain language, not inferred from
+   context.
+4. After committing, push directly to `origin main` — not to a
+   feature branch, and not opening a PR unless Tom explicitly asked
+   for a PR-based review flow for that specific piece of work.
+
+**If CC finds itself already on a non-main branch it didn't expect**
+(e.g. left over from a prior session, or created by mistake), it
+should stop, tell Tom which branch it's on and why it looks
+unexpected, and wait for Tom's direction rather than either committing
+there or unilaterally switching and proceeding.
+
+**Rationale:** This project has no CI/CD pipeline — a commit to a
+branch other than `main` does not get deployed, does not show up in
+next-session's `curl` fetch of the docs repo, and is invisible to any
+future session unless someone happens to notice it in GitHub's branch
+list. The cost of checking `git branch --show-current` before every
+commit is trivial; the cost of a silently orphaned branch has already
+required two rounds of manual cleanup this week alone.
 
 ---
 

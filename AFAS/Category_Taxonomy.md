@@ -1,6 +1,6 @@
 # AFAS Project — Category Taxonomy Reference
 **Update this file when any category, subcategory, or type assignment changes.**
-Last updated: 2026-07-01 (Interest reclassification, subcategory-mirror recurrence fixed, taxonomy drift flagged as ISSUE-012)
+Last updated: 2026-09-03 (Session 17: added Pay/Whit, Dining Out/Fast Food, ATM/Cash Spending/ATM; Gifts/Charity/Gifts flagged pending a scope decision — ISSUE-040)
 
 ---
 
@@ -8,8 +8,15 @@ Last updated: 2026-07-01 (Interest reclassification, subcategory-mirror recurren
 | Metric | Value |
 |--------|-------|
 | Total categories | 29 |
-| Total subcategories | 137 |
-| Last structural change | 2026-06-01 |
+| Total subcategories | 137 (stale — see note) |
+| Last structural change | 2026-09-03 |
+
+> **Subcategory count is stale.** The "137" figure has not been recounted
+> as subcategories were added in the version history below (Babysit, Rides,
+> Amy 50th, Tom 50th, Interest, Whit, Fast Food, ATM, ...). A full recount
+> against the live `merchant_patterns` / `category_map` / `transactions`
+> data is part of the `taxonomy_audit.py` backlog (ISSUE-012). The
+> **Full Taxonomy** block below is the authoritative list, not this number.
 
 ---
 
@@ -59,6 +66,13 @@ Last updated: 2026-07-01 (Interest reclassification, subcategory-mirror recurren
 | 2026-06-01 | category_map: HSA Deposit subcategory → EFT (was HSA Deposit — mirrored category name) | 2 |
 | 2026-07-01 | Other Income: added subcategory `Interest` for INCOME_INTEREST_EARNED (was invalid standalone 'Interest' category) | 2 (category_map) + 0 (transactions) |
 | 2026-07-01 | Dining Out/Groceries/Clothing/Payment/Car/Property Tax: subcategory-mirror violations fixed (recurrence of 2026-06-01 issue — see ISSUE-014) | 294 (merchant_patterns) + 11 (category_map) + 2,889 (transactions) |
+| 2026-09-03 | Pay: added subcategory `Whit` — CASHORCHECK deposits on the "Checking - Whit" account (owner Whit); joint-account CASHORCHECK rows stay Other Income/Check | 4 (transactions) |
+| 2026-09-03 | Dining Out: added subcategory `Fast Food` — Dave's Hot Chicken; new priority-10 merchant_pattern added | 3 (transactions) + 1 (merchant_patterns) |
+| 2026-09-03 | ATM / Cash Spending: re-added subcategory `ATM` — ATM W D U S BANK. **Reverses the 2026-03-10 "ATM → General" retirement.** taxonomy_audit found the value already live on 7 merchant_patterns + 4 transactions, so this ratifies existing usage rather than introducing it | 7 (merchant_patterns) + 4 (transactions) |
+| 2026-09-03 | Sports / Clubs: Airlines → Flights, Hotels → Lodging renames (documented 2026-03-09) finally propagated to `merchant_patterns` — all 29 airline/hotel patterns had never been migrated | 29 (merchant_patterns) + 18 (transactions) |
+| 2026-09-03 | Sports / Clubs: `U-club` → `Club Dues` (documented 2026-03-09) propagated — 2 stray priority-5 merchant_patterns deactivated (`active = 0`) | 2 (merchant_patterns deactivated) + 7 (transactions) |
+| 2026-09-03 | Personal Care: `Fitness` → `Health & Wellness` — 2 merchant_patterns renamed (EMPOWERYOGA.COM, FITNESS BLENDER), 33 transactions corrected. **NOTE:** the original rename date was not confirmed this session and `Fitness` is still listed under Personal Care in the Full Taxonomy below — Tom to confirm whether `Fitness` is formally retired, and if so remove it from the list. | 2 (merchant_patterns) + 33 (transactions, incl. 10 legacy NULL-merchant rows) |
+| 2026-09-03 | Gifts / Charity: `Gifts` — a 2026-03-12 entry retired this to `General`, but taxonomy_audit found it live on 96 active merchant_patterns. **Not resolved** — pending a keep-vs-normalize decision (ISSUE-040). 1-800-Flowers and Indulgence Chocolat were added to it this session before the scale was known. | — |
 
 ---
 
@@ -111,7 +125,8 @@ Last updated: 2026-07-01 (Interest reclassification, subcategory-mirror recurren
 
 ```
 ATM / Cash Spending
-  └─ General
+  └─ ATM
+     General
 
 Bills & Utilities
   └─ Car Insurance
@@ -158,6 +173,7 @@ Dining Out
   └─ Bars & Alcohol
      Coffee
      Delivery
+     Fast Food
      General
 
 Entertainment
@@ -249,6 +265,7 @@ Other Income
 Pay
   └─ Amy
      Tom
+     Whit
 
 Payment
   └─ ACH Deposit
@@ -359,5 +376,9 @@ Work - Reimb
 | Rides | Children | Venmo payments to SAM for rides — distinct from Driving Instructions |
 | Amy 50th | Large Purchases | Amy's 50th birthday dinner (Zarletti) |
 | Tom 50th | Large Purchases | Tom's 50th birthday trip (Cosmopolitan Las Vegas) |
+| Whit | Pay | CASHORCHECK deposits on the "Checking - Whit" account (owner Whit). Joint-account CASHORCHECK rows stay Other Income/Check — split is by account, not merchant |
+| Fast Food | Dining Out | Dave's Hot Chicken and similar — distinct from General; new priority-10 merchant_pattern |
+| ATM | ATM / Cash Spending | Re-added 2026-09-03, reversing the 2026-03-10 retirement to General. NOT a category mirror (ATM ≠ ATM / Cash Spending). Was already live on 7 patterns when ratified |
+| Gifts (⚠️ pending — ISSUE-040) | Gifts / Charity | A 2026-03-12 entry retired this to General, but 96 active merchant_patterns still use it. Undecided: formally recognize, or normalize all 96 to Donation/General |
 | Travel Activities | Travel | Retained — distinct enough from Travel to not be considered a mirror |
 | Transfer In / Transfer Out | Transfer | Retained — directional qualifiers make these distinct from Transfer |

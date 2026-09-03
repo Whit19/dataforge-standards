@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 ---
 
@@ -902,3 +902,79 @@ this plan type. VS Code's Azure Functions extension "Files (Read-only)"
 remote view is the working alternative for inspecting actual deployed file
 contents when verifying a deploy landed.
 *Source: Session 15 — verifying the ISSUE-019/ISSUE-023 redeploys*
+
+---
+
+## Taxonomy & Enrichment
+
+### A documented pipeline step in TechnicalArchitecture.md is not evidence it was ever built
+
+The "Enrichment Pipeline — Logic Order" table had listed a "Historical —
+carry forward category from prior enriched record for same merchant" step
+for 6+ months. It never existed in `enrich_transactions.py` — the module
+docstring documented 4 steps, `main()` called 4 steps. It was a
+documented-but-never-implemented feature, mistaken as working behavior.
+Verify old "should already work" behavior against the actual code path
+(the function bodies and the `main()` call sequence), not against the
+architecture doc or a docstring. Docstrings drift too — the same file's
+docstring also had `category_map` and `merchant_patterns` in the wrong
+order relative to execution.
+*Source: Session 17 — enrich_from_history() build (AFAS 557cdd1)*
+
+### A documented taxonomy rename must also update merchant_patterns AND category_map — not just existing transaction rows
+
+Every taxonomy rename in Category_Taxonomy.md's version history (U-club →
+Club Dues, Airlines → Flights, Hotels → Lodging, Fitness → Health &
+Wellness, ...) updated the transaction rows that existed at the time but
+left the `merchant_patterns` / `category_map` entries pointing at the
+retired name. Because enrichment writes the pattern's stored
+category/subcategory onto every future match, the pattern table silently
+re-creates the retired value indefinitely — one rename produced a slow
+drip of "new" bad rows for months. When renaming a subcategory: update
+`merchant_patterns`, `category_map`, AND transactions in the same change,
+and re-run `taxonomy_audit.py` afterward to confirm nothing still writes
+the old name.
+*Source: Session 17 — U-club / Airlines / Hotels / Fitness drift (ISSUE-012)*
+
+### Same-priority merchant_patterns: a broad pattern that is a substring of a specific one permanently shadows it
+
+`enrich_transactions.py` tries patterns in `ORDER BY priority ASC, pattern
+ASC` and takes the first match. Within one priority number, the
+alphabetically-earlier pattern wins — so `%MARQUETTE UN%` (priority 10)
+shadowed `%MARQUETTE UNIV H%` (priority 10) on every possible match since
+the day it was created, misrouting a $17,027 tuition payment. A
+more-specific pattern must sit at a strictly *lower* priority number than
+any broader pattern whose text it contains — never the same number.
+`taxonomy_audit.py` Check 4 surfaces these pairs (`[DIFFERENT DEST]` ones
+are the real bugs).
+*Source: Session 17 — Marquette shadowing (ISSUE-012, ISSUE-036 follow-on)*
+
+### Duplicate detection on date + amount alone produces heavy false positives — require a second specific signal
+
+The first draft of `vw_potential_duplicates`'s legacy-vs-Plaid join
+matched any two rows sharing date + amount where one wasn't
+`category_source = 'historical'` → 232 hits, mostly false (sequential
+flight/hotel booking reference numbers, repeat same-day purchases at the
+same merchant). Tightening it to require the *counterpart* row to carry a
+genuine non-null `pending` value (i.e. it demonstrably came through the
+real Plaid sync path) dropped it to 0 false positives while still
+catching all 5 real instances. Any date+amount duplicate check needs an
+extra structural signal before its output is safe to delete from.
+*Source: Session 17 — vw_potential_duplicates build*
+
+---
+
+## Power BI (continued)
+
+### A table visual with no unique key in the field well silently groups and SUMs numeric columns
+
+The Needs Review page showed `review_priority` values of 6, 8, 12, 16, 28
+instead of the real 1–4 scale: a table visual without `transaction_id` in
+the field well implicitly grouped rows sharing date/merchant/category and
+summed `review_priority` and `amount` across the group. Fix: add the
+unique key (`transaction_id`) to the visual — hide it via Format >
+Columns > Show toggle — and set every numeric column that should display
+a raw value (not an aggregate) to "Don't summarize". This is a durable
+trap, not a one-time glitch — check it on any table visual showing
+per-row scores or flags.
+*Source: Session 17 — Needs Review page build*

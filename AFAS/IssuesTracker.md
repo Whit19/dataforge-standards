@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-09-02
+Last updated: 2026-09-03
 
 ---
 
@@ -31,12 +31,21 @@ Pending manual review. All have `category_source = manual`, `in_budget = 1`. Not
 ---
 
 ### ISSUE-012 — Category taxonomy drift
-category_map contains subcategories not documented in Category_Taxonomy.md (Dividends, Mobile Deposit, Pension, Tax Refund under Other Income — discovered 2026-07-01 during Interest reclassification). Needs a full taxonomy audit next session: every category/subcategory/in_budget flag reviewed against actual category_map and merchant_patterns contents, not just spot-checked reactively.
+| Field | Value |
+|-------|-------|
+| Status | Open — audit tooling built 2026-09-03, ~180-item backlog remains |
+| Opened | 2026-07-01 |
+| Priority | Medium |
+| Description | category_map / merchant_patterns / transactions contain category/subcategory combinations not documented in Category_Taxonomy.md. Originally spotted as a handful of Other Income subcategories (Dividends, Mobile Deposit, Pension, Tax Refund) during the 2026-07-01 Interest reclassification. Session 17 confirmed this is systemic, with two root-cause classes: (1) a documented subcategory rename applied to transaction rows at the time but never propagated to merchant_patterns/category_map, so the pattern table silently re-creates the retired name on every match; (2) same-priority pattern collisions where a broad pattern shadows a more specific one via the `pattern ASC` tiebreak. `scripts/taxonomy_audit.py` (read-only diagnostic, committed to AFAS main 13b959e) was built and run 2026-09-03: **53** undocumented combos in merchant_patterns, **45** in category_map, **16** live in transactions, **265** same-priority shadow pairs (**75** flagged `[DIFFERENT DEST]`). Five specific instances were fixed this session (U-club, Airlines/Hotels, Fitness, Marquette shadowing, "Medical" typo — see DecisionLog 2026-09-03). |
+| Known unfixed items (from the 2026-09-03 audit run) | `Gifts / Charity/Gifts` on 96 patterns (→ ISSUE-040); `Travel / "Travel activities"` (lowercase) on 44 patterns — pure casing mismatch vs documented "Travel Activities", identified as safe/simple but the UPDATE was not confirmed run — check live merchant_patterns; `%UBER CASH%` (→ Gifts / Charity/Gifts) shadows `%UBER%` (→ Travel/Transportation); `%BP#%` (→ Dining Out) shadows `%BP%` (→ Groceries); `%MOBIL%` (→ Dining Out) shadows `%MOBILITE%`; plus the remaining ~110 combos and ~70 `[DIFFERENT DEST]` shadow pairs not individually reviewed. |
+| Next Step | Work the taxonomy_audit.py backlog next session — this is the explicit first item, not an end-of-session rush. Re-run the audit at the start of the session (do not trust the 2026-09-03 counts). Keep the canonical dict in taxonomy_audit.py in sync with Category_Taxonomy.md whenever the taxonomy changes. |
 
 ---
 
 ### ISSUE-014 (recurrence note on prior fix) — subcategory-mirror violations recurred
 2026-06-01 taxonomy fix corrected subcategory=category mirror violations (Clothing, Dining Out, Gifts/Charity, Groceries, Payment). By 2026-07-01, 294 merchant_patterns rows and 11 category_map rows had the same violation again (Clothing, Groceries, Car, Property Tax, Payment, Dining Out, Interest). Root cause of the recurrence not yet investigated — worth checking whether a specific import/enrichment script is reintroducing these values, rather than treating each occurrence as an isolated one-off fix.
+
+**2026-09-03 note:** Session 17's taxonomy-drift work (ISSUE-012) established the general mechanism for this class — a rename applied to transaction rows but never propagated to `merchant_patterns`/`category_map`, so the pattern table keeps re-creating the old value on every match. The mirror-violation recurrence is very likely the same shape (the retired mirror value still living in merchant_patterns). `taxonomy_audit.py` does not yet check for subcategory==category specifically — add that as a 5th check when working the ISSUE-012 backlog.
 
 ---
 
@@ -74,17 +83,6 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 
 ---
 
-### ISSUE-026 — 14 unclassified merchants from the ISSUE-019 backlog awaiting identification
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-08-03 |
-| Priority | Low |
-| Description | Bizjtix ($2,700, CHASE), WISCONSINGOV ($318.93, ASSOCIATED_PERSONAL), Retail/RETAIL (x2, CHASE), Bayshore D (ASSOCIATED_PERSONAL), Musa I (x2, ASSOCIATED_PERSONAL), Shorewood (ASSOCIATED_PERSONAL), TEMPORARY FUNDS HOLD (ASSOCIATED_PERSONAL — possibly a bank-side pending/hold artifact, not real spend), SHEBOYGAN (ASSOCIATED_PERSONAL — Plaid's RENT_AND_UTILITIES_OTHER_UTILITIES code suggests a utility, but no matching "Other" subcategory currently exists under Bills & Utilities), Google Cloud ($0.06, AMEX). Not blocking — these sit under Plaid's genuinely broad catch-all codes where a blanket category_map mapping would risk misclassifying unrelated future merchants. "Center" and "Product" from the original 16-row list were identified and resolved in Session 14 (see DecisionLog 2026-08-03). Railway ($5.00, AMEX) identified and resolved 2026-09-01 (see DecisionLog) — removed from this list. |
-| Next Step | Tom to identify remaining merchants; Claude drafts final merchant_patterns/manual-correction SQL once identified. |
-
----
-
 ### ISSUE-037 — enrich_hsa_csv.py unmatched-fallback gap (mirrors ISSUE-025)
 | Field | Value |
 |-------|-------|
@@ -96,7 +94,45 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 
 ---
 
+### ISSUE-038 — Apple Card CSV enrichment mislabels category_source (two distinct shapes)
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-09-03 |
+| Priority | Medium |
+| Description | Two separate, not-yet-understood anomalies in Apple Card CSV-imported transactions, both surfaced during Session 17's Needs Review / taxonomy work. (1) At least ~50 Apple rows carry `category_source = 'plaid'` despite Apple Card never being Plaid-connected (CSV-only — confirmed in TechnicalArchitecture.md). These appear tied to Apple's own CSV "Category" column being used as a fallback source (`plaid_category_raw = 'Shopping'` seen on several), which then defaults unconditionally to Large Purchases/General regardless of amount — a $20 Approach Outfitter charge and an $87.13 Urban Cottage charge were both tagged Large Purchases this way. 4 rows were manually corrected this session (Tnf 540 x2 → Clothing/General, Urban Cottage → Housing/General, Approach Outfitter → Clothing/General); the other ~46 were not reviewed. (2) The Playerfirst\*Nxtsports charge ($20) carried `category_source = 'merchant_pattern'` and Taxes/Federal with no active merchant_patterns row that could plausibly match that text to any Taxes pattern — corrected to Sports / Clubs/General. Mechanism unknown. |
+| Next Step | Full read-through of `Run_Monthly/enrich_apple_csv.py` and `Run_Monthly/import_apple_csv.py` next session (neither file was available to review this session). Then a scoping query for all APPLE rows with `category_source = 'plaid'` and for pattern-labelled rows with no findable matching pattern. |
+
+---
+
+### ISSUE-039 — `%ACT%` merchant_pattern is over-broad; narrowing attempt unresolved
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-09-03 |
+| Priority | Low |
+| Description | The `%ACT%` merchant_pattern (→ Children/Education) matches "TRANSACTION FEE" because "TRANSACTION" contains "ACT" — 3 instances ($25 each) wrongly landed in Children/Education this session and were corrected to Fees/General. The one genuinely correct match (a real $112 "ACT" standardized-test charge, stored as a bare "ACT" string with no surrounding spaces) was left alone. An attempted narrowing to `% ACT %` (space-bounded) was tested and does NOT match the real bare-"ACT" row, so that fix is not viable. |
+| Next Step | Use an exact-match pattern with no wildcards (following the exact-string-pattern logic already confirmed in `enrich_transactions.py`'s matching loop, same as the bare-"Apple" fix from ISSUE-027), or raise `%ACT%`'s priority number below every sibling. Part of the ISSUE-012 shadow-pair backlog. |
+
+---
+
+### ISSUE-040 — `Gifts / Charity / Gifts` subcategory: keep or normalize? (decision needed)
+| Field | Value |
+|-------|-------|
+| Status | Open — decision needed from Tom |
+| Opened | 2026-09-03 |
+| Priority | Low |
+| Description | `Gifts / Charity / Gifts` reads as a subcategory==category-adjacent value that a 2026-03-12 taxonomy entry ("Gifts / Charity: `Gifts` → `General`") appears to have retired. `taxonomy_audit.py`'s 2026-09-03 run found it is actually in live use across **96 active merchant_patterns rows** (and 8 transactions), so it is not a stray 2-merchant addition (1-800-Flowers and Indulgence Chocolat were added to it this session before the scale was known). |
+| Options | (a) Formally recognize it as a real subcategory — just add it to Category_Taxonomy.md; or (b) normalize all 96 patterns + affected transactions down to `Donation` / `General`. |
+| Next Step | Tom decides. Do not silently resolve. If (a), update Category_Taxonomy.md's Full Taxonomy + Notable Decisions. If (b), it becomes a merchant_patterns UPDATE + a transaction correction, folded into the ISSUE-012 backlog. |
+
+---
+
 ## Resolved Issues (archive — recent)
+
+### RESOLVED — ISSUE-026 — unclassified merchants from the ISSUE-019 backlog
+- Resolved: 2026-09-03
+- All remaining merchants identified and corrected this session: Bayshore D → Medical/Health/Dental (bank CSV + historical carry-forward from a prior manual categorization); WISCONSINGOV → Car/Registration (WI DOT vehicle registration — new merchant_pattern added); Musa I → Dining Out/General; SHEBOYGAN → Entertainment/General; Shorewood → Travel/Transportation (corrected from an invalid top-level "Transportation" category — it is a subcategory under Travel); Bizjtix ($2,700) → Work - Expense/Amy; Retail x2 ($1,028.64 on 6/9 + $142.42 on 7/10) → Sports / Clubs/Golf (Sand Valley Golf Resort — `plaid_transaction_name_check.py` confirmed no richer merchant text exists in Plaid's API for this row, so "Retail" is genuinely all Plaid has); Google Cloud ($0.06) → Work - Expense/DataForge (confirmed this AMEX connection is the DataForge business card); TEMPORARY FUNDS HOLD ($630.94, 8/1/2026) → deleted (transient bank-side hold artifact — never posted as a real charge). "Center"/"Product" were closed in Session 14; Railway in Session 15. See DecisionLog 2026-09-03.
 
 ### RESOLVED — ISSUE-036 — Marquette University payroll deposits misclassified via overly generic merchant_pattern
 - Resolved: 2026-09-02
@@ -115,8 +151,11 @@ category_map contains subcategories not documented in Category_Taxonomy.md (Divi
 - 14,571 rows across AMEX/APPLE/ASSOCIATED_PERSONAL/CHASE had NULL `account_id`, predating account linkage in the pipeline (~Feb–Mar 2026 cutover per source). Backfilled via script 66. HSA's 159 pre-existing NULL rows deliberately excluded from this backfill — see ISSUE-034 (handled separately, as a deletion rather than a backfill, since those rows are duplicates rather than legitimately-orphaned). See DecisionLog 2026-09-02.
 
 ### RESOLVED — ISSUE-032 — Azure SQL auto-pause collides with the automated monthly timer trigger
-- Resolved: 2026-09-02 (verified present in live code during doc sync)
-- FinanceDB (Free tier Serverless) can auto-pause between runs; the 2026-09-01 03:00 UTC automated monthly_sync/timer_sync run hit Azure SQL error 40613 ("Database not currently available") with no retry handling, failing silently while still logging "Succeeded" at the function level. Fix: retry-with-backoff on error 40613 added to db.py's get_sql_connection() (10/20/40/80/160s exponential backoff, ~5 min worst case; any other connection error still raises immediately, unretried). Confirmed present in the live file during this doc sync — read directly, not assumed. This confirms the code exists, not that it has been exercised against a real auto-pause event in production; a deliberate test (manually pause the DB in the Portal, trigger http_ingest) is still recommended — see SessionStarter's Pick Up Here.
+- Resolved: 2026-09-02 (code); real-world test 2026-09-03 → **manual workaround adopted, not a code fix**
+- FinanceDB (Free tier Serverless) can auto-pause between runs; the 2026-09-01 03:00 UTC automated monthly_sync/timer_sync run hit Azure SQL error 40613 ("Database not currently available") with no retry handling, failing silently while still logging "Succeeded" at the function level. Fix: retry-with-backoff on error 40613 added to db.py's get_sql_connection() (10/20/40/80/160s exponential backoff, ~5 min worst case; any other connection error still raises immediately, unretried).
+- **2026-09-03 real-world test:** paused FinanceDB, triggered http_ingest via Azure Portal Test/Run. The 40613 retry-with-backoff **never fired**. The actual failure Application Insights logged was ODBC `HYT00` ("Login timeout expired") — a client-side connection timeout that happens *before* Azure SQL can return 40613, because the driver gives up waiting for the paused serverless DB to wake. Same failure mode confirmed locally (`enrich_transactions.py`, error `08001`).
+- **Decision:** keep the existing manual monthly procedure (resume DB in the Portal, check freshness, manually retrigger http_ingest / http_balance_ingest / http_nwm_sync if the automated run failed) as the standing solution, rather than further engineering the retry to also catch `HYT00`/`08001` — which would require widening the ODBC login timeout itself first so a retry could ever run. The retry code works exactly as designed for error 40613; it simply does not cover this real-world failure shape. **Not broken or incomplete — deliberately scoped.** See DecisionLog 2026-09-03.
+- **Follow-up (next session):** fold the manual DB-resume/verify/retrigger steps into a proper "Monthly DB Resume & Sync Verification" procedure in SessionStarter, matching the Monthly Baird Holdings / Monthly Apple Card procedure format.
 
 ### RESOLVED — ISSUE-025 — enrich_apple_csv.py's unmatched-fallback path left category/subcategory/type/in_budget NULL
 - Resolved: 2026-09-02 (verified present in live code during doc sync)

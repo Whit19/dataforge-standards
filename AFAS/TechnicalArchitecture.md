@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-09-01 (Session 15: corrected timer_sync.py's stale "Daily Trigger" documentation to Monthly — matches the actual deployed cron and the deliberate design confirmed this session)
+Last updated: 2026-09-03 (Session 17: historical carry-forward enrichment step actually built after 6+ months documented-only; new taxonomy_audit.py + plaid_transaction_name_check.py diagnostics; vw_needs_review + vw_potential_duplicates views)
 
 ---
 
@@ -122,7 +122,7 @@ AI Agent Layer (Phase 5)
 |------|---------|--------|
 | function_app.py | Azure Functions v2 entry point | ✅ Ready |
 | plaid_sync.py | Shared sync module (de-duplicated from timer + HTTP) | ⚠️ Two issues found 2026-08-03: plaid_category_raw stores the full personal_finance_category JSON object via json.dumps() instead of an extracted category string (ISSUE-019 root cause — category_map's exact-string match has never worked for Plaid-synced sources as a result; fix drafted, not yet deployed). INFLOW_CATEGORIES incorrectly includes BANK_FEES and LOAN_PAYMENTS as inflows (ISSUE-023, sign regression, ~25 rows/~$136K affected; fix not yet drafted). description column confirmed dead code (ISSUE-024) — Plaid's transaction object has no field by that name, so tx.get("description", "") has always returned empty. |
-| enrich_transactions.py | Enrichment engine for Plaid-synced transactions (CHASE/ASSOCIATED_PERSONAL/AMEX). Note: this file was previously listed here under the incorrect name "enrichment.py" — corrected 2026-08-03. | ⚠️ Two bugs fixed 2026-08-03: apply_fallback() type/in_budget defaults corrected to match Category_Taxonomy.md; --unenriched-only retry logic fixed (previously no-op'd on any row already processed by fallback once, since every step gates on category.isna() but apply_fallback() sets category='Uncategorized', not NULL). Module docstring still documents the wrong enrichment priority order (see Enrichment Pipeline section below) — not yet corrected. |
+| enrich_transactions.py | Enrichment engine for Plaid-synced transactions (CHASE/ASSOCIATED_PERSONAL/AMEX). Note: this file was previously listed here under the incorrect name "enrichment.py" — corrected 2026-08-03. | ✅ 2026-09-03: docstring enrichment order corrected (was listing category_map before merchant_patterns); new `enrich_from_history()` step added between category_map and bonus_rule, writing `category_source = 'historical_carryforward'` / `category_confidence = 'MEDIUM'` (AFAS 557cdd1 + 4f0c052). 2026-09-02: write-back scoped to changed rows only (ISSUE-035). 2026-08-03: apply_fallback() type/in_budget defaults corrected; --unenriched-only retry logic fixed. |
 | enrich_apple_csv.py | Enrichment engine for Apple Card CSV imports | ✅ Ready — category_map lookup fixed 2026-06-01 |
 | import_apple_csv.py | Apple Card CSV import script (manual monthly) | ✅ Ready |
 | plaid_client.py | Plaid SDK wrapper — created 2026-06-15 (did not previously exist despite this entry). _make_plaid_client() (duplicated from plaid_sync.py) + get_account_balances() | ✅ Ready — prior "plaid_category_raw fix" note likely describes logic actually in plaid_sync.py, needs verification |
@@ -138,6 +138,8 @@ AI Agent Layer (Phase 5)
 | timer_sync.py | Monthly timer trigger (1st @ 03:00 UTC) | ✅ Ready |
 | http_ingest.py | Manual HTTP trigger — added http_balance_ingest route 2026-06-15 (/api/balance_ingest) | ✅ Ready |
 | get_plaid_tokens.py | Local Flask tool for Plaid token acquisition | ✅ Ready — located at C:\DEV_Projects\AFAS\scripts — hardcoded PLAID_CLIENT_ID/PLAID_SECRET removed 2026-08-01, now loaded from local.settings.json at module scope |
+| scripts/taxonomy_audit.py | **NEW 2026-09-03** — Read-only taxonomy-drift diagnostic. Hardcoded canonical category/subcategory dict (transcribed from Category_Taxonomy.md, doc rev 2026-07-01; prints that date + its own transcription date at startup). 4 checks: undocumented category/subcategory combos in merchant_patterns / category_map / live transactions, and same-priority pattern pairs where one pattern's text is a substring of another's (shadowing). Check 4 output split `[DIFFERENT DEST]` (real bugs) vs `[same dest]` (harmless). Exit 0 = clean, 1 = issues, 2 = error. DB creds via `.env` / `get_connection()` (mirrors enrich_transactions.py). AFAS 13b959e. | ✅ Live — run 2026-09-03: 53 / 45 / 16 undocumented combos, 265 shadow pairs (75 `[DIFFERENT DEST]`). Backlog = ISSUE-012. |
+| scripts/plaid_transaction_name_check.py | **NEW 2026-09-03** — Read-only diagnostic. Queries Plaid /transactions/get for CHASE/ASSOCIATED_PERSONAL/AMEX over a date range and prints raw `name` / `merchant_name` / personal_finance_category (plus full JSON for the first 5). Used to check whether Plaid retains fuller merchant text than what's stored. No DB writes, no Plaid write endpoints, not wired into any pipeline. Config via local.settings.json Values block. AFAS 2ad1bf2. | ✅ Live — confirmed the Associated DDA truncation (Bayshore D / Musa I / Sheboygan) happens upstream of Plaid; processor-routed names (Toast) do carry more detail. |
 | requirements.txt | Pinned dependencies | ✅ Ready |
 
 #### Environment Variables (local.settings.json + App Settings)
@@ -260,6 +262,8 @@ All relationships: One-to-Many, Single cross-filter direction, Calendar as hub.
 | Year Over Year | ✅ Complete |
 | Top Merchants | ✅ Complete |
 | Transaction Review | ✅ Complete (added 2026-06-01) — Source/Year/Month slicers |
+| Data Health | ✅ Complete (added Session 13) — built on vw_source_freshness + vw_category_health |
+| Needs Review | ✅ Complete (added Session 17) — built on `vw_needs_review` (all `category_reviewed = 0` rows, with computed `suggested_category`/`suggested_subcategory` and a `review_priority` 1–4 tier). Backlog cleared 421 → 0 on 2026-09-03. See SessionStarter "Data Health (Power BI)". Table visuals on this page **must** include `transaction_id` (hidden) with numerics set to "Don't summarize" — see BestMethods. |
 
 #### Calendar Table Sort Orders
 | Column | Sort By |
@@ -273,20 +277,36 @@ All relationships: One-to-Many, Single cross-filter direction, Calendar as hub.
 
 ### Enrichment Pipeline — Logic Order
 Enrichment runs in strict priority order. Higher steps win; manual never gets overwritten.
-Corrected 2026-08-03 — this table previously documented the reverse of steps
-2 and 3, matching a stale docstring inside enrich_transactions.py itself
+Corrected 2026-08-03 — this table previously documented merchant_pattern and
+plaid_category in the reverse of their real execution order, matching a stale
+docstring inside enrich_transactions.py itself
 rather than what the code actually executes (confirmed by reading the code
 and its own inline comment: "merchant_patterns runs FIRST — specific
 merchant match beats generic Plaid category / category_map runs SECOND —
 Plaid category as fallback only").
 
+**Corrected again 2026-09-03 (Session 17):** the "Historical carry-forward"
+step had been in this table for 6+ months but **never existed in the
+code** — the module docstring documented 4 steps and `main()` called 4
+steps (see BestMethods "A documented pipeline step ... is not evidence it
+was ever built"). It is now genuinely implemented as
+`enrich_from_history()`, wired into `main()` **between category_map and
+bonus_rule** (not after bonus, where this table used to place it). It
+carries forward from the most recent prior row for the same
+`merchant_name_raw` whose own `category_source` is a real decision
+(`manual` / `merchant_pattern` / `historical` / `category_map` /
+`bonus_rule` — `'unmatched'` excluded), writes
+`category_source = 'historical_carryforward'` (distinct from legacy
+pre-2024 `'historical'` from historical_mapping.sql) and
+`category_confidence = 'MEDIUM'`. AFAS commits 557cdd1 + 4f0c052.
+
 | Step | Source | Logic |
 |------|--------|-------|
-| 1 | Merchant pattern | merchant_name_raw LIKE match in merchant_patterns, ordered by priority ASC — runs first; a specific merchant match beats a generic Plaid category |
+| 1 | Merchant pattern | merchant_name_raw LIKE match in merchant_patterns, ordered by priority ASC then pattern ASC — runs first; a specific merchant match beats a generic Plaid category. **Same-priority note:** first textual match wins, so a broad pattern that is a substring of a specific one shadows it — more-specific patterns must sit at a strictly lower priority number (see ISSUE-012 / BestMethods). |
 | 2 | Plaid category | plaid_category_raw → lookup in category_map table — fallback only, applied to rows merchant_patterns did not match |
-| 3 | Bonus rule | Hardcoded: Baird payroll → Pay/Amy; large Baird deposits → Bonus/Amy (threshold >$10,000) |
-| 4 | Historical | Carry forward category from prior enriched record for same merchant |
-| 5 | Manual | Human override — category_source = 'manual', never overwritten by pipeline |
+| 3 | Historical carry-forward | `enrich_from_history()` — most recent prior real categorization for the same merchant_name_raw; `category_source = 'historical_carryforward'`, `category_confidence = 'MEDIUM'`. Implemented 2026-09-03. |
+| 4 | Bonus rule | Hardcoded: Baird payroll → Pay/Amy; large Baird deposits → Bonus/Amy (threshold >$10,000) |
+| 5 | Manual | Human override — category_source = 'manual', never overwritten by pipeline (a protection, not a pipeline step) |
 | 6 | Fallback | Unmatched rows → category='Uncategorized', subcategory='General', type='Expense', in_budget=1, category_source='unmatched', category_confidence='LOW' (corrected 2026-08-03 — previously set type='Other'/in_budget=0, contradicting Category_Taxonomy.md's documented default) |
 
 **Sign convention (as documented — enforcement currently has a known bug, see ISSUE-023):**

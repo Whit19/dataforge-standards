@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-02 (Session 16 sync)
+Last updated: 2026-09-03 (Session 17 sync)
 
 ---
 
@@ -54,16 +54,22 @@ payment.
 
 ---
 
-## RESOLVED (code) — ISSUE-032: Azure SQL auto-pause collides with the automated monthly timer (2026-09-01, code fix 2026-09-02)
+## ISSUE-032: Azure SQL auto-pause vs the automated monthly timer — MANUAL WORKAROUND ADOPTED (real-world test 2026-09-03)
 
-The 2026-09-01 03:00 UTC automated monthly_sync/timer_sync run hit Azure SQL
-error 40613 (DB auto-paused) and failed all retries — but both functions
-still logged "Succeeded" in Application Insights, since function-level
-status does not reflect internal SQL failure. This occurrence was resolved
-manually (DB resumed, http_ingest/http_balance_ingest/http_nwm_sync
-retriggered by hand). Retry-with-backoff on error 40613 added to db.py
-2026-09-02, confirmed present in live code — but not yet exercised against
-a real auto-pause event (see Pick Up Here #5). See ISSUE-032.
+The db.py retry-with-backoff on Azure SQL error 40613 was tested for real
+2026-09-03 (paused FinanceDB, triggered http_ingest via Portal). **It never
+fired** — the actual failure is ODBC `HYT00` ("Login timeout expired"), a
+client-side timeout that happens *before* Azure SQL can return 40613, because
+the driver gives up waiting for the paused DB to wake. The 40613 retry works
+exactly as designed; it just doesn't cover this failure shape, and catching
+`HYT00`/`08001` would need the ODBC login timeout widened first.
+
+**Decision: keep the manual monthly procedure as the standing solution** —
+resume FinanceDB in the Portal, check freshness, manually retrigger
+http_ingest / http_balance_ingest / http_nwm_sync if the automated run
+failed. Not a broken fix — deliberately scoped. See ISSUE-032 (Resolved) and
+DecisionLog 2026-09-03. **Next session:** fold this into a proper "Monthly DB
+Resume & Sync Verification" procedure (Pick Up Here).
 
 **Lesson: function-level "Succeeded" status does not prove the internal SQL
 work succeeded. Check Application Insights traces, not just the
@@ -84,29 +90,48 @@ top-level status, when verifying an automated sync actually ran.**
 
 ## Pick Up Here — Next Session
 
-1. **Build the Power BI "Needs Review" page** — surfaces
-   `category_reviewed = 0` rows (421 as of 2026-09-02) so Tom can screenshot
-   the page and work through them interactively next session. First thing
-   next session, per Tom's explicit request.
-2. **Work through the 421 flagged rows** — Tom screenshots the Power BI
-   Needs Review page; categorize via cards with best-guess suggestions.
-3. **ISSUE-026 — identify remaining merchants** (Bizjtix, WISCONSINGOV,
-   Retail x2, Bayshore D, Musa I x2, Shorewood, TEMPORARY FUNDS HOLD,
-   SHEBOYGAN, Google Cloud) — not yet started this session, low priority,
-   not blocking.
-4. **enrich_hsa_csv.py's unmatched-fallback gap** (ISSUE-037, new, mirrors
+1. **Work the `taxonomy_audit.py` backlog (ISSUE-012)** — the explicit first
+   item, not an end-of-session rush. Re-run `python scripts/taxonomy_audit.py`
+   at the start of the session (do NOT trust the 2026-09-03 counts of
+   53 / 45 / 16 undocumented combos + 265 shadow pairs / 75 `[DIFFERENT DEST]`).
+   Known unfixed specifics: `Travel / "Travel activities"` casing on 44
+   patterns (check if the UPDATE was run); `%UBER CASH%` shadows `%UBER%`;
+   `%BP#%` shadows `%BP%`; `%MOBIL%` shadows `%MOBILITE%`. Add a 5th check to
+   the script for subcategory==category mirrors (ISSUE-014).
+2. **`%ACT%` pattern fix (ISSUE-039)** — over-broad, matches "TRANSACTION
+   FEE". Space-bounding `% ACT %` was tested and does NOT match the real bare
+   "ACT" row. Use an exact-match no-wildcard pattern, or re-prioritize.
+3. **Gifts / Charity/Gifts decision (ISSUE-040)** — 96 active patterns use
+   this "retired" subcategory. Tom to decide: formally recognize, or
+   normalize all 96 to Donation/General.
+4. **Apple CSV pipeline anomalies (ISSUE-038)** — full read-through of
+   `Run_Monthly/enrich_apple_csv.py` + `import_apple_csv.py` (neither file
+   available this session). ~50 Apple rows carry `category_source = 'plaid'`
+   and default to Large Purchases/General regardless of amount; a separate
+   row had `category_source = 'merchant_pattern'` with no findable pattern.
+5. **Fold the manual DB-resume/verify/retrigger steps into a "Monthly DB
+   Resume & Sync Verification" procedure** in this file, matching the Monthly
+   Baird Holdings / Monthly Apple Card format (ISSUE-032, workaround adopted).
+6. **enrich_hsa_csv.py's unmatched-fallback gap** (ISSUE-037, mirrors
    ISSUE-025) — needs a real data check (how many HSA rows are actually
    unmatched) before deciding whether a fix is warranted.
-5. **Real-world test ISSUE-032's db.py retry logic**, if confirmed present
-   but not yet exercised against a genuine auto-pause — manually pause the
-   DB in the Azure Portal, trigger http_ingest, confirm it retries and
-   succeeds rather than failing outright.
+7. **Add `vw_potential_duplicates` as a Power BI Data Health tile** — the
+   view exists and works (0 legacy_vs_plaid, catches pending_vs_settled);
+   Tom wants it visible on the existing Data Health page.
+8. **Session 17 SQL was run ad-hoc** — the two new views (`vw_needs_review`,
+   `vw_potential_duplicates`) and all the correction / pattern-rename /
+   priority-change / new-merchant_pattern SQL from this session are **not**
+   committed as numbered scripts in the AFAS repo. Decide whether to
+   reconstruct them as scripts 72+ or accept the gap.
 
 ---
 
 ## Active Data Issues
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
+| ISSUE-012 | Medium | Systemic taxonomy drift — `taxonomy_audit.py` (built Session 17) found 53/45/16 undocumented category/subcategory combos + 265 same-priority shadow pairs (75 real). 5 instances fixed this session; ~180 remain | Work the backlog next session — Pick Up Here #1 |
+| ISSUE-038 | Medium | Apple CSV enrichment mislabels `category_source` (~50 rows `'plaid'` → Large Purchases/General; 1 row `'merchant_pattern'` with no matching pattern) | Read-through of enrich_apple_csv.py / import_apple_csv.py — Pick Up Here #4 |
+| ISSUE-040 | Low | `Gifts / Charity/Gifts` on 96 active patterns — keep or normalize? | Tom decides — Pick Up Here #3 |
 | NOTE | — | 8 Apple Uncategorized rows intentionally parked — category_source = 'manual', in_budget = 1 | Owner review when ready |
 | NOTE | — | run_log missing entries for all daily transaction syncs (see ISSUE-016) | Add run_log writes to plaid_sync.py |
 
@@ -130,7 +155,9 @@ top-level status, when verifying an automated sync actually ran.**
 | File | Purpose | Status |
 |------|---------|--------|
 | plaid_sync.py | Shared sync module | ✅ Both known bugs fixed AND deployed 2026-09-01 (confirmed via VS Code's "Files (Read-only)" remote view — both had been drafted-but-undeployed since Session 14): (1) plaid_category_raw now extracts a clean category string instead of storing full JSON; (2) INFLOW_CATEGORIES no longer includes BANK_FEES/LOAN_PAYMENTS (ISSUE-023). Still does not write to run_log (ISSUE-016, carried over). |
-| enrich_transactions.py | Enrichment engine for Plaid-synced transactions (CHASE/ASSOCIATED_PERSONAL/AMEX) | ⚠️ Two bugs found and fixed 2026-08-03: apply_fallback() type/in_budget defaults corrected to match Category_Taxonomy.md spec; --unenriched-only retry logic fixed (previously silently no-op'd on any row that had already been through fallback once). Module docstring still documents the wrong enrichment priority order — code is correct (merchant_patterns first, category_map fallback-only), docstring is stale (Pick Up Here #7). |
+| enrich_transactions.py | Enrichment engine for Plaid-synced transactions (CHASE/ASSOCIATED_PERSONAL/AMEX) | ✅ 2026-09-03: docstring order corrected AND a real `enrich_from_history()` carry-forward step added (between category_map and bonus_rule) — `category_source = 'historical_carryforward'`, `category_confidence = 'MEDIUM'`, `'unmatched'` rows excluded as a source. Ran live `--unenriched-only`: 15 eligible, 4 carried forward, 0 errors. AFAS 557cdd1 + 4f0c052. Earlier: write-back scoped to changed rows (ISSUE-035, Session 16); apply_fallback() defaults + `--unenriched-only` retry fixed (2026-08-03). |
+| scripts/taxonomy_audit.py | **NEW 2026-09-03** — read-only taxonomy-drift diagnostic (4 checks: undocumented category/subcategory combos in merchant_patterns / category_map / transactions; same-priority pattern shadowing). Canonical dict hardcoded from Category_Taxonomy.md — keep in sync by hand. AFAS 13b959e. | ✅ Live — run 2026-09-03, backlog = ISSUE-012 |
+| scripts/plaid_transaction_name_check.py | **NEW 2026-09-03** — read-only Plaid /transactions/get diagnostic (CHASE/ASSOCIATED_PERSONAL/AMEX); prints raw name / merchant_name / PFC. No writes, not in any pipeline. AFAS 2ad1bf2. | ✅ Live |
 | plaid_client.py | Plaid SDK wrapper | ✅ Ready |
 | balance_sync.py | Associated balance pull | ✅ Live |
 | nwm_sync.py | NWM Tom + Amy cash value sync | ✅ Live — both Items reconnected 2026-08-01 |
@@ -218,9 +245,19 @@ Session 16 (2026-09-02):
                            70_venmo_check_review_backlog_classif.sql
                            71_category_reviewed_reset.sql
 
-Current high watermark: **71** (confirmed live 2026-09-02 — re-confirm
-live rather than trust this number next session too, per this session's
-own recurring lesson about stale watermarks)
+Session 17 (2026-09-03): **no numbered scripts committed.** All SQL this
+session was run ad-hoc: `CREATE VIEW dbo.vw_needs_review` and
+`dbo.vw_potential_duplicates`; the 421-row Needs Review backlog cleanup;
+taxonomy-drift corrections (U-club / Airlines / Hotels / Fitness pattern
+renames, `%MARQUETTE UN%` priority → 40); 5 new merchant_patterns
+(WISCONSINGOV, Dave's Hot Chicken, ATM W D U S BANK, 1-800-FLOWERS,
+INDULGENCE CHOCOLAT); ~40 manual transaction corrections; 10 duplicate-row
+deletions. **Gap flagged** — see Pick Up Here #8: decide whether to
+reconstruct these as scripts 72+.
+
+Current high watermark: **71** (last *committed* script; confirmed live
+2026-09-02 — re-confirm live rather than trust this number, and note
+Session 17's ad-hoc SQL above is not reflected in any file)
 
 ---
 
@@ -244,14 +281,31 @@ own recurring lesson about stale watermarks)
 
 ## Data Health (Power BI)
 
-New self-serve report page (added Session 13) built on two new views:
-vw_source_freshness (row_count/max_date/min_date/days_since_last_transaction
-per source) and vw_category_health (uncategorized/manual_override/
-low_confidence/subcategory_mirror_violation counts per source). Both
-standalone, no Calendar relationship. Conditional formatting (Rules-based
-background color) flags days_since_last_transaction and
-subcategory_mirror_violation_count. Check this page first before running
-ad-hoc SQL to verify a data load — that's what it's for.
+Self-serve report page (added Session 13) built on:
+- **vw_source_freshness** — row_count / max_date / min_date /
+  days_since_last_transaction per source
+- **vw_category_health** — uncategorized / manual_override / low_confidence /
+  subcategory_mirror_violation counts per source
+- **vw_needs_review** (added Session 17) — every `category_reviewed = 0` row,
+  with a computed `suggested_category` / `suggested_subcategory` (from
+  merchant_patterns + historical carry-forward, `'unmatched'` sources
+  excluded) and a `review_priority` tier: 1 = no suggestion + currently
+  Uncategorized; 2 = no suggestion + has a value; 3 = suggestion disagrees
+  with current; 4 = suggestion matches current. Drives the **Needs Review**
+  page. Backlog was cleared 421 → 0 on 2026-09-03; the view stays live for
+  future rows. **Any table visual on this page must include `transaction_id`
+  (hidden) with numeric columns set to "Don't summarize"** — without the key,
+  the visual silently groups + SUMs `review_priority`/`amount` (see
+  BestMethods).
+- **vw_potential_duplicates** (added Session 17) — flags two shapes:
+  `legacy_vs_plaid` (a legacy bulk-import row sharing date/amount with a row
+  that has a genuine non-null `pending` flag) and `pending_vs_settled` (the
+  known pending/settled pattern). As of 2026-09-03: 0 legacy_vs_plaid (all 5
+  real ones cleaned), 0 pending_vs_settled (4 cleaned). **Not yet a Power BI
+  tile** — planned follow-up.
+
+All standalone, no Calendar relationship. Check this page first before
+running ad-hoc SQL to verify a data load — that's what it's for.
 
 ---
 

@@ -574,6 +574,7 @@ Scramble round scores are team scores, not individual. Excluded from avg score c
 **DEC-154 — BestMethods.md raw URL uses refs/heads/main path**
 Correct URL: `https://raw.githubusercontent.com/Whit19/dataforge-standards/refs/heads/main/up-golf-pwa/BestMethods.md`
 Standard `/main/` path returns 404. Update Claude Project Instructions to use refs/heads/main for all 7 doc URLs.
+**Status: Superseded by DEC-161 (2026-09-04)** — retested live, plain `/main/` works fine; the 404 this decision was based on did not reproduce.
 
 ---
 
@@ -736,3 +737,26 @@ broken out by category within a round.
 **Rationale:** Tom requested visibility into how each player's total
 winnings break down by source, beyond the single aggregate "Won" figure
 already shown in Final Standings.
+
+---
+
+## Session — September 4, 2026
+
+**DEC-161 — DEC-154's refs/heads/main URL requirement does not hold up on retest; use plain /main/**
+DEC-154 (2026-06-13) claimed the standard `/main/` raw GitHub URL path
+404s for this repo's docs and required `/refs/heads/main/` instead.
+Retested directly against the live repo during a "Read the docs" session
+verification: `https://raw.githubusercontent.com/Whit19/dataforge-standards/main/up-golf-pwa/BestMethods.md`
+returned HTTP 200 with correct, current content — the claimed 404 did not
+reproduce. `/refs/heads/main/` also still works and resolves to identical
+content, so nothing breaks by continuing to use it, but there's no longer
+a reason to require it over the standard form.
+**Rationale:** Whatever produced the original 404 was most likely a
+transient GitHub raw-CDN propagation delay at the time (raw.githubusercontent.com
+is known to lag briefly after certain repo events), not a permanent
+property of this repo — every other project folder in `dataforge-standards`
+has always used plain `/main/` successfully, including on the same day
+this was retested. The Claude Project Instructions field for UP Golf PWA
+has already been updated to use plain `/main/` for all 8 fetch URLs and
+confirmed working (all fetches succeeded, content verified current).
+**Status:** DEC-154 marked Superseded by this entry (see DEC-154 above).

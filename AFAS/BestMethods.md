@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-09-03
+Last updated: 2026-09-04
 
 ---
 
@@ -961,6 +961,113 @@ real Plaid sync path) dropped it to 0 false positives while still
 catching all 5 real instances. Any date+amount duplicate check needs an
 extra structural signal before its output is safe to delete from.
 *Source: Session 17 — vw_potential_duplicates build*
+
+### A merchant_pattern that has never matched a real transaction is a landmine, not a no-op
+
+A reviewing session found 36 of 64 active Work-Expense merchant_patterns
+rows had NEVER matched a single transaction in the database's history —
+not "haven't matched recently," literally zero matches, ever. These sit
+silently until a real transaction happens to hit the exact string, at
+which point they fire with zero review (category_source = 'merchant_
+pattern', not 'manual'). A pattern with zero historical matches is not
+evidence it's harmless — it's evidence nobody has been burned by it yet.
+Worth a periodic sweep: `SELECT pattern, COUNT(t.transaction_id) AS
+times_matched FROM merchant_patterns mp LEFT JOIN transactions t ON
+t.merchant_name_raw LIKE mp.pattern GROUP BY pattern HAVING
+COUNT(t.transaction_id) = 0` against any category prone to accumulating
+speculative one-off patterns (Work-Expense, Large Purchases, anything
+tied to travel).
+*Source: Session 18 — Work-Expense pattern audit, script 72*
+
+### A merchant_pattern that fired exactly once is not automatically a safe durable rule
+
+Beyond the 36 zero-match patterns above, 9 more Work-Expense patterns had
+matched exactly once, ever. Reviewing each individually (rather than
+assuming "it matched, so it must be a real recurring vendor") found 3 of
+the 9 were one-off transactions that should have stayed manual
+corrections instead of being promoted to permanent categorization rules —
+including one, Wynn Las Vegas, that was compounding with an invalid
+subcategory ('Lodging' under Work - Expense, which isn't a valid
+combination at all). A single real match is not proof of recurrence;
+check whether the underlying transaction actually looks like it'll
+happen again before trusting a pattern built from it.
+*Source: Session 18 — Work-Expense pattern audit, script 72*
+
+### Azure SQL's default collation is case-insensitive — don't assume a Python-side string comparison agrees with the database
+
+taxonomy_audit.py flagged `Payment/AMEX` as an undocumented combo distinct
+from the canonical `Payment/Amex`. It isn't, functionally: Azure SQL's
+default collation (SQL_Latin1_General_CP1_CI_AS) treats 'AMEX' and 'Amex'
+as identical, so every WHERE/JOIN/GROUP BY in the actual pipeline already
+merges them correctly. The audit script's Python-side comparison against
+its canonical dict is case-sensitive, so it flagged a distinction that
+doesn't exist in the data. Before treating any taxonomy_audit.py "cosmetic
+casing" flag as a real bug, check whether it's actually a database-level
+mismatch or just a Python-string-equality artifact — use `WHERE
+subcategory = 'X' COLLATE Latin1_General_CS_AS` to force a case-sensitive
+check if you need to confirm which case a stored value is.
+*Source: Session 18 — Bucket 1 taxonomy renames, script 77*
+
+### taxonomy_audit.py's own canonical dict can go stale — treat its "undocumented" flags with the same skepticism as any other doc-vs-reality mismatch
+
+The script's own code comment states its CANONICAL_TAXONOMY dict was
+transcribed from a 2026-07-01 snapshot of Category_Taxonomy.md. It has
+not been refreshed since. Confirmed in Session 18: ATM/Cash Spending/ATM,
+Dining Out/Fast Food, and Pay/Whit are all formally documented in
+Category_Taxonomy.md's version history (added Session 17, 2026-09-03) but
+still flag as "undocumented" in every Check 1/2/3 run, because the
+script's own reference copy predates them. This is the same "doc says one
+thing, code/data says another" failure class this project has hit
+repeatedly elsewhere (enrichment pipeline docstrings, TechnicalArchitecture
+vs. actual deployed code) — the audit tool meant to catch drift is itself
+subject to drift. Cross-check any audit flag against the live
+Category_Taxonomy.md doc directly before assuming it's a real gap. See
+ISSUE-041.
+*Source: Session 18 — Check 1/2/3 review*
+
+### A single merchant_patterns row cannot express sign-dependent categorization
+
+`WEB FR DDA TO DDA CONFIRMATION` produces both inbound (+$100) and
+outbound (-$500, -$120, etc.) real transactions under byte-identical
+merchant text — the only signal distinguishing direction is the amount's
+sign. The current architecture (one static category/subcategory per
+pattern) has no way to express "route this differently depending on
+sign." Historical rows were corrected with a one-time sign-based CASE
+UPDATE; the pattern itself was set to the majority real-world direction
+(Transfer Out, 6 of 7 real cases) as a default, accepting that the
+minority direction will need manual correction going forward — the same
+default-common-case/manual-exception convention already established for
+dual-use merchants (hotels, Ascension). If this pattern (or a similar one)
+starts generating enough manual corrections to be worth automating
+properly, it would need a code-level change to enrichment logic (a sign
+check alongside the LIKE match), not just a SQL data fix.
+*Source: Session 18 — Bucket 1 taxonomy renames, script 77*
+
+### A documented rename in Category_Taxonomy.md's Notable Decisions table is not evidence it fully propagated
+
+Car/Wash → Car Wash and Car/Supercharger → Charging were both already
+listed in Category_Taxonomy.md's Notable Decisions table as completed
+renames — but live merchant_patterns rows were still using the retired
+values ('Wash', 'Supercharger') as of Session 18. Same failure class as
+the Session 17 Airlines/Hotels/Fitness drift (ISSUE-012), now confirmed
+recurring in a different category. A rename documented in the doc's
+decision history describes intent, not verified current state — the only
+way to know a rename is actually complete is to query live
+merchant_patterns/category_map/transactions directly, the same lesson
+already learned the hard way for "Resolved" issue statuses and deployed
+Function App code.
+*Source: Session 18 — Bucket 1 taxonomy renames, script 77*
+
+### A taxonomy rename can land in merchant_patterns but still miss category_map
+
+Travel/Hotels → Lodging was fixed in merchant_patterns during Session 17
+(29 patterns renamed) but category_map still carried the retired 'Hotels'
+value on 2 rows, undetected until Session 18's Check 2 review. Renames
+touch up to three separate tables (merchant_patterns, category_map,
+transactions) and fixing one doesn't imply the others got the same
+treatment — always check all three before considering a taxonomy rename
+complete.
+*Source: Session 18 — Bucket 1 taxonomy renames, script 77*
 
 ---
 

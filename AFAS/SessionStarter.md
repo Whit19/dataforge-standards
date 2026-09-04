@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-03 (Session 17 sync)
+Last updated: 2026-09-04 (Session 18 sync)
 
 ---
 
@@ -77,6 +77,20 @@ top-level status, when verifying an automated sync actually ran.**
 
 ---
 
+## Two process discoveries — 2026-09-04 (read before trusting taxonomy_audit.py output)
+
+1. **taxonomy_audit.py's own canonical dict is stale.** It was transcribed
+   from a 2026-07-01 snapshot of Category_Taxonomy.md and never refreshed —
+   ATM/Cash Spending/ATM, Dining Out/Fast Food, and Pay/Whit (all added
+   Session 17) still flag as "undocumented" in every run. See ISSUE-041.
+2. **Azure SQL's default collation is case-insensitive.** A taxonomy_audit.py
+   flag like `Payment/AMEX` vs. canonical `Payment/Amex` can be a pure
+   Python-string-comparison artifact, not a real distinct value in the
+   database (confirmed for this exact case). Check with `COLLATE
+   Latin1_General_CS_AS` before treating a "cosmetic casing" flag as real.
+
+---
+
 ## Phase Status
 | Phase | Description | Status |
 |-------|-------------|--------|
@@ -90,48 +104,97 @@ top-level status, when verifying an automated sync actually ran.**
 
 ## Pick Up Here — Next Session
 
-1. **Work the `taxonomy_audit.py` backlog (ISSUE-012)** — the explicit first
-   item, not an end-of-session rush. Re-run `python scripts/taxonomy_audit.py`
-   at the start of the session (do NOT trust the 2026-09-03 counts of
-   53 / 45 / 16 undocumented combos + 265 shadow pairs / 75 `[DIFFERENT DEST]`).
-   Known unfixed specifics: `Travel / "Travel activities"` casing on 44
-   patterns (check if the UPDATE was run); `%UBER CASH%` shadows `%UBER%`;
-   `%BP#%` shadows `%BP%`; `%MOBIL%` shadows `%MOBILITE%`. Add a 5th check to
-   the script for subcategory==category mirrors (ISSUE-014).
-2. **`%ACT%` pattern fix (ISSUE-039)** — over-broad, matches "TRANSACTION
+1. **Continue the `taxonomy_audit.py` backlog (ISSUE-012)** — re-run the
+   audit fresh at session start (do not trust Session 17/18 counts). Real
+   gaps confirmed still open:
+   - `%UBER CASH%` (→ Gifts / Charity/Gifts) still shadows `%UBER%` (→
+     Travel/Transportation); `%BP#%` (→ Dining Out) still shadows `%BP%`
+     (→ Groceries) — **not fixed in Session 18** despite an earlier draft
+     of this update claiming otherwise; verified against the live scripts
+     72-78 before writing this. Only `%MOBILITE%` was actually deactivated.
+   - `Travel / "Travel activities"` (lowercase) casing on 44 patterns —
+     not yet confirmed fixed
+   - Children: Birthday Party, Photos, Boating subcategories — decide
+     formally add vs. normalize to General
+   - Other Income: Dividends, Pension, Tax Refund subcategories — same
+     decision needed
+   - Work - Expense: Education, Professional Dev subcategories — likely
+     should be added (training costs are a real recurring expense type)
+   - Property Tax/General and Large Purchases/General — both categories
+     currently have no generic fallback subcategory; decide if one should
+     exist
+   - Car/Rideshare (2 category_map rows) — likely belongs under
+     Travel/Transportation, not under Car
+   - Medical / Health/Mental Health — keep as distinct subcategory or
+     merge to General/Doctor?
+   - Children/School → should rename to School Lunch (category_map, easy)
+   - Taxes/Federal Tax → Federal, Taxes/State Tax → State (category_map,
+     easy renames, same shape as this session's Bucket 1)
+   - Cash Adj/Cash Advance — likely mis-filed, should probably be under
+     ATM / Cash Spending instead
+   - Housing: Furniture, Home Improvement, Landscaping (→ Landscape),
+     Rent, Security — mix of easy renames and real gaps
+   - Fees: Late Fee, Service Fee, Wire Transfer — no valid home currently
+   - Bills & Utilities/General — no generic fallback currently exists;
+     same question as Property Tax/Large Purchases above
+   - **Entertainment/Books & Audible (2 txns, $61.12) and
+     Subscriptions/Gaming (17 txns, $478.46) look swapped** — tracked as
+     ISSUE-042. 17 transactions is a lot for something not yet looked at.
+   - Sports / Clubs: Equipment, Lodging, Other, Travel activities (lowercase)
+     — gaps and one likely mis-categorization (a travel activity filed
+     under Sports/Clubs instead of Travel)
+   - The ~40 remaining "[same dest]" Check 4 shadow pairs — cosmetic,
+     zero real miscategorization risk by definition, lowest priority
+   - A handful of "[DIFFERENT DEST]" Check 4 pairs not yet reviewed this
+     session (smaller/lower-dollar ones were deprioritized in favor of
+     the real-money items)
+   - Add a 5th check to the script for subcategory==category mirrors (ISSUE-014)
+2. **Fix taxonomy_audit.py's own stale canonical dict (ISSUE-041).** Confirmed
+   this session: the script's hardcoded CANONICAL_TAXONOMY dict was
+   transcribed from a 2026-07-01 snapshot of Category_Taxonomy.md and does
+   not reflect Session 17+ additions (ATM/Cash Spending/ATM, Dining Out/Fast
+   Food, Pay/Whit all still flag as "undocumented" despite being formally
+   documented). Needs the dict refreshed against the live doc, or ideally a
+   mechanism so it doesn't drift again.
+3. **`%ACT%` pattern fix (ISSUE-039)** — over-broad, matches "TRANSACTION
    FEE". Space-bounding `% ACT %` was tested and does NOT match the real bare
-   "ACT" row. Use an exact-match no-wildcard pattern, or re-prioritize.
-3. **Gifts / Charity/Gifts decision (ISSUE-040)** — 96 active patterns use
-   this "retired" subcategory. Tom to decide: formally recognize, or
-   normalize all 96 to Donation/General.
-4. **Apple CSV pipeline anomalies (ISSUE-038)** — full read-through of
-   `Run_Monthly/enrich_apple_csv.py` + `import_apple_csv.py` (neither file
-   available this session). ~50 Apple rows carry `category_source = 'plaid'`
-   and default to Large Purchases/General regardless of amount; a separate
-   row had `category_source = 'merchant_pattern'` with no findable pattern.
-5. **Fold the manual DB-resume/verify/retrigger steps into a "Monthly DB
+   "ACT" row. Use an exact-match no-wildcard pattern, or re-prioritize. Not
+   touched Session 18.
+4. **Watch Sunnyside/CutbackCoach's merchant text next January (~2027-01).**
+   The recurring annual $99 charge dropped the "/CUTBACKCOACH" suffix
+   entirely in 2026 (came through as bare "SUNNYSIDE 651 GUERRERO
+   STREET..."). If it recurs in that truncated format again, the
+   merchant_patterns priority fix from script 75 won't catch it — confirm
+   whether a new pattern is needed.
+5. **Apple CSV pipeline anomalies (ISSUE-038)** — full read-through of
+   `Run_Monthly/enrich_apple_csv.py` + `import_apple_csv.py`. ~50 Apple rows
+   carry `category_source = 'plaid'` and default to Large Purchases/General
+   regardless of amount; a separate row had `category_source =
+   'merchant_pattern'` with no findable pattern. Not touched Session 18.
+6. **Fold the manual DB-resume/verify/retrigger steps into a "Monthly DB
    Resume & Sync Verification" procedure** in this file, matching the Monthly
    Baird Holdings / Monthly Apple Card format (ISSUE-032, workaround adopted).
-6. **enrich_hsa_csv.py's unmatched-fallback gap** (ISSUE-037, mirrors
+7. **enrich_hsa_csv.py's unmatched-fallback gap** (ISSUE-037, mirrors
    ISSUE-025) — needs a real data check (how many HSA rows are actually
    unmatched) before deciding whether a fix is warranted.
-7. **Add `vw_potential_duplicates` as a Power BI Data Health tile** — the
+8. **Add `vw_potential_duplicates` as a Power BI Data Health tile** — the
    view exists and works (0 legacy_vs_plaid, catches pending_vs_settled);
    Tom wants it visible on the existing Data Health page.
-8. **Session 17 SQL was run ad-hoc** — the two new views (`vw_needs_review`,
-   `vw_potential_duplicates`) and all the correction / pattern-rename /
-   priority-change / new-merchant_pattern SQL from this session are **not**
-   committed as numbered scripts in the AFAS repo. Decide whether to
-   reconstruct them as scripts 72+ or accept the gap.
+9. **Session 17's ad-hoc SQL is still not reconstructed as numbered scripts**
+   — the two new views (`vw_needs_review`, `vw_potential_duplicates`) and
+   Session 17's correction/pattern-rename SQL remain uncommitted (Session 18's
+   equivalent work, scripts 72-78, IS committed — see SQL Scripts section
+   below). Decide whether to reconstruct Session 17's or accept the gap.
 
 ---
 
 ## Active Data Issues
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
-| ISSUE-012 | Medium | Systemic taxonomy drift — `taxonomy_audit.py` (built Session 17) found 53/45/16 undocumented category/subcategory combos + 265 same-priority shadow pairs (75 real). 5 instances fixed this session; ~180 remain | Work the backlog next session — Pick Up Here #1 |
-| ISSUE-038 | Medium | Apple CSV enrichment mislabels `category_source` (~50 rows `'plaid'` → Large Purchases/General; 1 row `'merchant_pattern'` with no matching pattern) | Read-through of enrich_apple_csv.py / import_apple_csv.py — Pick Up Here #4 |
-| ISSUE-040 | Low | `Gifts / Charity/Gifts` on 96 active patterns — keep or normalize? | Tom decides — Pick Up Here #3 |
+| ISSUE-012 | Medium | Systemic taxonomy drift — `taxonomy_audit.py` (built Session 17) found 53/45/16 undocumented category/subcategory combos + 265 same-priority shadow pairs (75 real). Session 18 fixed a substantial chunk (Work-Expense pattern cleanup, 5 shadow-pair bugs, ISSUE-040, full Bucket 1 rename sweep) but real gaps remain | Work the backlog next session — Pick Up Here #1 |
+| ISSUE-038 | Medium | Apple CSV enrichment mislabels `category_source` (~50 rows `'plaid'` → Large Purchases/General; 1 row `'merchant_pattern'` with no matching pattern) | Read-through of enrich_apple_csv.py / import_apple_csv.py — Pick Up Here #5 |
+| ISSUE-041 | Low | `taxonomy_audit.py`'s own canonical dict is stale (transcribed 2026-07-01, never refreshed) — causes false-positive "undocumented" flags on every Session 17+ addition | Refresh the dict or parse the doc at runtime — Pick Up Here #2 |
+| ISSUE-042 | Medium | Entertainment/Books & Audible ↔ Subscriptions/Gaming appear swapped (17 real transactions, $478.46) | Identify the source pattern/rule — Pick Up Here #1 |
 | NOTE | — | 8 Apple Uncategorized rows intentionally parked — category_source = 'manual', in_budget = 1 | Owner review when ready |
 | NOTE | — | run_log missing entries for all daily transaction syncs (see ISSUE-016) | Add run_log writes to plaid_sync.py |
 
@@ -252,12 +315,21 @@ taxonomy-drift corrections (U-club / Airlines / Hotels / Fitness pattern
 renames, `%MARQUETTE UN%` priority → 40); 5 new merchant_patterns
 (WISCONSINGOV, Dave's Hot Chicken, ATM W D U S BANK, 1-800-FLOWERS,
 INDULGENCE CHOCOLAT); ~40 manual transaction corrections; 10 duplicate-row
-deletions. **Gap flagged** — see Pick Up Here #8: decide whether to
-reconstruct these as scripts 72+.
+deletions. **Gap still open** — see Pick Up Here #9: decide whether to
+reconstruct these as scripts, or accept the gap.
 
-Current high watermark: **71** (last *committed* script; confirmed live
-2026-09-02 — re-confirm live rather than trust this number, and note
-Session 17's ad-hoc SQL above is not reflected in any file)
+Session 18 (2026-09-04):
+                           72_work_expense_pattern_cleanup.sql
+                           73_shadow_pattern_priority_fixes.sql
+                           74_ascension_donation_pattern_removal.sql
+                           75_shadow_pattern_batch2.sql
+                           76_issue040_gifts_subcategory_normali.sql
+                           77_bucket1_taxonomy_renames.sql
+                           78_transfer_savings_pattern_fix.sql
+
+Current high watermark: **78** (confirmed live 2026-09-04 — re-confirm
+live rather than trust this number next session too. Session 17's ad-hoc
+SQL above is still not reflected in any numbered file.)
 
 ---
 

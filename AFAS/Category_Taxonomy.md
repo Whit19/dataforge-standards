@@ -1,6 +1,6 @@
 # AFAS Project — Category Taxonomy Reference
 **Update this file when any category, subcategory, or type assignment changes.**
-Last updated: 2026-09-03 (Session 17: added Pay/Whit, Dining Out/Fast Food, ATM/Cash Spending/ATM; Gifts/Charity/Gifts flagged pending a scope decision — ISSUE-040)
+Last updated: 2026-09-04 (Session 18: resolved ISSUE-040 — Gifts/Charity/Gifts normalized to General; completed Bucket 1 taxonomy rename sweep — Car Wash, Charging, Medical, Grocery, Payment abbreviations, Transfer In/Out, Travel/Hotels in category_map)
 
 ---
 
@@ -73,6 +73,15 @@ Last updated: 2026-09-03 (Session 17: added Pay/Whit, Dining Out/Fast Food, ATM/
 | 2026-09-03 | Sports / Clubs: `U-club` → `Club Dues` (documented 2026-03-09) propagated — 2 stray priority-5 merchant_patterns deactivated (`active = 0`) | 2 (merchant_patterns deactivated) + 7 (transactions) |
 | 2026-09-03 | Personal Care: `Fitness` → `Health & Wellness` — 2 merchant_patterns renamed (EMPOWERYOGA.COM, FITNESS BLENDER), 33 transactions corrected. **NOTE:** the original rename date was not confirmed this session and `Fitness` is still listed under Personal Care in the Full Taxonomy below — Tom to confirm whether `Fitness` is formally retired, and if so remove it from the list. | 2 (merchant_patterns) + 33 (transactions, incl. 10 legacy NULL-merchant rows) |
 | 2026-09-03 | Gifts / Charity: `Gifts` — a 2026-03-12 entry retired this to `General`, but taxonomy_audit found it live on 96 active merchant_patterns. **Not resolved** — pending a keep-vs-normalize decision (ISSUE-040). 1-800-Flowers and Indulgence Chocolat were added to it this session before the scale was known. | — |
+| 2026-09-04 | Gifts / Charity: `Gifts` normalized to `General` — ISSUE-040 resolved (Tom's decision: normalize rather than formally recognize). Count is 93 patterns, not the 96 counted 2026-09-03 — 3 of those (the %BLURB%/%BLURB INC%/%BLURB.COM% patterns) were already corrected to General separately in script 75 before this script ran | 93 (merchant_patterns) + 1 (category_map) + 8 (transactions, $740.58) |
+| 2026-09-04 | Car: `Wash` → `Car Wash` (documented rename from Notable Decisions table, had never propagated to merchant_patterns/transactions) | 5 (merchant_patterns) + 2 (transactions) |
+| 2026-09-04 | Car: `Supercharger` → `Charging` (documented rename, had never propagated) | 2 (merchant_patterns) |
+| 2026-09-04 | Medical / Health: `Medical` → `General` (mirrored category name) | 7 (merchant_patterns) + 5 (transactions, $475.09) |
+| 2026-09-04 | Groceries: `Grocery` → `General` (typo variant of the already-completed Groceries→General rename) | 7 (merchant_patterns) |
+| 2026-09-04 | Payment: `American Express`/`AMEX` → `Amex`; `AUTOPAY PA` → `Autopay`; `Credit Card Payment` → `Credit Card`; `Mobile` → `Mobile Payment` (canonical spelling cleanup — the AMEX case variant was never a functional bug, Azure SQL's default collation is case-insensitive) | multiple (merchant_patterns) + 12 (transactions, $74,786.82 combined) |
+| 2026-09-04 | Transfer: `Web` → `Transfer In`/`Transfer Out`, sign-based split (single merchant_pattern can't express directionality; pattern-level default set to `Transfer Out`, the majority real case) | 7 (transactions, $903.20) + 1 (merchant_patterns) |
+| 2026-09-04 | Transfer: `Savings` → `Transfer Out` (`%WEB FR DDA TO SAV%` pattern — direction unambiguous from the text itself) | 1 (merchant_patterns) |
+| 2026-09-04 | Travel: `Hotels` → `Lodging` in `category_map` specifically (merchant_patterns already got this rename in Session 17; category_map was missed) | 2 (category_map) |
 
 ---
 
@@ -379,6 +388,6 @@ Work - Reimb
 | Whit | Pay | CASHORCHECK deposits on the "Checking - Whit" account (owner Whit). Joint-account CASHORCHECK rows stay Other Income/Check — split is by account, not merchant |
 | Fast Food | Dining Out | Dave's Hot Chicken and similar — distinct from General; new priority-10 merchant_pattern |
 | ATM | ATM / Cash Spending | Re-added 2026-09-03, reversing the 2026-03-10 retirement to General. NOT a category mirror (ATM ≠ ATM / Cash Spending). Was already live on 7 patterns when ratified |
-| Gifts (⚠️ pending — ISSUE-040) | Gifts / Charity | A 2026-03-12 entry retired this to General, but 96 active merchant_patterns still use it. Undecided: formally recognize, or normalize all 96 to Donation/General |
+| Gifts (retired, resolved 2026-09-04) | Gifts / Charity | Was live on 93 patterns despite the 2026-03-12 retirement to General; ISSUE-040 resolved by normalizing all instances to General rather than formally recognizing 'Gifts' |
 | Travel Activities | Travel | Retained — distinct enough from Travel to not be considered a mirror |
 | Transfer In / Transfer Out | Transfer | Retained — directional qualifiers make these distinct from Transfer |

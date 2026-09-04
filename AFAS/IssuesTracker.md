@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-09-03
+Last updated: 2026-09-04
 
 ---
 
@@ -33,12 +33,12 @@ Pending manual review. All have `category_source = manual`, `in_budget = 1`. Not
 ### ISSUE-012 — Category taxonomy drift
 | Field | Value |
 |-------|-------|
-| Status | Open — audit tooling built 2026-09-03, ~180-item backlog remains |
+| Status | Open — substantial progress 2026-09-04; real gaps remain (see Known unfixed items) |
 | Opened | 2026-07-01 |
 | Priority | Medium |
-| Description | category_map / merchant_patterns / transactions contain category/subcategory combinations not documented in Category_Taxonomy.md. Originally spotted as a handful of Other Income subcategories (Dividends, Mobile Deposit, Pension, Tax Refund) during the 2026-07-01 Interest reclassification. Session 17 confirmed this is systemic, with two root-cause classes: (1) a documented subcategory rename applied to transaction rows at the time but never propagated to merchant_patterns/category_map, so the pattern table silently re-creates the retired name on every match; (2) same-priority pattern collisions where a broad pattern shadows a more specific one via the `pattern ASC` tiebreak. `scripts/taxonomy_audit.py` (read-only diagnostic, committed to AFAS main 13b959e) was built and run 2026-09-03: **53** undocumented combos in merchant_patterns, **45** in category_map, **16** live in transactions, **265** same-priority shadow pairs (**75** flagged `[DIFFERENT DEST]`). Five specific instances were fixed this session (U-club, Airlines/Hotels, Fitness, Marquette shadowing, "Medical" typo — see DecisionLog 2026-09-03). |
-| Known unfixed items (from the 2026-09-03 audit run) | `Gifts / Charity/Gifts` on 96 patterns (→ ISSUE-040); `Travel / "Travel activities"` (lowercase) on 44 patterns — pure casing mismatch vs documented "Travel Activities", identified as safe/simple but the UPDATE was not confirmed run — check live merchant_patterns; `%UBER CASH%` (→ Gifts / Charity/Gifts) shadows `%UBER%` (→ Travel/Transportation); `%BP#%` (→ Dining Out) shadows `%BP%` (→ Groceries); `%MOBIL%` (→ Dining Out) shadows `%MOBILITE%`; plus the remaining ~110 combos and ~70 `[DIFFERENT DEST]` shadow pairs not individually reviewed. |
-| Next Step | Work the taxonomy_audit.py backlog next session — this is the explicit first item, not an end-of-session rush. Re-run the audit at the start of the session (do not trust the 2026-09-03 counts). Keep the canonical dict in taxonomy_audit.py in sync with Category_Taxonomy.md whenever the taxonomy changes. |
+| Description | category_map / merchant_patterns / transactions contain category/subcategory combinations not documented in Category_Taxonomy.md. Originally spotted as a handful of Other Income subcategories (Dividends, Mobile Deposit, Pension, Tax Refund) during the 2026-07-01 Interest reclassification. Session 17 confirmed this is systemic (5 instances fixed: U-club, Airlines/Hotels, Fitness, Marquette shadowing, "Medical" typo) and built `scripts/taxonomy_audit.py` to find the rest. Session 18 worked a substantial chunk of the resulting backlog: a Work-Expense merchant_patterns audit (39 dead/risky patterns deactivated, script 72), 5 real same-priority shadow-pair bugs fixed (BestBuy $6,354 misroute, United Way priority regression, Kiawah/North Bay hardening, MOBILITE deactivated — script 73), the Ascension donation-vs-medical conflict (script 74), a second batch of shadow-pair fixes (DNCSS, Bay View Bowl, Sunnyside/CutbackCoach, Blurb, North Shore — script 75), ISSUE-040 resolved (script 76), and a full "Bucket 1" taxonomy rename sweep — Car/Wash→Car Wash, Car/Supercharger→Charging, Medical/Health/Medical→General, Groceries/Grocery→General, 4 Payment abbreviations (incl. a $74,159.97 Credit Card Payment cleanup), Transfer/Web→Transfer In/Out (sign-based split), Transfer/Savings→Transfer Out, and Travel/Hotels→Lodging in category_map (scripts 77-78). See DecisionLog 2026-09-04 for full detail. **Correction to a Session 18 CC prompt's draft claim:** the `%BP#%`/`%BP%` and `%UBER CASH%`/`%UBER%` shadow pairs were verified against the live scripts 72-78 and were **NOT** touched this session — only `%MOBILITE%` (deactivated, script 73) was actually addressed among that group. Left listed below as still open. |
+| Known unfixed items | `%UBER CASH%` (→ Gifts / Charity/Gifts) still shadows `%UBER%` (→ Travel/Transportation); `%BP#%` (→ Dining Out) still shadows `%BP%` (→ Groceries); `%MOBIL%` (→ Dining Out) still shadows `%MOBILITE%` (now deactivated, so this pair itself may be moot — reconfirm); `Travel / "Travel activities"` (lowercase) casing on 44 patterns — not yet confirmed fixed; Children: Birthday Party, Photos, Boating subcategories — decide add vs. normalize; Other Income: Dividends, Pension, Tax Refund — same decision needed; Work - Expense: Education, Professional Dev — likely should be added; Property Tax/General and Large Purchases/General — no generic fallback subcategory currently exists for either; Car/Rideshare (2 category_map rows) — likely belongs under Travel/Transportation; Medical / Health/Mental Health — keep distinct or merge to General/Doctor; Children/School → should rename to School Lunch (category_map, easy); Taxes/Federal Tax→Federal, Taxes/State Tax→State (category_map, easy renames); Cash Adj/Cash Advance — likely mis-filed under ATM / Cash Spending; Housing: Furniture, Home Improvement, Landscaping (→Landscape), Rent, Security — mix of easy renames and real gaps; Fees: Late Fee, Service Fee, Wire Transfer — no valid home currently; Bills & Utilities/General — no generic fallback exists; Entertainment/Books & Audible ↔ Subscriptions/Gaming apparent swap (→ ISSUE-042); Sports / Clubs: Equipment, Lodging, Other, Travel activities (lowercase); the ~40 remaining `[same dest]` Check 4 shadow pairs (cosmetic, lowest priority); a handful of lower-dollar `[DIFFERENT DEST]` pairs not yet reviewed. |
+| Next Step | Continue the taxonomy_audit.py backlog next session — re-run the audit fresh at session start (do not trust Session 17/18 counts; the audit's own canonical dict is stale, see ISSUE-041). Work through the "Known unfixed items" list above. |
 
 ---
 
@@ -116,19 +116,33 @@ Pending manual review. All have `category_source = manual`, `in_budget = 1`. Not
 
 ---
 
-### ISSUE-040 — `Gifts / Charity / Gifts` subcategory: keep or normalize? (decision needed)
+### ISSUE-041 — taxonomy_audit.py's own CANONICAL_TAXONOMY dict is stale
 | Field | Value |
 |-------|-------|
-| Status | Open — decision needed from Tom |
-| Opened | 2026-09-03 |
+| Status | Open |
+| Opened | 2026-09-04 |
 | Priority | Low |
-| Description | `Gifts / Charity / Gifts` reads as a subcategory==category-adjacent value that a 2026-03-12 taxonomy entry ("Gifts / Charity: `Gifts` → `General`") appears to have retired. `taxonomy_audit.py`'s 2026-09-03 run found it is actually in live use across **96 active merchant_patterns rows** (and 8 transactions), so it is not a stray 2-merchant addition (1-800-Flowers and Indulgence Chocolat were added to it this session before the scale was known). |
-| Options | (a) Formally recognize it as a real subcategory — just add it to Category_Taxonomy.md; or (b) normalize all 96 patterns + affected transactions down to `Donation` / `General`. |
-| Next Step | Tom decides. Do not silently resolve. If (a), update Category_Taxonomy.md's Full Taxonomy + Notable Decisions. If (b), it becomes a merchant_patterns UPDATE + a transaction correction, folded into the ISSUE-012 backlog. |
+| Description | The script's own code comment confirms its hardcoded CANONICAL_TAXONOMY dict was transcribed from a 2026-07-01 snapshot of Category_Taxonomy.md and has not been refreshed since. This causes false-positive "undocumented combo" flags on every taxonomy addition made after that date — confirmed for ATM/Cash Spending/ATM, Dining Out/Fast Food, and Pay/Whit, all of which are formally documented in Category_Taxonomy.md's version history but still flag as undocumented in every Check 1/2/3 run. |
+| Next Step | Refresh the dict against the live doc, or add a mechanism so it can't drift silently again (e.g. parsing the doc's own Full Taxonomy code block at runtime instead of a hardcoded copy). |
+
+---
+
+### ISSUE-042 — Entertainment/Books & Audible and Subscriptions/Gaming appear swapped
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-09-04 |
+| Priority | Medium |
+| Description | `taxonomy_audit.py` Check 3 flagged both Entertainment/Books & Audible (2 real transactions, $61.12) and Subscriptions/Gaming (17 real transactions, $478.46) as undocumented combos. Both look like a category/subcategory pairing error rather than a genuine taxonomy gap — 'Books & Audible' is a valid Subscriptions subcategory and 'Gaming' is a valid Entertainment subcategory per Category_Taxonomy.md's Full Taxonomy tree. 17 transactions is a meaningful volume for something not yet investigated — possibly one merchant_pattern or category_map rule with category/subcategory reversed. |
+| Next Step | Identify which merchant_pattern(s) or category_map row(s) are producing this pairing and confirm whether it's a simple swap fix or something more involved. |
 
 ---
 
 ## Resolved Issues (archive — recent)
+
+### RESOLVED — ISSUE-040 — Gifts / Charity/Gifts subcategory: keep or normalize?
+- Resolved: 2026-09-04
+- Gifts / Charity/Gifts had been retired to General on 2026-03-12, but taxonomy_audit.py found it was still live on 93 active merchant_patterns, 1 category_map row, and 8 real transactions ($740.58). Tom's decision: normalize everything to 'General' rather than formally re-recognizing 'Gifts'. All three tables corrected (script 76); verified 0 remaining 'Gifts' subcategory anywhere afterward. See DecisionLog 2026-09-04.
 
 ### RESOLVED — ISSUE-026 — unclassified merchants from the ISSUE-019 backlog
 - Resolved: 2026-09-03

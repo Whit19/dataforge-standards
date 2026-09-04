@@ -1,6 +1,6 @@
 # Master Claude Protocol — DataForge
 **Apply this to every Claude Project and every session. No exceptions.**
-Last updated: 2026-09-03
+Last updated: 2026-09-05 (restructured — see 3d "Read the Docs" [new explicit command], Section 4 [Path A/B fork for CC prompts vs. direct Claude Code edits, corrected to reflect chat-drafts-code-changes as the common case], Section 14 [consolidated "Update the Docs" procedure, absorbing former 14/16/17, with an explicit Case 1/2 fork mirroring Section 4 and a formal chat→Claude Code→chat handoff loop for the Session Summary])
 
 ---
 
@@ -52,11 +52,17 @@ dataforge-standards/                    ← public repo
 │   └── TimeLog.md
 ├── club-golf/
 │   └── ...
-├── afas/
+├── AFAS/
 │   └── ...
 └── Kids_HQ/
     └── ...
 ```
+
+**Casing matters — these are literal folder names in a raw GitHub URL.**
+`AFAS/` is capitalized (confirmed live, repeatedly, via direct fetch — a
+lowercase `afas/` 404s). If a project's Claude Project Instructions field
+disagrees with the actual repo casing, trust the repo and fix the
+Instructions field, not the other way around.
 
 Private code repos (e.g. `up-golf-pwa`) contain only source code — no docs.
 Client-level reference MDs (non-code) stay in OneDrive under
@@ -79,11 +85,36 @@ the sandbox bypasses the CDN layer that `web_fetch` goes through and
 reliably returns the live file, so it's the standard method — not a
 fallback reached for only when a fetch looks suspicious.
 
-This fetch mechanic is duplicated directly in each Claude Project's
-Instructions field (not just referenced here), because Instructions are
-guaranteed to be in context at session start — nothing needs to be fetched
-first for Claude to see them. If this section and a Project's Instructions
-field ever disagree, update both together.
+A minimal version of this fetch mechanic is duplicated directly in each
+Claude Project's Instructions field (not just referenced here), because
+Instructions are guaranteed to be in context at session start — nothing
+needs to be fetched first for Claude to see them. This is a genuine
+bootstrapping problem, not a stylistic choice: this file's own instruction
+to fetch itself can't be read until *something* has already told Claude to
+fetch it.
+
+**Keep the duplicated copy minimal — bootstrap only, not policy.** The
+Instructions field should contain only the URLs, the fetch command, the
+"curl not web_fetch" rule, and a line stating that once
+`MASTER_CLAUDE_PROTOCOL.md` is loaded, it is authoritative and wins any
+disagreement with the Instructions-field snippet. It should NOT contain the
+rationale, the CDN-caching explanation, or any paraphrased behavioral
+policy (like session-start procedure detail, or the "Read the docs"
+command in 3d) — that content only needs to exist once, here, since it's
+only ever relevant *after* this file has already been fetched. A smaller
+duplicated surface has less to go stale, and when this file changes
+(as it did adding 3d), only the bootstrap snippet itself needs
+re-syncing — which will rarely change, since it's just URLs and a fetch
+command, not behavior.
+
+**Self-check at session start.** After fetching `MASTER_CLAUDE_PROTOCOL.md`,
+compare the live fetch-table/URL list here against what the Instructions
+field's bootstrap snippet actually says. If they disagree (a renamed file,
+a changed URL, a stale file list), tell Tom and offer the corrected
+snippet to paste in — don't silently proceed on whichever version happened
+to load first. This is what makes "update both together" (the rule this
+replaced) actually enforceable instead of relying on Tom to remember every
+time this file changes.
 
 **Raw URL pattern:**
 `https://raw.githubusercontent.com/Whit19/dataforge-standards/main/[project]/[file].md`
@@ -110,9 +141,10 @@ curl -s "https://raw.githubusercontent.com/Whit19/dataforge-standards/main/[proj
 If a fetch fails (network error, 404), Claude must stop and tell Tom before
 proceeding.
 
-The Project Instructions field in each Claude Project contains the full
-list of URLs for that project. Update the URLs there if a file is renamed
-or moved.
+The Project Instructions field in each Claude Project contains the minimal
+bootstrap version of this (URLs + fetch command + "curl not web_fetch" +
+"this file wins on disagreement") — not the full prose of this section.
+Update the URLs there if a file is renamed or moved.
 
 ### 3c. Session startup prompt template
 Claude fetches all docs automatically from the URLs in Project Instructions.
@@ -125,18 +157,92 @@ Today's focus: [1-2 sentence goal]
 Claude responds with: "[Project] docs loaded. [One sentence current status from
 SessionStarter]. Ready."
 
+### 3d. "Read the Docs" — the explicit, on-demand command
+
+This is a distinct trigger from the automatic session-start fetch in 3b/3c,
+and gets its own explicit definition here because it was previously
+undefined — a real source of Claude missing it.
+
+**When Tom says "Read the docs" (or "reload the docs," "refresh the docs" —
+same trigger) at any point in a session** — not just at the start — Claude
+must:
+
+1. Re-run the full `curl` fetch (Section 3b) for every file in the fetch
+   table, right then, even if this session already loaded them earlier.
+   Treat anything already in context as potentially stale — that's the
+   entire point of the command; don't skip a file because "I already have
+   it."
+2. Read the freshly-fetched content before saying anything else or taking
+   any other action. If a file changed since the session started (e.g.
+   another Claude Code session updated it), the new content wins —
+   silently update working assumptions, don't flag the diff unless asked.
+3. Confirm briefly: "[Project] docs re-read. [One sentence current status],
+   [note anything that changed since this session started, or 'no changes
+   since session start']."
+
+**This works identically whether the session is Claude.ai chat or Claude
+Code** — both have `curl`/fetch access to the public repo. A Claude Code
+session with a local clone may use `git pull` + direct file reads instead
+of `curl`, as long as it actually reads live content rather than trusting
+what's already in context.
+
+**Do not treat "Read the docs" as a no-op just because docs were already
+loaded this session.** The whole reason Tom says it explicitly, mid-session,
+is that something may have changed since — a stale answer here defeats the
+entire purpose of the command.
+
 ---
 
 ## 4. How Code Is Delivered — Claude Code (CC) Prompts
 
-**All code changes are delivered as Claude Code prompts for VS Code — not inline in chat.**
+*Scope note: this section governs changes to project source code (private repos). End-of-session updates to the 7 `dataforge-standards` MD docs follow their own workflow — see Section 14.*
 
-*Scope note: this section governs changes to project source code (private repos). End-of-session updates to the 7 `dataforge-standards` MD docs follow their own, different workflow — see Section 5b, updated 2026-08-27.*
+### 4a. Which path applies — check this first
 
-### Why
+There are two genuinely different situations here, and the rest of this
+section only makes sense once the right one is picked:
+
+**Path A — Tom is typing directly into an already-open Claude Code session,
+describing the change in plain language (no prepared prompt).** Whatever
+that session already knows from the conversation is all the context it
+needs — it already has the repo open. **Just make the edit.** Read the
+live file first, edit it with the normal file tools, and — only if Tom has
+separately asked for a commit — commit following Section 5d's branch
+discipline. **No `CC_*.md` prompt file, no `create_file`/`present_files`
+step, nothing to paste anywhere.** Producing an intermediate prompt file
+for yourself to then "paste into yourself" is pure overhead with no safety
+benefit; the two-step dance in Path B exists specifically to carry context
+across a gap between two different sessions, and Path A doesn't have that
+gap to bridge.
+
+**Path B — the design/analysis happened in a Claude.ai chat conversation,
+and the change needs to reach a Claude Code session that was not part of
+that conversation** (a separate session, opened later, with none of that
+chat's history). Since that session doesn't have the context, chat has to
+write it all down as a self-contained prompt — that's the rest of Section
+4 (format, template, delivery mechanics). Chat drafts the prompt, delivers
+it as a file, Tom pastes it into Claude Code.
+
+**In practice, for Tom, Path B is the more common path for anything code-
+related** — the normal habit is design/discussion in Claude.ai chat first,
+then bringing the resulting CC prompt to a Claude Code session to execute.
+Path A is what's happening in the narrower case of an already-open Claude
+Code session being given a direct, undocumented instruction (as in most of
+an ongoing debugging or doc-sync session) — not the default assumption for
+"a code change is needed."
+
+**If unsure which path applies, ask one question: does the session that
+will make the edit already have everything it needs from its own
+conversation, or does it need a written-down spec because it wasn't part
+of the conversation where this was decided?** The former is Path A — don't
+manufacture a prompt file to hand to yourself. The latter is Path B.
+
+### 4b. Path B — drafting a CC prompt in chat, for a separate Claude Code session
+
+### Why (Path B only)
 - Fewer tokens consumed in chat
-- Changes apply directly to the correct files
-- No copy/paste errors
+- Changes apply directly to the correct files once pasted
+- No copy/paste errors from inline chat text
 
 ### Format for a CC prompt
 Each prompt must be:
@@ -193,18 +299,30 @@ multiple CC prompts into a single MD file.
 files together at the end using `present_files`. Tom downloads and pastes into
 Claude Code in VS Code.
 
-**This applies to all projects, all sessions, without exception.**
+**This applies whenever Path B (Section 4a) is the right path — i.e. chat
+is drafting for a separate Claude Code session to consume later.** It does
+not apply to Path A (Claude Code editing directly) — see 4a before assuming
+this section governs the current session.
 
 ---
 
-### When to use chat vs CC
+### 4c. When to use chat vs Claude Code
+
+This table is about where *design/analysis* work happens, not a claim that
+Claude Code can't touch MD files or that chat is the only place to review
+them. Note the asymmetry with Section 14: for **doc updates**, a Claude
+Code session with a local clone writing directly *is* the default path
+(5b). For **code changes**, there's no equivalent single default — which
+path applies depends on where the design work happened (4a), and in
+practice that's chat more often than not.
+
 | Use chat (Claude.ai) | Use Claude Code (VS Code) |
 |---------------------|--------------------------|
-| Design decisions | All code changes |
+| Design decisions | Executing a change — either from a Path B prompt just pasted in, or Path A when the change is decided in the same live conversation |
 | Data model discussions | Bug fixes |
 | Architecture planning | File creation |
-| Reviewing MD files | Refactors |
-| Generating CC prompts | Running terminal commands |
+| Drafting a CC prompt to hand off to Claude Code (Path B — the common case for code) | Reviewing/editing MD files directly (default path, Section 14) |
+| — | Running terminal commands |
 
 ---
 
@@ -219,15 +337,17 @@ Claude Code in VS Code.
 - `BestMethods.md` — add lessons as they are learned
 - `TimeLog.md` — duration + one-sentence summary per session
 
-### 5b. MD file update workflow (end of every session) — updated 2026-08-27
+### 5b. MD file update mechanics — updated 2026-08-27
+
+*This section covers only the mechanics of **how** a doc update gets written to disk. For **when** this runs, **what else** happens alongside it (Session Summary, commit message, Notion), and the full ordered procedure, see Section 14 — this section is one step inside that procedure, not a standalone trigger.*
 
 **Default path — Claude Code session with a local `dataforge-standards` clone:**
-1. Tom gives Claude Code a plain-language summary of what happened this session — facts only. No assumed line numbers, no assumed "current text reads X" snippets, no pre-assigned AD/PD/ISSUE/BM numbers. Can be typed directly into Claude Code, or pasted in from a Claude.ai chat conversation that did the actual design/analysis work.
+1. Tom gives Claude Code a plain-language summary of what happened this session — facts only. No assumed line numbers, no assumed "current text reads X" snippets, no pre-assigned AD/PD/ISSUE/BM numbers. Can be typed directly into Claude Code, or pasted in from a Claude.ai chat conversation that did the actual design/analysis work — see Section 14c for the formal version of this handoff (the Session Summary file).
 2. Claude Code reads each affected file's **current, live content** directly — via its own file tools against the local clone — before writing anything to it.
-3. Claude Code determines the next-available AD/PD/ISSUE/BM number itself, by checking the live file at write time (e.g. `grep -oE "^### (AD|PD|DD|BM|ISSUE)-[0-9]+" *.md | sort -t- -k2 -n -u | tail -20`). Numbers are never pre-assigned by Tom in the summary — see the rationale below for why.
-4. Claude Code writes the changes directly to disk. No intermediate `CC_*.md` prompt file is generated for docs updates.
-5. Once Tom says to proceed, Claude Code commits and pushes `dataforge-standards` directly, using the commit message format from Section 16.
-6. **Notion does not sync automatically** when this happens in Claude Code — see Section 17. Do a short Claude.ai chat check-in afterward if the Notion row needs updating for this session, or update it by hand.
+3. Claude Code determines the next-available AD/PD/ISSUE/BM number itself, by checking the live file at write time — **but first confirm the project actually numbers that file's entries at all.** The `grep -oE "^### (AD|PD|DD|BM|ISSUE)-[0-9]+" *.md | sort -t- -k2 -n -u | tail -20` pattern assumes per-entry `PREFIX-NNN` headers; not every project's files follow it (e.g. AFAS's DecisionLog logs decisions in session-grouped tables with no per-decision ID, and AFAS's BestMethods uses plain titles with no BM-NNN at all). When a project deviates, match that project's own established convention rather than forcing this template onto it — don't invent numbering a project has never used. Numbers (where they exist) are never pre-assigned by Tom in the summary — see the rationale below for why.
+4. Claude Code writes the changes directly to disk. No intermediate `CC_*.md` prompt file is generated for docs updates — same reasoning as Path A in Section 4a: this session already has the file open, so an intermediate artifact would be pure overhead.
+5. Once Tom says to proceed, Claude Code commits and pushes `dataforge-standards` directly, following Section 5d's branch discipline and using the commit message format from Section 14e.
+6. **Notion does not sync automatically** when this happens in Claude Code — see Section 14f. Do a short Claude.ai chat check-in afterward if the Notion row needs updating for this session, or update it by hand.
 
 **Fallback path — Claude.ai chat only, no Claude Code available in the thread:** generate one CC prompt MD file per changed doc (Section 4's format/naming — `CC_[ShortDescription].md`), for Tom to paste into a separate Claude Code session, which writes to disk and commits. Use this only when there's no Claude Code session to write directly in.
 
@@ -374,6 +494,8 @@ Every architectural or product decision gets logged. Format:
 
 **Always check the DecisionLog for the next available ID before adding an entry.**
 
+**This is the default format for a new project or a project that already uses it.** Not every live project follows the per-decision `### PREFIX-NNN` header format — AFAS's DecisionLog logs decisions in session-grouped `Date | Decision | Rows` tables instead, with no per-decision ID. When a project has an established convention that differs from this section, match that project's own convention rather than forcing this template onto it retroactively (see the same hedge in Section 5b step 3).
+
 ---
 
 ## 12. Issues Tracker Protocol
@@ -405,7 +527,7 @@ for you.
 - [ ] Confirm `.gitignore` covers `.env`, `local.settings.json`, `node_modules` — do NOT gitignore the whole `.claude` folder if the project uses any project-level Claude Code Skills (see Section 13b); those should stay committed
 - [ ] Add project-level Claude Code Skills if applicable (e.g. `pwa-firebase-rules` for React/Vite/Firebase projects) — see Section 13b
 
-**Handled automatically via the Notion connector (Claude.ai chat only — see Section 17):**
+**Handled automatically via the Notion connector (Claude.ai chat only — see Section 14f):**
 Claude creates the Notion Projects database row, sets Status to Planning/In Progress,
 adds local folder + OneDrive folder paths, adds the GitHub repo URL, and links
 Services rows, as part of running the kickoff prompt. Confirm the row looks right
@@ -433,68 +555,147 @@ the one where they were first created.
 
 ---
 
-## 14. Session End Checklist
+## 14. "Update the Docs" — Full Procedure
 
-**Only update MD files that actually changed this session — not all 7 every time.**
-**Do not generate any MD file updates until explicitly told: "Update the docs."** This includes not asking whether to update docs, or offering to — wait for the explicit trigger silently, the same as any other deferred action.
+**This is the single, complete procedure for the "Update the docs" trigger.**
+Everything that happens as a result of that phrase lives in this section —
+if you're looking for what to do when Tom says it, start and end here;
+14d points out to Section 5b for file-writing mechanics and nowhere else.
 
-At session end, Tom will say "Update the docs" — only then generate updates. For each file that changed:
+### 14a. Trigger — read this before doing anything else
 
-1. **Update the docs.** Follow Section 5b's workflow (updated 2026-08-27) — a Claude Code session with a local `dataforge-standards` clone writes directly to disk and commits/pushes once Tom confirms; fall back to the CC-prompt-file path only when the update is happening in a Claude.ai chat with no Claude Code session available.
-2. No Claude Project re-upload needed either way — Claude fetches latest via URL at next session start.
-3. **Sync Notion** *(chat sessions only — see Section 17; a Claude Code session doing step 1 does not have Notion access and skips this)*. Update the `Last Updated` date property on the project's Notion page (Projects data source, page ID `37462bde-ae68-80a2-ab5a-c2f6fcbae3c6` for Kids HQ) to the session's date. Use the `notion-update-page` tool with `update_properties`, setting `date:Last Updated:start` to today's date and `date:Last Updated:is_datetime` to `0`. This happens every time docs are updated at session end via chat — not just when something notable changed — so the Notion row always reflects the most recent session date.
-4. **Log session to Daily Summaries** *(chat sessions only, same caveat as step 3)*. Create a new page in the shared "Daily Summaries" database (data source id `2284bd95-1027-4c7a-938a-e56a66dfa60d`) via `notion-create-pages`, with `Name` = `"{Project Name} — {session date, YYYY-MM-DD}"`, `Date` = the session's date, `Project` = relation to this project's row in the Projects database, and page body content = the exact same Session Summary generated for this session (Section 16, now bulleted/numbered per that section's format) — reuse it verbatim, don't write a separate summary. This applies to every project following this protocol, every time "Update the docs" runs in chat, not just Kids HQ.
+**Only when Tom explicitly says "Update the docs"** (or unambiguous
+equivalent, e.g. "sync the docs"). Not before, not proactively, not because
+a new decision/issue/lesson came up mid-session that "clearly belongs in a
+doc eventually" — note that it happened, keep working, and fold it in once
+the trigger actually fires.
 
-**Files to consider per session (only update if changed):**
+**Never ask whether to update docs, or offer to.** Asking mid-session
+("want me to log this now?") is its own form of the violation this section
+prohibits, not a safe workaround of it — wait for the explicit trigger
+silently, the same as any other deferred action.
+
+**Only update MD files that actually changed this session** — not all 7
+every time. The standard file set is Section 5a's list; here's the same
+list with the update condition for each:
 - `SessionStarter.md` — almost always needs updating (status, completed items, next priorities)
 - `ProjectRoadmap.md` — update if phases or tasks changed
-- `DecisionLog.md` — append only if new decisions were made
+- `DecisionLog.md` — append only if new decisions were made (append-only — see 5c)
 - `IssuesTracker.md` — update if issues were opened, deferred, or resolved
 - `TechnicalArchitecture.md` — update only if stack or data models changed
 - `BestMethods.md` — update only if new lessons were learned
 - `TimeLog.md` — always update (duration + one-sentence summary)
 
-**Also at session end:**
-Claude updates the `Last Updated` date on the Notion project row and logs the
-session to the Daily Summaries database automatically via the Notion
-connector, as part of the same "Update the docs" turn — see Section 17. No
-separate manual step, but this only fires in Claude.ai chat; see Section 17
-for what to do if a session happened entirely in Claude Code.
+### 14b. Which case applies — same fork as Section 4a, applied to docs
 
----
+Just as important to get right here as it is for code, and for the same
+underlying reason: **Claude.ai chat has no git write access to
+`dataforge-standards`** (it can `curl`/read raw files, but cannot commit)
+— so which case applies determines whether a handoff step is even possible
+to skip.
 
-## 15. What Claude Should Never Do
+**Case 1 — Claude Code did the session's actual work** (an AFAS coding
+session, a debugging session, a session like this one). Claude Code
+already knows everything that happened. When Tom says "update the docs,"
+skip straight to 14d — no handoff file needed, nothing missing.
 
-- **Never update, generate, or modify any MD files unless explicitly told "Update the docs"**
-- **Never ask whether to update docs, or offer to log/note something for the docs, before the person has said "Update the docs."** This applies even when a new decision, issue, or lesson comes up mid-session that clearly belongs in a doc eventually — note it happened, keep working, and fold it into the standard end-of-session update once triggered. Repeatedly asking mid-session ("want me to log this now?") is its own form of the violation this section already prohibits, not a safe workaround of it.
-- **Never make any code changes unless explicitly asked — no proactive fixes, no "while I'm here" edits**
-- Never write sensitive values (keys, tokens, passwords) into any file or chat response
-- Never read sensitive values from screenshots
-- Never start working before all session docs have been fetched via `curl` (not `web_fetch`)
-- Never make multiple speculative code changes at once when debugging
-- Never inline Firestore collection/doc refs outside `firestorePaths.js`
-- Never use `&&` chaining in PowerShell commands
-- Never use `npm install` without `--legacy-peer-deps` on PWA projects
-- Never duplicate information across MD files — reference, don't repeat
-- Never re-litigate a decision that exists in the DecisionLog with an Active status
-- Never encode a client relationship into a repo name, docs folder, or DecisionLog prefix — see Section 13a
+**Case 2 — Claude.ai chat did the session's actual work** (a design,
+discussion, or decision-making conversation with no repo access involved).
+Chat cannot write the files itself no matter how thoroughly it understood
+the session — it has to hand off to a Claude Code session that can. Go to
+14c first.
 
----
+### 14c. Chat's handoff — facts for the docs, plus chat's own Session Summary (Case 2 only)
 
-## 16. Session Summary & GitHub Commit Message
+When "update the docs" is said in a Claude.ai chat session that did the
+session's actual work, chat produces **one self-contained file**,
+delivered the same way as a CC prompt (Section 4b's
+`create_file`/`present_files` mechanic) but named distinctly —
+`SessionSummary_[Project]_[YYYY-MM-DD].md` — so it doesn't get confused
+with a single targeted code-change prompt. It has two parts, held to two
+different standards:
 
-At the end of every session, Claude generates both of the following without
-being asked — as part of the standard session close:
+**Part 1 — facts for the doc files, not pre-drafted doc text.** This
+mirrors 5b step 1 exactly — state what happened (decisions made, issues
+found/resolved, lessons learned, specific numbers/dollar amounts/file
+names, whatever is factually true of the session) and do **not**
+pre-draft exact replacement text for DecisionLog/IssuesTracker/
+BestMethods/SessionStarter/TechnicalArchitecture, assume line numbers, or
+pre-assign AD/PD/ISSUE/BM numbers. Claude Code will read each affected
+file's live content itself in 14d and decide how to apply the facts — a
+pre-drafted "here's what DecisionLog should now say" section skips that
+live-verification step and risks writing something that no longer matches
+the file Claude Code actually finds (see 14e for what happens when a fact
+here turns out not to hold up against live data — it happens, and it's
+not a failure of this process, it's the process catching something).
+Cover everything relevant, even if it doesn't obviously map to one file —
+anything left out effectively didn't happen, from Claude Code's side of
+the handoff.
 
-### Session Summary
-A bulleted or numbered list of what was accomplished — not a single prose paragraph. One item per fix/finding/decision, written plainly (what happened, not just an issue number). Optionally lead with one short sentence of framing if the session had a clear throughline, but the substance goes in the list. Covers:
+**Part 2 — chat's own draft Session Summary (the 14e format: a bulleted
+list of what was accomplished).** Unlike Part 1, chat should draft this in
+full — it's not a live file being verified against, it's a narrative
+recap, and chat has the most complete view of the session to write it
+from. **Use this draft to run 14f's Notion sync immediately, in this same
+chat turn — don't wait for Claude Code.** Claude Code will independently
+produce its own commit-message-level summary when it actually writes the
+files in 14e (it has to; only it knows what ended up on disk after
+verification), and that version can end up worded slightly differently
+from what's already in Notion if verification surfaced a correction —
+that's an acceptable, low-stakes gap. Notion is a casual log for people,
+not a source of truth any future session reads back from; the commit
+history and the doc files themselves are.
 
-What was built or fixed
-Any significant debugging or environment issues resolved
-Current status of the project
+### 14d. Write the files
 
-### GitHub Commit Message
-A conventional commit format message ready to paste into GitHub:
+Follow Section 5b's mechanics exactly: **default is a Claude Code session
+with a local `dataforge-standards` clone reading live content and writing
+directly to disk** (no intermediate `CC_*.md` prompt file). If the session
+originated in chat (Case 2), the "plain-language summary" 5b step 1
+describes **is** the Session Summary file from 14c — Claude Code reads it,
+then reads each affected file's live content itself exactly as 5b already
+specifies. The handoff file is an input to that verification, not a set of
+instructions to apply without checking.
+
+No Claude Project re-upload needed either way — Claude fetches latest via
+URL at next session start (or via an explicit "Read the docs," Section 3d).
+
+Once Tom says to proceed, commit and push `dataforge-standards` directly,
+following Section 5d's branch discipline (confirm `main` before committing)
+and the commit message format in 14e below.
+
+### 14e. Finalize the commit message (and the Session Summary, if there's no chat draft to start from)
+
+**The commit message is always produced by whoever performs 14d's write —
+normally Claude Code — regardless of whether chat drafted anything in
+14c.** Only the session that actually wrote the files knows what ended up
+on disk after live verification, so the commit message has to be generated
+fresh at this point, not copied from a draft.
+
+**The Session Summary is different: if chat already drafted one in 14c
+(Part 2), start from that** rather than writing a new one from scratch —
+it was already well-informed at the time, and re-deriving it independently
+just duplicates work chat already did. Adjust it only if 14d's live-file
+verification turned up something the draft got wrong or couldn't have
+known (a stale count, a claim the live data doesn't support, a file that
+changed since the handoff was written) — **when that happens, say so
+plainly rather than silently editing it**, since it's evidence the process
+caught something real. If there's no chat draft (Case 1, or a Case 2
+handoff that only had Part 1), draft the Session Summary here from
+scratch, the same as before.
+
+Both generated automatically as part of this same turn — no separate
+prompt needed, and not optional.
+
+**Session Summary** — a bulleted or numbered list of what was accomplished,
+not a single prose paragraph. One item per fix/finding/decision, written
+plainly (what happened, not just an issue number). Optionally lead with one
+short sentence of framing if the session had a clear throughline, but the
+substance goes in the list. Covers: what was built or fixed, any
+significant debugging/environment issues resolved, current status of the
+project.
+
+**GitHub commit message** — conventional commit format:
 ```
 <type>: <short summary line>
 
@@ -502,44 +703,88 @@ A conventional commit format message ready to paste into GitHub:
 <bullet: what changed>
 <bullet: why or outcome>
 ```
+Types: `feat` (new feature), `fix` (bug fix), `chore` (config/docs/tooling),
+`refactor` (code change, no behavior change).
 
-**Types:** `feat` (new feature), `fix` (bug fix), `chore` (config/docs/tooling),
-`refactor` (code change, no behavior change)
+**TimeLog.md's summary line** should match the Session Summary in tone and
+brevity — one sentence capturing the session's main accomplishment. This is
+the same TimeLog update referenced in 14a's file list, not a separate step.
 
-### When to generate
-Claude generates both automatically when the session end checklist runs —
-i.e. when Tom says "Update the docs." No separate prompt needed.
+### 14f. Sync Notion (chat sessions only)
 
-### Also update TimeLog.md
-The TimeLog entry summary line should match the session summary in tone and
-brevity — one sentence capturing the session's main accomplishment.
+Notion is connected via the Notion MCP connector **in Claude.ai chat only.**
+Claude Code has no access to it — connecting a service in claude.ai does
+not extend to Claude Code, which would need its own separate MCP server
+setup to reach Notion at all. **A Claude Code session doing 14d does not
+have Notion access and skips this entirely.**
+
+**Two different timings depending on which case applied in 14b:**
+
+- **Case 2 (chat did the session):** already done. Chat ran this step back
+  in 14c, immediately, using its own Part 2 draft — no round trip. Nothing
+  further needed here once 14d/14e finish writing and committing.
+- **Case 1 (Claude Code did the session):** chat wasn't part of the work
+  and has nothing to draft from, so it needs 14e's finalized Session
+  Summary handed to it. Tom brings that text to a Claude.ai chat session
+  (the same one or a fresh one — Notion access is the only requirement)
+  specifically to run this step, and chat uses it **verbatim** — it should
+  not try to reconstruct its own summary of a session it wasn't part of.
+
+When running in chat (either case above), fully automatic, no confirmation needed:
+1. Update the `Last Updated` date property on the project's Notion page
+   (Projects data source, page ID `37462bde-ae68-80a2-ab5a-c2f6fcbae3c6`
+   for Kids HQ) to the session's date, via `notion-update-page` with
+   `update_properties`, setting `date:Last Updated:start` to today and
+   `date:Last Updated:is_datetime` to `0`. Happens every time docs are
+   updated at session end via chat — not just when something notable
+   changed — so the Notion row always reflects the most recent session date.
+2. Update Status if the session moved the project to a new phase (e.g.
+   Planning → In Progress, or In Progress → Complete).
+3. Log the session to the shared "Daily Summaries" database (data source id
+   `2284bd95-1027-4c7a-938a-e56a66dfa60d`) via `notion-create-pages`, with
+   `Name` = `"{Project Name} — {session date, YYYY-MM-DD}"`, `Date` = the
+   session's date, `Project` = relation to this project's row in the
+   Projects database, and page body content = the Session Summary being
+   used for this case (chat's own Part 2 draft for Case 2, or 14e's
+   finalized text for Case 1) — don't write a third, separate summary.
+   Applies to every project following this protocol, every time "Update the
+   docs" runs, not just Kids HQ.
+
+**Before the first automatic write in a new area of Notion**, confirm the
+actual database/property names by reading the schema via the connector
+rather than guessing — property names (e.g. "Local Folder" vs "Local Path")
+must match exactly or the write will silently create a new property
+instead of filling the existing one.
+
+(Kickoff's Notion automation, Section 13, is a separate trigger from
+"Update the docs" but follows the same chat-only constraint.)
+
+### 14g. Never do (specific to this trigger)
+
+- Never update, generate, or modify any MD files unless explicitly told "Update the docs" (14a)
+- Never ask whether to update docs, or offer to, before that phrase (14a)
+- Never touch all 7 files reflexively — only ones that actually changed (14a)
+- Never pre-draft exact DecisionLog/IssuesTracker/BestMethods/etc. replacement text in the Part 1 facts handoff — only Part 2 (the Session Summary) is meant to be drafted in full (14c)
+- Never generate a `CC_*.md` prompt file for a doc update when a Claude Code session can write directly (14d)
+- Never silently edit a chat-drafted Session Summary during 14e without saying so — a correction is worth surfacing, not hiding (14e)
+- Never make Case 1 skip the chat round-trip Notion needs, and never make Case 2 wait for one it doesn't need (14f)
 
 ---
 
-## 17. Notion Automation Scope
+## 15. What Claude Should Never Do — Quick-Reference Index
 
-Notion is connected via the Notion MCP connector, **in Claude.ai chat only.**
-Claude Code has no access to it — connecting a service in claude.ai does not
-extend to Claude Code, which would need its own separate MCP server setup to
-reach Notion at all. Do not assume a Claude Code session can read or write
-Notion just because chat can.
+Every item here is stated in full, once, in its owning section. This is a
+scan list, not a second copy — if you're unsure of the exact rule, follow
+the link, don't rely on the one-line summary alone.
 
-**Fully automatic, no confirmation needed, whenever these happen in chat:**
-- **Kickoff** (Section 13): create the Projects database row, set Status,
-  add local/OneDrive folder paths, add the GitHub repo URL, link Services rows.
-- **"Update the docs"** (Section 14): update `Last Updated` on the project row,
-  update Status if the session moved the project to a new phase (e.g. Planning
-  → In Progress, or In Progress → Complete), and log the session's Session
-  Summary to the shared Daily Summaries database (Section 14, step 6).
-
-**Before the first automatic write in a new area of Notion**, Claude confirms
-the actual database/property names by reading the schema via the connector
-rather than guessing — property names (e.g. "Local Folder" vs "Local Path")
-must match exactly or the write will silently create a new property instead
-of filling the existing one.
-
-**If a session happens entirely in Claude Code** (no round-trip through chat),
-the Notion row does not get updated automatically — there's no connector
-there to do it. Either do a short check-in in chat afterward ("update the
-docs" still triggers the Notion sync even if the code work already happened
-in Claude Code), or update the Notion row by hand for that session.
+- Docs: see 14g in full — don't update/ask-to-update outside the explicit trigger; chat can't write the repo, so a Case 2 doc handoff (14c) always goes through Claude Code, but chat's own Session Summary draft goes to Notion immediately, no round trip
+- Code: never make changes unless explicitly asked — no proactive fixes, no "while I'm here" edits
+- Security: never write sensitive values into any file or chat response, never read them from screenshots — Section 6
+- Session start: never start working before all session docs are fetched via `curl` (not `web_fetch`) — Section 3b
+- Debugging: never stack multiple speculative changes at once — Section 10
+- Firestore: never inline collection/doc refs outside `firestorePaths.js` — Section 8
+- PowerShell: never use `&&` chaining — Section 7
+- PWA installs: never `npm install` without `--legacy-peer-deps` — Section 7
+- MD files: never duplicate information across them — reference, don't repeat — 5c
+- DecisionLog: never re-litigate a decision logged with an Active status — Section 11
+- Client relationships: never encode one into a repo name, docs folder, or DecisionLog prefix — Section 13a

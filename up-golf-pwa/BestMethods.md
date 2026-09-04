@@ -1,6 +1,6 @@
 # BestMethods.md — UP Golf PWA
 **Hard-won lessons from building this app. Read before writing any code.**
-Last Updated: 2026-06-30
+Last Updated: 2026-09-04
 
 ---
 
@@ -431,10 +431,19 @@ to index.html. Use `<i className="ti ti-{name}" />` in JSX. Inherits currentColo
 for nav icons automatically. Same icon set used in Club Golf.
 
 ### Raw GitHub URL pattern
-BestMethods.md and all project docs must be fetched using:
-`https://raw.githubusercontent.com/Whit19/dataforge-standards/refs/heads/main/up-golf-pwa/`
-The standard `/main/` path returns 404 for this repo. Update all session-start
-fetch URLs to use `refs/heads/main`.
+BestMethods.md and all project docs fetch fine using the standard path:
+`https://raw.githubusercontent.com/Whit19/dataforge-standards/main/up-golf-pwa/`
+
+**Correction (2026-09-04, DEC-161):** this entry previously claimed the
+plain `/main/` path 404s for this repo and required `/refs/heads/main/`
+instead (DEC-154). Verified directly against the live repo on
+2026-09-04 — plain `/main/` returns HTTP 200 with correct content;
+`/refs/heads/main/` also works and resolves to the same content. Whatever
+caused the original 404 is gone now (most likely transient GitHub raw-CDN
+propagation lag right after a repo event, not a permanent property of this
+repo) — it wasn't reproducible on retest. Use plain `/main/` going
+forward; it matches every other project's URL pattern in this repo and
+there's no remaining reason to special-case this one.
 
 ### History doc ID consistency
 When mixing imported data (year-based IDs) with archived data (outingId-based),

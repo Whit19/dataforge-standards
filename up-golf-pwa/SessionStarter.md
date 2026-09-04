@@ -85,8 +85,10 @@ GoDaddy CNAME subdomain.
   for archived years until added to the import/archive schema
 
 ### Known Issues / Notes
-- BestMethods.md raw URL must use `refs/heads/main` not `main`:
-  `https://raw.githubusercontent.com/Whit19/dataforge-standards/refs/heads/main/up-golf-pwa/BestMethods.md`
+- **Corrected 2026-09-04 (DEC-161):** the previous claim here that
+  BestMethods.md's raw URL requires `refs/heads/main` instead of `main`
+  (DEC-154) did not hold up on retest — plain `/main/` verified working
+  live. See BestMethods.md's "Raw GitHub URL pattern" entry.
 - history_tournaments docs for 2011–2025 use year as doc ID ("2025"); future
   tournaments will use outingId ("outing_2026") — migration needed in Phase 8B
 - The original cause of why functions/prizes.js's first invocation silently

@@ -436,7 +436,7 @@ the one where they were first created.
 ## 14. Session End Checklist
 
 **Only update MD files that actually changed this session — not all 7 every time.**
-**Do not generate any MD file updates until explicitly told: "Update the docs."**
+**Do not generate any MD file updates until explicitly told: "Update the docs."** This includes not asking whether to update docs, or offering to — wait for the explicit trigger silently, the same as any other deferred action.
 
 At session end, Tom will say "Update the docs" — only then generate updates. For each file that changed:
 
@@ -466,6 +466,7 @@ for what to do if a session happened entirely in Claude Code.
 ## 15. What Claude Should Never Do
 
 - **Never update, generate, or modify any MD files unless explicitly told "Update the docs"**
+- **Never ask whether to update docs, or offer to log/note something for the docs, before the person has said "Update the docs."** This applies even when a new decision, issue, or lesson comes up mid-session that clearly belongs in a doc eventually — note it happened, keep working, and fold it into the standard end-of-session update once triggered. Repeatedly asking mid-session ("want me to log this now?") is its own form of the violation this section already prohibits, not a safe workaround of it.
 - **Never make any code changes unless explicitly asked — no proactive fixes, no "while I'm here" edits**
 - Never write sensitive values (keys, tokens, passwords) into any file or chat response
 - Never read sensitive values from screenshots

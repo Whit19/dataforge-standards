@@ -687,11 +687,30 @@ Never deliver CC prompts as inline chat text. Use `create_file` to write to
 
 ## Data Integrity Rules
 
-### Reimbursements are positive amounts in the same category as the original expense
-Work reimbursements are not recorded as Other Income. They are recorded as positive
-amounts in the same category and subcategory as the original expense (e.g. positive
-Work-Expense/Amy). This keeps net work expense tracking accurate.
-*Source: SessionStarter key policies*
+### Money that offsets a prior expense nets against that expense's category — it is not separate income
+Work reimbursements are recorded as **positive** amounts in the **same
+category/subcategory as the original expense** (e.g. positive
+Work-Expense/Amy), never as Other Income — so net spend stays accurate.
+Session 19 extended the same principle to **tax refunds**: a refund nets
+against `Taxes/Federal` (or `Taxes/State`), it does not post as
+`Other Income/Tax Refund`. The rule generalizes: if an inflow exists only
+because of a specific earlier outflow, book it against that outflow's
+category as a positive, not as income.
+*Source: SessionStarter key policies; extended to tax refunds Session 19 (script 89)*
+
+---
+
+### Household has no gas-purchasing vehicles (all electric) — a gas-station-branded charge is a convenience-store purchase, never gasoline
+Marathon, Raceway, ExxonMobil — and any other gas-station brand not yet
+seen — all resolve to convenience-store spending (`Groceries/General`) in
+this household's real data, not `Car/Gas`. This was rediscovered as an
+independent finding in Session 19 (Marathon/Raceway) and again in the
+Session 19 continuation (ExxonMobil), so it's pinned here: when a
+gas-station-branded `merchant_patterns` row points at `Car/Gas` or
+`Car/Car Wash`, it is almost certainly wrong — repoint the generic to
+`Groceries/General` and let it win (lower priority number) over any
+store-number-specific Car/* variants.
+*Source: Session 19 — Marathon/Raceway (script 81), ExxonMobil (script 90)*
 
 ---
 
@@ -922,6 +941,21 @@ proposed `Check - Review`, and earlier `Gifts` / `Dry Cleaning` slipped
 in ahead of the doc; `taxonomy_audit.py` Checks 1–3 exist to catch
 exactly this, and a clean audit is the compliance bar.
 *Source: ISSUE-012 — recurring "new value invented mid-fix" pattern (Session 19)*
+
+### A no-wildcard merchant_pattern is an exact-string rule, not a substring one — and taxonomy_audit.py Check 4 must respect that
+
+`enrich_transactions.py`'s matcher (~L302–312) treats a pattern with no
+leading `%` **and** no trailing `%` (`ACT`, `IRS`, `Apple`) as
+`raw_upper == pattern_clean` — an exact string match. It cannot collide
+with `%ACTIVATE%` even though `"ACT"` is a substring of `"ACTIVATE"`,
+because neither rule matches a string the other does. `taxonomy_audit.py`
+Check 4 originally stripped `%` from both patterns and did a plain
+substring test, which false-flagged every no-wildcard pattern; fixed
+Session 19 (AFAS 1db78e4) with a `_would_match()` helper that mirrors the
+real matcher. If a future edit "simplifies" Check 4 back to a bare
+substring test, this class of false positive returns — keep the
+exact-match branch.
+*Source: Session 19 — taxonomy_audit.py Check 4 fix (post-ISSUE-039 `ACT` pattern)*
 
 ### A documented pipeline step in TechnicalArchitecture.md is not evidence it was ever built
 

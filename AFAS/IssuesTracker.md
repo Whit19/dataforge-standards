@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-09-04
+Last updated: 2026-09-08
 
 ---
 
@@ -25,20 +25,28 @@ Last updated: 2026-09-04
 
 ---
 
-### NOTE — 8 Apple Uncategorized rows intentionally parked
-Pending manual review. All have `category_source = manual`, `in_budget = 1`. Not a data quality issue — held for owner classification decision.
+### ISSUE-043 — APPLE Uncategorized transaction backlog (real merchants, need categories)
+| Field | Value |
+|-------|-------|
+| Status | Open |
+| Opened | 2026-09-08 |
+| Priority | Medium |
+| Description | 31 APPLE transactions ($3,586.58 total) sit at `category = 'Uncategorized'` with real, identifiable merchants — Starlink, Jostens, Bay Books, several liquor stores (Shoprite Lqrs, Avalon Lqrs), Blinktechus, Magbak Store, My Martinizing, Golf Course Prints, bbcmkids.org, withjoy.com, and others. These are not a taxonomy or pipeline defect — they're merchants no `merchant_patterns` row covers yet, so they correctly fell to the Uncategorized fallback. `type`/`in_budget` were corrected to Expense/1 in script 84 (Session 19); the category itself still needs assigning. Separately: 61 HSA rows ($9,885.16) sit at Uncategorized via a `%Normal Distribution%`-style pattern because the BofA HSA CSV doesn't itemize what each distribution paid for — that's a distinct problem (accept as-is vs. cross-reference against Apple/Chase spend), not a quick classification, and lower priority. |
+| Next Step | Work the 31 APPLE rows — assign categories via `category_source = 'manual'` (setting `type`/`in_budget`/`category_reviewed = 1` per BestMethods) or add `merchant_patterns` rows for the recurring ones (Starlink → Bills & Utilities/Internet is an obvious one). Then re-run `taxonomy_audit.py` and the Power BI Needs Review page. Decide separately what to do with the 61 HSA distribution rows. |
+
+*(Supersedes the former "8 Apple Uncategorized rows intentionally parked" note — those were a subset; script 84's `in_budget` correction and this session's Apple review folded them into this single tracked backlog.)*
 
 ---
 
 ### ISSUE-012 — Category taxonomy drift
 | Field | Value |
 |-------|-------|
-| Status | Open — substantial progress 2026-09-04; real gaps remain (see Known unfixed items) |
+| Status | Open — substantial progress 2026-09-04 and 2026-09-08; real gaps remain (see Known unfixed items) |
 | Opened | 2026-07-01 |
 | Priority | Medium |
-| Description | category_map / merchant_patterns / transactions contain category/subcategory combinations not documented in Category_Taxonomy.md. Originally spotted as a handful of Other Income subcategories (Dividends, Mobile Deposit, Pension, Tax Refund) during the 2026-07-01 Interest reclassification. Session 17 confirmed this is systemic (5 instances fixed: U-club, Airlines/Hotels, Fitness, Marquette shadowing, "Medical" typo) and built `scripts/taxonomy_audit.py` to find the rest. Session 18 worked a substantial chunk of the resulting backlog: a Work-Expense merchant_patterns audit (39 dead/risky patterns deactivated, script 72), 5 real same-priority shadow-pair bugs fixed (BestBuy $6,354 misroute, United Way priority regression, Kiawah/North Bay hardening, MOBILITE deactivated — script 73), the Ascension donation-vs-medical conflict (script 74), a second batch of shadow-pair fixes (DNCSS, Bay View Bowl, Sunnyside/CutbackCoach, Blurb, North Shore — script 75), ISSUE-040 resolved (script 76), and a full "Bucket 1" taxonomy rename sweep — Car/Wash→Car Wash, Car/Supercharger→Charging, Medical/Health/Medical→General, Groceries/Grocery→General, 4 Payment abbreviations (incl. a $74,159.97 Credit Card Payment cleanup), Transfer/Web→Transfer In/Out (sign-based split), Transfer/Savings→Transfer Out, and Travel/Hotels→Lodging in category_map (scripts 77-78). See DecisionLog 2026-09-04 for full detail. **Correction to a Session 18 CC prompt's draft claim:** the `%BP#%`/`%BP%` and `%UBER CASH%`/`%UBER%` shadow pairs were verified against the live scripts 72-78 and were **NOT** touched this session — only `%MOBILITE%` (deactivated, script 73) was actually addressed among that group. Left listed below as still open. |
-| Known unfixed items | `%UBER CASH%` (→ Gifts / Charity/Gifts) still shadows `%UBER%` (→ Travel/Transportation); `%BP#%` (→ Dining Out) still shadows `%BP%` (→ Groceries); `%MOBIL%` (→ Dining Out) still shadows `%MOBILITE%` (now deactivated, so this pair itself may be moot — reconfirm); `Travel / "Travel activities"` (lowercase) casing on 44 patterns — not yet confirmed fixed; Children: Birthday Party, Photos, Boating subcategories — decide add vs. normalize; Other Income: Dividends, Pension, Tax Refund — same decision needed; Work - Expense: Education, Professional Dev — likely should be added; Property Tax/General and Large Purchases/General — no generic fallback subcategory currently exists for either; Car/Rideshare (2 category_map rows) — likely belongs under Travel/Transportation; Medical / Health/Mental Health — keep distinct or merge to General/Doctor; Children/School → should rename to School Lunch (category_map, easy); Taxes/Federal Tax→Federal, Taxes/State Tax→State (category_map, easy renames); Cash Adj/Cash Advance — likely mis-filed under ATM / Cash Spending; Housing: Furniture, Home Improvement, Landscaping (→Landscape), Rent, Security — mix of easy renames and real gaps; Fees: Late Fee, Service Fee, Wire Transfer — no valid home currently; Bills & Utilities/General — no generic fallback exists; Entertainment/Books & Audible ↔ Subscriptions/Gaming apparent swap (→ ISSUE-042); Sports / Clubs: Equipment, Lodging, Other, Travel activities (lowercase); the ~40 remaining `[same dest]` Check 4 shadow pairs (cosmetic, lowest priority); a handful of lower-dollar `[DIFFERENT DEST]` pairs not yet reviewed. |
-| Next Step | Continue the taxonomy_audit.py backlog next session — re-run the audit fresh at session start (do not trust Session 17/18 counts; the audit's own canonical dict is stale, see ISSUE-041). Work through the "Known unfixed items" list above. |
+| Description | category_map / merchant_patterns / transactions contain category/subcategory combinations not documented in Category_Taxonomy.md. Originally spotted as a handful of Other Income subcategories during the 2026-07-01 Interest reclassification. Session 17 confirmed it's systemic (5 instances fixed) and built `scripts/taxonomy_audit.py`. Session 18 worked a large chunk (Work-Expense pattern audit script 72, shadow-pair bugs scripts 73/75, Ascension conflict script 74, ISSUE-040 script 76, Bucket 1 rename sweep scripts 77-78). **Session 19 (2026-09-08):** fresh audit run gave the first current numbers in weeks (39/43/9 undocumented combos, 241 shadow pairs, 46 `[DIFFERENT DEST]`); 18 rule-level `[DIFFERENT DEST]` fixes applied (scripts 79-81 — Marquette/Sixt/Marathon cleanup, 11 priority bumps, 4 destination corrections), and separately 31 `merchant_patterns` rows with a `%` embedded **mid-pattern** were found — silently dead under `enrich_transactions.py`'s Python matcher — and 26 deactivated / 5 rewritten (script 86), also clearing 3 invalid combos (Travel/Dining, Housing/Garden, Pay/Salary) and 8 more shadow pairs. `taxonomy_audit` TOTAL fell to 301 (ISSUE-041's mid-session fix changed what the tool can see, so this isn't a clean before/after). ISSUE-042 (the Books-&-Audible/Gaming apparent swap) was resolved separately — turned out to be 19 manual miscategorizations, not a rule bug. |
+| Known unfixed items | `%UBER CASH%` (→ Gifts / Charity/Gifts) still shadows `%UBER%` (→ Travel/Transportation); `%BP#%` (→ Dining Out) still shadows `%BP%` (→ Groceries) — **`%BP%` deliberately left as-is per Tom, Session 19**; `%MOBIL%`/`%MOBILITE%` (MOBILITE deactivated Session 18 — likely moot, reconfirm); `Travel / "Travel activities"` (lowercase) casing on ~44 patterns; Children: Birthday Party, Photos, Boating subcategories — decide add vs. normalize; Other Income: Dividends, Pension, Tax Refund — same decision needed; Work - Expense: Education, Professional Dev — likely should be added; Property Tax/General and Large Purchases/General — no generic fallback subcategory; Car/Rideshare (2 category_map rows) — likely belongs under Travel/Transportation; Medical / Health/Mental Health — keep distinct or merge; Children/School → School Lunch (category_map, easy); Taxes/Federal Tax→Federal, Taxes/State Tax→State (category_map, easy renames); Cash Adj/Cash Advance — likely mis-filed under ATM / Cash Spending; Housing: Furniture, Home Improvement, Landscaping (→Landscape), Rent, Security; Fees: Late Fee, Service Fee, Wire Transfer — no valid home; Bills & Utilities/General — no generic fallback; Sports / Clubs: Equipment, Lodging, Other, Travel activities (lowercase); the remaining `[same dest]` Check 4 shadow pairs (cosmetic, lowest priority); the lower-dollar `[DIFFERENT DEST]` pairs not yet reviewed. Add `taxonomy_audit.py` Check 5 for subcategory==category mirrors (ISSUE-014). |
+| Next Step | Continue the backlog — re-run the audit fresh at session start (the canonical dict is no longer stale as of ISSUE-041's fix, so the run is trustworthy; still re-run rather than trusting a prior session's count). Work the "Known unfixed items" list. |
 
 ---
 
@@ -83,62 +91,29 @@ Pending manual review. All have `category_source = manual`, `in_budget = 1`. Not
 
 ---
 
-### ISSUE-037 — enrich_hsa_csv.py unmatched-fallback gap (mirrors ISSUE-025)
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-09-02 |
-| Priority | Low |
-| Description | Same shape as ISSUE-025's original bug (now fixed in enrich_apple_csv.py): enrich_hsa_csv.py's `_UPDATE_UNMATCHED_SQL` only sets `category_source = 'unmatched'`, leaving `category`/`subcategory`/`type`/`in_budget` NULL for genuinely unmatched HSA rows. Found on read-through while confirming ISSUE-020's HSA fix, not yet confirmed against real data — unlike Apple (0 unmatched rows confirmed live), HSA's actual unmatched-row count wasn't checked this session. |
-| Next Step | Check the live unmatched-row count for source='HSA'. If non-zero, draft the same default-fallback fix applied to enrich_apple_csv.py. No CC prompt drafted yet. |
-
----
-
-### ISSUE-038 — Apple Card CSV enrichment mislabels category_source (two distinct shapes)
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-09-03 |
-| Priority | Medium |
-| Description | Two separate, not-yet-understood anomalies in Apple Card CSV-imported transactions, both surfaced during Session 17's Needs Review / taxonomy work. (1) At least ~50 Apple rows carry `category_source = 'plaid'` despite Apple Card never being Plaid-connected (CSV-only — confirmed in TechnicalArchitecture.md). These appear tied to Apple's own CSV "Category" column being used as a fallback source (`plaid_category_raw = 'Shopping'` seen on several), which then defaults unconditionally to Large Purchases/General regardless of amount — a $20 Approach Outfitter charge and an $87.13 Urban Cottage charge were both tagged Large Purchases this way. 4 rows were manually corrected this session (Tnf 540 x2 → Clothing/General, Urban Cottage → Housing/General, Approach Outfitter → Clothing/General); the other ~46 were not reviewed. (2) The Playerfirst\*Nxtsports charge ($20) carried `category_source = 'merchant_pattern'` and Taxes/Federal with no active merchant_patterns row that could plausibly match that text to any Taxes pattern — corrected to Sports / Clubs/General. Mechanism unknown. |
-| Next Step | Full read-through of `Run_Monthly/enrich_apple_csv.py` and `Run_Monthly/import_apple_csv.py` next session (neither file was available to review this session). Then a scoping query for all APPLE rows with `category_source = 'plaid'` and for pattern-labelled rows with no findable matching pattern. |
-
----
-
-### ISSUE-039 — `%ACT%` merchant_pattern is over-broad; narrowing attempt unresolved
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-09-03 |
-| Priority | Low |
-| Description | The `%ACT%` merchant_pattern (→ Children/Education) matches "TRANSACTION FEE" because "TRANSACTION" contains "ACT" — 3 instances ($25 each) wrongly landed in Children/Education this session and were corrected to Fees/General. The one genuinely correct match (a real $112 "ACT" standardized-test charge, stored as a bare "ACT" string with no surrounding spaces) was left alone. An attempted narrowing to `% ACT %` (space-bounded) was tested and does NOT match the real bare-"ACT" row, so that fix is not viable. |
-| Next Step | Use an exact-match pattern with no wildcards (following the exact-string-pattern logic already confirmed in `enrich_transactions.py`'s matching loop, same as the bare-"Apple" fix from ISSUE-027), or raise `%ACT%`'s priority number below every sibling. Part of the ISSUE-012 shadow-pair backlog. |
-
----
-
-### ISSUE-041 — taxonomy_audit.py's own CANONICAL_TAXONOMY dict is stale
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-09-04 |
-| Priority | Low |
-| Description | The script's own code comment confirms its hardcoded CANONICAL_TAXONOMY dict was transcribed from a 2026-07-01 snapshot of Category_Taxonomy.md and has not been refreshed since. This causes false-positive "undocumented combo" flags on every taxonomy addition made after that date — confirmed for ATM/Cash Spending/ATM, Dining Out/Fast Food, and Pay/Whit, all of which are formally documented in Category_Taxonomy.md's version history but still flag as undocumented in every Check 1/2/3 run. |
-| Next Step | Refresh the dict against the live doc, or add a mechanism so it can't drift silently again (e.g. parsing the doc's own Full Taxonomy code block at runtime instead of a hardcoded copy). |
-
----
-
-### ISSUE-042 — Entertainment/Books & Audible and Subscriptions/Gaming appear swapped
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-09-04 |
-| Priority | Medium |
-| Description | `taxonomy_audit.py` Check 3 flagged both Entertainment/Books & Audible (2 real transactions, $61.12) and Subscriptions/Gaming (17 real transactions, $478.46) as undocumented combos. Both look like a category/subcategory pairing error rather than a genuine taxonomy gap — 'Books & Audible' is a valid Subscriptions subcategory and 'Gaming' is a valid Entertainment subcategory per Category_Taxonomy.md's Full Taxonomy tree. 17 transactions is a meaningful volume for something not yet investigated — possibly one merchant_pattern or category_map rule with category/subcategory reversed. |
-| Next Step | Identify which merchant_pattern(s) or category_map row(s) are producing this pairing and confirm whether it's a simple swap fix or something more involved. |
-
 ---
 
 ## Resolved Issues (archive — recent)
+
+### RESOLVED — ISSUE-038 — Apple Card CSV enrichment mislabels category_source (two distinct shapes)
+- Resolved: 2026-09-08
+- **Anomaly 1** (`category_source = 'plaid'` on 46 Apple rows): `import_apple_csv.py` stored Apple's own CSV "Category" column in the `plaid_category_raw` DB column; the now-retired `enrich_apple_csv.py`'s category_map step hardcoded `category_source = 'plaid'` (the main enricher labels the identical path `'category_map'`). No Plaid connection has ever existed for Apple Card. Script 84 relabeled the 46 rows and fixed 31 Apple `Uncategorized` rows (type/in_budget) + 2 Apple `Payment` rows + 3 category_map rows behind the problem. Script 87 remapped the coarse `Shopping` bucket (Large Purchases/General → Clothing/General, Tom's call). **Anomaly 2** (Playerfirst\*Nxtsports → Taxes/Federal): the `%IRS%` catch-all matched "IRS" inside "PLAYERF**IRS**T" — script 85 changed it to a bare exact-match `IRS`. Root cause of both: `enrich_apple_csv.py`/`enrich_hsa_csv.py` were drifted duplicates — both retired this session (AFAS b1a3ef3), `enrich_transactions.py` is now the single enricher. See DecisionLog 2026-09-08.
+
+### RESOLVED — ISSUE-039 — `%ACT%` merchant_pattern is over-broad
+- Resolved: 2026-09-08
+- The live pattern was actually `% ACT %` (space-bounded, priority 30 — an earlier undocumented partial narrowing), not `%ACT%`. Script 83 changed it to a bare no-wildcard `ACT`, which `enrich_transactions.py`'s matcher resolves as an exact-string match (`raw_upper == 'ACT'`), not a LIKE substring — same mechanism as the ISSUE-027 "Apple" fix. Verified the real $112 ACT test charge still matches; "TRANSACTION FEE" no longer does. `%IRS  TREAS 310%`-style specific patterns untouched. See DecisionLog 2026-09-08.
+
+### RESOLVED — ISSUE-041 — taxonomy_audit.py's own CANONICAL_TAXONOMY dict is stale
+- Resolved: 2026-09-08
+- The hardcoded dict (transcribed 2026-07-01) was replaced with `load_canonical_taxonomy(doc_path)`, which parses `Category_Taxonomy.md`'s own `## Full Taxonomy` fenced block at runtime and populates `CANONICAL_TAXONOMY`/`CANONICAL_PAIRS` fresh in `main()` every run. On a parse failure the script exits 2 — no hardcoded fallback, since a fallback is what drifts. Verified: 29 categories / 174 pairs parsed; ATM/Cash Spending/ATM, Dining Out/Fast Food, Pay/Whit no longer false-flag. AFAS 6c652ae. See DecisionLog 2026-09-08.
+
+### RESOLVED — ISSUE-042 — Entertainment/Books & Audible and Subscriptions/Gaming appear swapped
+- Resolved: 2026-09-08
+- Not a swap and not a rule bug: **no** merchant_pattern or category_map row produces either combo — all 19 rows are `category_source = 'manual'`, `category_reviewed = 1` (hand-categorized directly). Tom's call after reviewing the full list: the 2 bookstore purchases → Entertainment/General; all 17 PlayStation charges → Entertainment/Gaming. Script 82 applied it by explicit `transaction_id` with a combo guard, preserving `category_source`/`category_reviewed`/`original_*` as an audit trail. `taxonomy_audit` Check 3 dropped 6 → 4. See DecisionLog 2026-09-08.
+
+### RESOLVED — ISSUE-037 — enrich_hsa_csv.py unmatched-fallback gap (mirrors ISSUE-025)
+- Resolved: 2026-09-08
+- Made moot by the enrichment consolidation: `enrich_hsa_csv.py` was retired this session (AFAS b1a3ef3). HSA rows now fall through `enrich_transactions.py`'s `apply_fallback()`, which sets a complete Uncategorized/General row — and, as of this session, only fills `type`/`in_budget` where NULL, so an importer's deliberate classification (e.g. an unmatched Employer Contribution) is preserved. 0 HSA rows were ever actually in the broken state. See DecisionLog 2026-09-08.
 
 ### RESOLVED — ISSUE-040 — Gifts / Charity/Gifts subcategory: keep or normalize?
 - Resolved: 2026-09-04

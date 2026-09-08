@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-09-03 (Session 17: historical carry-forward enrichment step actually built after 6+ months documented-only; new taxonomy_audit.py + plaid_transaction_name_check.py diagnostics; vw_needs_review + vw_potential_duplicates views)
+Last updated: 2026-09-08 (Session 19: `enrich_apple_csv.py` + `enrich_hsa_csv.py` retired — `enrich_transactions.py` is now the single enricher for every source; its date cutoff removed; `import_apple_csv.py` inserts `category_source = NULL`; `taxonomy_audit.py` now parses Category_Taxonomy.md live)
 
 ---
 
@@ -16,11 +16,12 @@ Azure Function (Python)
   ├── Timer Trigger (monthly, 1st @ 03:00 UTC)
   └── HTTP Trigger (manual)
     │
-    ├── Enrichment Engine (enrichment.py / enrich_apple_csv.py)
-    │     ├── Bonus rules
-    │     ├── Plaid category map
-    │     ├── Merchant pattern matching
+    ├── Enrichment Engine (enrich_transactions.py — single enricher, all sources)
+    │     ├── Merchant pattern matching (runs first)
+    │     ├── Plaid category map (fallback)
     │     ├── Historical carry-forward
+    │     ├── Bonus rule
+    │     ├── Fallback → Uncategorized
     │     └── Manual override (never overwritten)
     │
     ▼
@@ -122,23 +123,21 @@ AI Agent Layer (Phase 5)
 |------|---------|--------|
 | function_app.py | Azure Functions v2 entry point | ✅ Ready |
 | plaid_sync.py | Shared sync module (de-duplicated from timer + HTTP) | ⚠️ Two issues found 2026-08-03: plaid_category_raw stores the full personal_finance_category JSON object via json.dumps() instead of an extracted category string (ISSUE-019 root cause — category_map's exact-string match has never worked for Plaid-synced sources as a result; fix drafted, not yet deployed). INFLOW_CATEGORIES incorrectly includes BANK_FEES and LOAN_PAYMENTS as inflows (ISSUE-023, sign regression, ~25 rows/~$136K affected; fix not yet drafted). description column confirmed dead code (ISSUE-024) — Plaid's transaction object has no field by that name, so tx.get("description", "") has always returned empty. |
-| enrich_transactions.py | Enrichment engine for Plaid-synced transactions (CHASE/ASSOCIATED_PERSONAL/AMEX). Note: this file was previously listed here under the incorrect name "enrichment.py" — corrected 2026-08-03. | ✅ 2026-09-03: docstring enrichment order corrected (was listing category_map before merchant_patterns); new `enrich_from_history()` step added between category_map and bonus_rule, writing `category_source = 'historical_carryforward'` / `category_confidence = 'MEDIUM'` (AFAS 557cdd1 + 4f0c052). 2026-09-02: write-back scoped to changed rows only (ISSUE-035). 2026-08-03: apply_fallback() type/in_budget defaults corrected; --unenriched-only retry logic fixed. |
-| enrich_apple_csv.py | Enrichment engine for Apple Card CSV imports | ✅ Ready — category_map lookup fixed 2026-06-01 |
-| import_apple_csv.py | Apple Card CSV import script (manual monthly) | ✅ Ready |
+| enrich_transactions.py | **The single enricher for every source** (Plaid CHASE/ASSOCIATED_PERSONAL/AMEX, Apple Card CSV, HSA CSV). Note: previously listed here as "enrichment.py" — corrected 2026-08-03. | ✅ 2026-09-08: `enrich_apple_csv.py` + `enrich_hsa_csv.py` retired — this file already had no source filter and is now the sole enricher (AFAS b1a3ef3). `load_transactions()` date cutoff (`date >= '2024-01-01'`) removed so a backdated pre-2024 CSV row isn't permanently skipped. `apply_fallback()` now only fills `in_budget`/`type` where NULL, preserving an importer's deliberate classification for an unmatched row. 2026-09-03: docstring order corrected; `enrich_from_history()` added between category_map and bonus_rule → `category_source = 'historical_carryforward'` / `MEDIUM` (AFAS 557cdd1 + 4f0c052). 2026-09-02: write-back scoped to changed rows (ISSUE-035). 2026-08-03: apply_fallback() defaults corrected; `--unenriched-only` retry fixed. |
+| import_apple_csv.py | Apple Card CSV import script (manual monthly). Stores Apple's CSV "Category" column in `plaid_category_raw` (despite the column name — no Plaid involvement). | ✅ 2026-09-08: inserts `category_source = NULL` (was `'historical'`, which collided with the ~6k genuinely backfilled `'historical'` rows); MERGE re-default guard now treats only `NULL` / `'unmatched'` as "not yet enriched" (AFAS b1a3ef3). 2026-09-01: MERGE fixed to protect already-enriched rows via CASE. |
 | plaid_client.py | Plaid SDK wrapper — created 2026-06-15 (did not previously exist despite this entry). _make_plaid_client() (duplicated from plaid_sync.py) + get_account_balances() | ✅ Ready — prior "plaid_category_raw fix" note likely describes logic actually in plaid_sync.py, needs verification |
 | balance_sync.py | Phase 4 — sync_account_balances(): /accounts/balance/get → upsert account_balances; logs run_log/error_log. Created 2026-06-15. | ✅ Live — tested 2026-06-17 |
 | nwm_sync.py | Phase 4 — sync_nwm_valuations(): NWM Tom + Amy cash values → insurance_asset_valuations. Fixed account_id→insurance_id map. Created 2026-06-17. | ✅ Live |
 | monthly_sync.py | Monthly timer (1st of month 03:00 UTC) — runs balance_sync + nwm_sync. Created 2026-06-17. | ✅ Deployed |
 | import_baird_holdings.py | Phase 4 — Baird holdings CSV import → baird_holdings. Lot-level holding_id (account+symbol+date+lotN). Created 2026-06-17. | ✅ Ready |
 | principal_sync.py | Phase 4 — Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Created 2026-08-01. Standalone local script — not wired into http_ingest.py or any timer trigger yet. | ✅ Working — confirmed live |
-| import_hsa_transactions.py | Imports Bank of America HSA cash-ledger CSV export into dbo.transactions. type/in_budget set deterministically at import (4 known non-spending description types whitelisted; everything else treated as real spending/income, typed by amount sign). Created 2026-08-01. | ✅ Live — 457 rows |
-| enrich_hsa_csv.py | Enrichment for HSA CSV import — mirrors enrich_apple_csv.py, scoped to source='HSA', category_map step removed (never applicable to this source). Created 2026-08-01. | ✅ Live |
+| import_hsa_transactions.py | Imports Bank of America HSA cash-ledger CSV export into dbo.transactions. type/in_budget set deterministically at import (4 known non-spending description types whitelisted; everything else treated as real spending/income, typed by amount sign). category/subcategory left NULL for `enrich_transactions.py`. Created 2026-08-01. | ✅ Live — 461 rows |
 | import_hsa_holdings.py | Imports Bank of America HSA "Fund Summary" CSV into dbo.holdings — value-only (no units/price in this export). Snapshot date parsed from filename. Created 2026-08-01. | ✅ Live — 2 holdings |
 | db.py | DB connection — username/password local, Managed Identity in Azure | ✅ Ready |
 | timer_sync.py | Monthly timer trigger (1st @ 03:00 UTC) | ✅ Ready |
 | http_ingest.py | Manual HTTP trigger — added http_balance_ingest route 2026-06-15 (/api/balance_ingest) | ✅ Ready |
 | get_plaid_tokens.py | Local Flask tool for Plaid token acquisition | ✅ Ready — located at C:\DEV_Projects\AFAS\scripts — hardcoded PLAID_CLIENT_ID/PLAID_SECRET removed 2026-08-01, now loaded from local.settings.json at module scope |
-| scripts/taxonomy_audit.py | **NEW 2026-09-03** — Read-only taxonomy-drift diagnostic. Hardcoded canonical category/subcategory dict (transcribed from Category_Taxonomy.md, doc rev 2026-07-01; prints that date + its own transcription date at startup). 4 checks: undocumented category/subcategory combos in merchant_patterns / category_map / live transactions, and same-priority pattern pairs where one pattern's text is a substring of another's (shadowing). Check 4 output split `[DIFFERENT DEST]` (real bugs) vs `[same dest]` (harmless). Exit 0 = clean, 1 = issues, 2 = error. DB creds via `.env` / `get_connection()` (mirrors enrich_transactions.py). AFAS 13b959e. | ✅ Live — run 2026-09-03: 53 / 45 / 16 undocumented combos, 265 shadow pairs (75 `[DIFFERENT DEST]`). Backlog = ISSUE-012. |
+| scripts/taxonomy_audit.py | Read-only taxonomy-drift diagnostic. 4 checks: undocumented category/subcategory combos in merchant_patterns / category_map / live transactions, and same-priority pattern pairs where one pattern's text is a substring of another's (shadowing). Check 4 output split `[DIFFERENT DEST]` (real bugs) vs `[same dest]` (harmless). Exit 0 = clean, 1 = issues, 2 = error. DB creds via `.env` / `get_connection()`. AFAS 13b959e. | ✅ 2026-09-08 (ISSUE-041): the hardcoded `CANONICAL_TAXONOMY` dict was replaced with `load_canonical_taxonomy()` — parses `Category_Taxonomy.md`'s own `## Full Taxonomy` fenced block at runtime, populated fresh in `main()` every run; exits 2 on a parse failure (no hardcoded fallback). AFAS 6c652ae. |
 | scripts/plaid_transaction_name_check.py | **NEW 2026-09-03** — Read-only diagnostic. Queries Plaid /transactions/get for CHASE/ASSOCIATED_PERSONAL/AMEX over a date range and prints raw `name` / `merchant_name` / personal_finance_category (plus full JSON for the first 5). Used to check whether Plaid retains fuller merchant text than what's stored. No DB writes, no Plaid write endpoints, not wired into any pipeline. Config via local.settings.json Values block. AFAS 2ad1bf2. | ✅ Live — confirmed the Associated DDA truncation (Bayshore D / Musa I / Sheboygan) happens upstream of Plaid; processor-routed names (Toast) do carry more detail. |
 | requirements.txt | Pinned dependencies | ✅ Ready |
 
@@ -299,6 +298,18 @@ carries forward from the most recent prior row for the same
 `category_source = 'historical_carryforward'` (distinct from legacy
 pre-2024 `'historical'` from historical_mapping.sql) and
 `category_confidence = 'MEDIUM'`. AFAS commits 557cdd1 + 4f0c052.
+
+**Session 19 (2026-09-08):** `enrich_transactions.py` is now the **single
+enricher for every source** — `enrich_apple_csv.py` / `enrich_hsa_csv.py`
+were retired (they were drifted duplicates; see BestMethods "Duplicate
+per-source enrichment scripts..."). The pattern matcher is the existing
+Python-side one, which treats **only leading/trailing `%` as wildcards**
+— a `%` embedded mid-pattern is deleted and the pattern silently can't
+match (31 such patterns cleaned up, script 86). `load_transactions()`
+no longer filters by date. `apply_fallback()` now only fills
+`in_budget`/`type` where NULL, so an importer's own classification on an
+unmatched row (e.g. HSA Employer Contribution → Income / not-in-budget)
+survives. AFAS b1a3ef3.
 
 | Step | Source | Logic |
 |------|--------|-------|

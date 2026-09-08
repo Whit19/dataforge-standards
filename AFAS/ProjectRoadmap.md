@@ -1,6 +1,6 @@
 # AFAS Project — Roadmap
 **Living document. Update status and tasks as work completes.**
-Last updated: 2026-08-01
+Last updated: 2026-09-08 (Sessions 14-19 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh)
 
 ---
 
@@ -82,7 +82,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ enrich_transactions.py: bonus rule >$10,000 threshold confirmed implemented (ISSUE-005 closed)
 - ✅ enrich_transactions.py: retry path bug fixed — removed stale category_normalized parameter
 - ✅ Manual review of 46 Uncategorized/VENMO-Review transactions complete (ISSUE-004 closed)
-- ⏳ Review 8 intentionally parked Apple Uncategorized rows
+- ⏳ Assign categories to 31 APPLE Uncategorized transactions (ISSUE-043 — was "8 parked rows", now a tracked backlog)
 - ⏳ Baird Plaid connection failed — Baird support replied 2026-06-15 (expected fix did not resolve issue); second email sent, awaiting response (ISSUE-008)
 - ⚠️ 2026-08-01: discovered the deployed Function App had been silently crash-looping for 6+ weeks due to a missing python-dotenv dependency in requirements.txt — all timer-based sync was effectively dead during that window despite appearing operational in some tables. Fixed; see DecisionLog and BestMethods for full detail.
 
@@ -133,7 +133,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ⏳ Connect Phase 4 views to Power BI — add Net Worth, Holdings, Allocation report pages
 - ⏳ Seed budget_targets table with initial annual targets
 - ✅ Principal Financial 401k Plaid Investments — connected 2026-08-01. Real account: Baird Profit Sharing and Savings Plan (401k), owner Amy. principal_sync.py created, confirmed live: $2,096,195.86 total value across 11 holdings. Not yet wired into automated pipeline (Pick Up Here item).
-- ✅ HSA (Bank of America) added as a manual CSV-tracked account (Session 13) — Plaid confirmed unsupported for this institution outright ("Connectivity not supported"), not a stale-credential issue. import_hsa_transactions.py + enrich_hsa_csv.py + import_hsa_holdings.py built and live: 457 transactions imported (full account history back to 2014, not just recent activity), 2 holdings (both mutual funds), $24,163.69 tracked value. Same permanent-CSV-fallback model as Baird.
+- ✅ HSA (Bank of America) added as a manual CSV-tracked account (Session 13) — Plaid confirmed unsupported for this institution outright ("Connectivity not supported"), not a stale-credential issue. import_hsa_transactions.py + import_hsa_holdings.py built and live: 461 transactions imported (full account history back to 2014), 2 holdings (both mutual funds), $24,163.69 tracked value. Same permanent-CSV-fallback model as Baird. **Enrichment: `enrich_hsa_csv.py` retired 2026-09-08 — `enrich_transactions.py` is now the single enricher for all sources.**
 - ⏳ Plaid Investments for Baird (when ISSUE-008 resolves)
 - ⏳ HSA-Baird and other non-canonical Baird accounts — confirmed never included in any monthly CSV import (new finding, 2026-08-01).
 
@@ -145,7 +145,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 3. Acquire Principal Financial 401k Plaid token (ISSUE-009)
 4. Monthly Baird CSV procedure — export, add Account Name + Date, run import_baird_holdings.py
 5. Update physical asset valuations monthly (Zillow + KBB)
-6. Review 8 intentionally parked Apple Uncategorized rows
+6. Assign categories to the 31 APPLE Uncategorized transactions (ISSUE-043)
 7. Wire principal_sync.py into automated pipeline (currently standalone local script only)
 8. Add run_log logging to plaid_sync.py's daily transaction sync (gap discovered 2026-08-01)
 9. Investigate ISSUE-019 (Power BI Monthly Spend Apple-only data)

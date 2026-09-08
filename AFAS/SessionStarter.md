@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-08 (Session 19 sync)
+Last updated: 2026-09-08 (Session 19 + continuation — ISSUE-043 Apple portion + ISSUE-012 cleared; SQL watermark 93)
 
 ---
 
@@ -111,16 +111,13 @@ top-level status, when verifying an automated sync actually ran.**
 
 ## Pick Up Here — Next Session
 
-1. **Assign categories to the 31 APPLE Uncategorized transactions (ISSUE-043).**
-   $3,586.58 total, all real identifiable merchants (Starlink, Jostens,
-   Bay Books, several liquor stores, Blinktechus, Magbak, My Martinizing,
-   bbcmkids.org, …). Assign via `category_source = 'manual'` (set
-   `type`/`in_budget`/`category_reviewed = 1` per BestMethods) or add
-   `merchant_patterns` rows for recurring ones (Starlink → Bills &
-   Utilities/Internet is obvious). Then re-run `taxonomy_audit.py` + the
-   Power BI Needs Review page. Separately decide what to do with the 61 HSA
-   "Normal Distribution" rows ($9,885.16) — the CSV doesn't say what each
-   distribution paid for.
+1. **HSA "Normal Distribution" Uncategorized backlog (ISSUE-043 carryover).**
+   61 HSA rows ($9,885.16) at `category = 'Uncategorized'` via a
+   `%Normal Distribution%`-style pattern — the BofA HSA CSV doesn't
+   itemize what each distribution paid for. This is a **policy question**
+   (accept as-is / cross-reference against Apple+Chase spend near the same
+   date / mark for review), not a quick classification. The Apple portion
+   of ISSUE-043 (31 rows) is done — script 88.
 2. **Watch the next real Apple Card / HSA CSV import closely.** The Session
    19 enrichment consolidation (single enricher, date cutoff removed,
    `apply_fallback` change) was verified by inspection + unit tests but
@@ -128,26 +125,31 @@ top-level status, when verifying an automated sync actually ran.**
    real `import_apple_csv.py` → `enrich_transactions.py --unenriched-only`
    cycle behaves correctly — this project's history (ISSUE-019/023/018) is
    "verified by inspection, still had a hole."
-3. **Continue the `taxonomy_audit.py` backlog (ISSUE-012)** — re-run fresh
-   at session start. Still open (see IssuesTracker ISSUE-012 for the full
-   list): `%UBER CASH%`/`%UBER%` shadow (`%BP%` deliberately left as-is per
-   Tom); `Travel / "Travel activities"` lowercase casing (~44 patterns);
-   several add-vs-normalize subcategory decisions (Children Birthday
-   Party/Photos/Boating, Other Income Dividends/Pension/Tax Refund,
-   Work-Expense Education/Professional Dev); easy category_map renames
-   (Children/School → School Lunch, Taxes/Federal Tax → Federal, etc.);
-   Car/Rideshare → Travel/Transportation; the remaining `[same dest]`
-   Check 4 pairs (cosmetic) and the lower-dollar `[DIFFERENT DEST]` ones;
-   add Check 5 for subcategory==category mirrors (ISSUE-014).
-4. **Add `vw_potential_duplicates` as a Power BI Data Health tile** — the
+3. **Write-time taxonomy validation guard for `enrich_transactions.py`
+   (ISSUE-044).** Right now nothing stops the enricher from writing a
+   `category`/`subcategory` combo that isn't in `Category_Taxonomy.md` —
+   `taxonomy_audit.py` only catches drift after the fact, when someone
+   remembers to run it. Add a load-time check using the same
+   parse-`Category_Taxonomy.md`-live mechanism ISSUE-041 built for the
+   audit script; a pattern/map/fallback that would write an off-list combo
+   should hard-fail the run. Real code change, not a data fix.
+4. **ISSUE-012 is effectively cleared** — Checks 1/2/3 are at 0 after this
+   session (scripts 88-93 + the 6 new subcategories now documented).
+   Check 4 is 207 pairs: 8 `[DIFFERENT DEST]` all confirmed benign/
+   intentional (Westin Milwaukee dining split, `%UBER EATS%`/`%UBER CASH%`
+   by design, `%ATM%`/`%TM%` never co-match), ~199 `[same dest]` cosmetic —
+   **lowest priority, not being actively worked** (matches the established
+   convention). Optionally: add `taxonomy_audit.py` Check 5 for
+   subcategory==category mirrors (ISSUE-014).
+6. **Add `vw_potential_duplicates` as a Power BI Data Health tile** — the
    view exists and works (0 legacy_vs_plaid, catches pending_vs_settled);
    Tom wants it visible on the existing Data Health page.
-5. **Session 17's ad-hoc SQL is still not reconstructed as numbered scripts**
+7. **Session 17's ad-hoc SQL is still not reconstructed as numbered scripts**
    — the two views (`vw_needs_review`, `vw_potential_duplicates`) and
    Session 17's correction/pattern-rename SQL remain uncommitted. Sessions
-   18-19 (scripts 72-87) ARE committed. Decide whether to reconstruct
+   18-19 (scripts 72-93) ARE committed. Decide whether to reconstruct
    Session 17's or accept the gap.
-6. **Sunnyside 651 Guerrero St watch (~2027-01).** `%SUNNYSIDE%651%` was
+8. **Sunnyside 651 Guerrero St watch (~2027-01).** `%SUNNYSIDE%651%` was
    deactivated in script 86; the SF cannabis-dispensary charge (manually
    filed Personal Care/Health & Wellness) will now fall to the generic
    `%SUNNYSIDE%` (→ Dining Out/General) or to review. If it recurs, decide
@@ -158,8 +160,9 @@ top-level status, when verifying an automated sync actually ran.**
 ## Active Data Issues
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
-| ISSUE-012 | Medium | Systemic taxonomy drift found by `taxonomy_audit.py`. Sessions 18-19 fixed a large chunk (Work-Expense audit, ~25 shadow/destination bugs, 31 dead mid-`%` patterns, ISSUE-040/042); real gaps remain (see IssuesTracker) | Work the backlog — Pick Up Here #3 |
-| ISSUE-043 | Medium | 31 APPLE transactions ($3,586.58) at `category = 'Uncategorized'` — real merchants needing category assignment. Plus 61 HSA "Normal Distribution" rows ($9,885.16), lower priority | Assign categories / add patterns — Pick Up Here #1 |
+| ISSUE-012 | Low | Systemic taxonomy drift. **Effectively cleared** 2026-09-08 — Checks 1/2/3 at 0 (scripts 79-93, ISSUE-041/044-adjacent audit fixes, 6 new subcategories documented). Check 4 = 207 pairs: 8 `[DIFFERENT DEST]` all benign/intentional, ~199 `[same dest]` cosmetic — not being worked | Optional: audit Check 5 (subcategory==category mirrors, ISSUE-014) |
+| ISSUE-043 | Low | Apple portion DONE (script 88, 31 rows). Carryover: 61 HSA "Normal Distribution" rows ($9,885.16) at Uncategorized — policy question, CSV lacks the spend detail | Decide policy — Pick Up Here #1 |
+| ISSUE-044 | Medium | `enrich_transactions.py` has no write-time guard against off-taxonomy category/subcategory combos — audit only catches drift after the fact | Add a load-time validation check — Pick Up Here #3 |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---
@@ -183,7 +186,7 @@ top-level status, when verifying an automated sync actually ran.**
 |------|---------|--------|
 | plaid_sync.py | Shared sync module | ✅ Both known bugs fixed AND deployed 2026-09-01 (confirmed via VS Code's "Files (Read-only)" remote view — both had been drafted-but-undeployed since Session 14): (1) plaid_category_raw now extracts a clean category string instead of storing full JSON; (2) INFLOW_CATEGORIES no longer includes BANK_FEES/LOAN_PAYMENTS (ISSUE-023). Still does not write to run_log (ISSUE-016, carried over). |
 | enrich_transactions.py | **The single enricher for every source** (Plaid CHASE/ASSOCIATED_PERSONAL/AMEX, Apple Card CSV, HSA CSV) as of 2026-09-08 | ✅ 2026-09-08 (AFAS b1a3ef3): `enrich_apple_csv.py` + `enrich_hsa_csv.py` retired — this file already had no source filter. `load_transactions()` date cutoff removed. `apply_fallback()` now only fills `in_budget`/`type` where NULL. **Matcher note:** only leading/trailing `%` are wildcards; a mid-pattern `%` is dead. Earlier: `enrich_from_history()` carry-forward step (2026-09-03, AFAS 557cdd1 + 4f0c052); write-back scoped to changed rows (ISSUE-035); apply_fallback() defaults + `--unenriched-only` retry (2026-08-03). |
-| scripts/taxonomy_audit.py | Read-only taxonomy-drift diagnostic (4 checks: undocumented category/subcategory combos in merchant_patterns / category_map / transactions; same-priority pattern shadowing). AFAS 13b959e. | ✅ 2026-09-08 (ISSUE-041, AFAS 6c652ae): now parses `Category_Taxonomy.md`'s `## Full Taxonomy` block live every run — no hardcoded dict, exits 2 on parse failure. Backlog = ISSUE-012. |
+| scripts/taxonomy_audit.py | Read-only taxonomy-drift diagnostic (4 checks: undocumented category/subcategory combos in merchant_patterns / category_map / transactions; same-priority pattern shadowing). AFAS 13b959e. | ✅ 2026-09-08: (a) ISSUE-041 (AFAS 6c652ae) — parses `Category_Taxonomy.md`'s `## Full Taxonomy` block live every run, no hardcoded dict, exits 2 on parse failure; (b) AFAS 1db78e4 — Check 4 no longer false-flags no-wildcard exact-match patterns (`ACT`, `IRS`) as substring collisions. As of session end: Checks 1/2/3 = 0, Check 4 = 207 (8 benign `[DIFFERENT DEST]` + 199 cosmetic `[same dest]`). |
 | scripts/plaid_transaction_name_check.py | **NEW 2026-09-03** — read-only Plaid /transactions/get diagnostic (CHASE/ASSOCIATED_PERSONAL/AMEX); prints raw name / merchant_name / PFC. No writes, not in any pipeline. AFAS 2ad1bf2. | ✅ Live |
 | plaid_client.py | Plaid SDK wrapper | ✅ Ready |
 | balance_sync.py | Associated balance pull | ✅ Live |
@@ -243,7 +246,13 @@ top-level status, when verifying an automated sync actually ran.**
 2. Export Apple Card CSV for the month, drop into Run_Monthly\imports\AppleCC\
 3. Run `python import_apple_csv.py` from Run_Monthly (no filename needed — auto-discovers)
 4. Run `python enrich_transactions.py --unenriched-only` (the single enricher — the Apple-specific script was retired 2026-09-08)
-5. Review any unmatched merchants and classify via SQL — remember dual-use merchants (e.g. gas stations that also sell groceries/snacks) should be classified manually per-transaction, not given a blanket merchant_patterns entry, same logic as the Work-Expense dual-use rule
+5. **Interactive Uncategorized review (do this every month, both Apple and HSA):**
+   Pull **all** rows still at `category = 'Uncategorized'` — not just the newly-imported ones — with `plaid_category_raw` (the source's raw categorization field) **alongside** `merchant_name_raw`, not merchant name alone (that extra signal resolved several otherwise-unreadable merchants in the ISSUE-043 review). Work the list with Claude:
+   - confident merchant→category matches: a single yes/no batch confirmation
+   - genuinely ambiguous ones: an option card, best guess + alternatives
+   - if a recurring merchant turns up, add a `merchant_patterns` rule in the same pass so it doesn't reappear next month
+   Anything genuinely unclear stays `Uncategorized / General` (`category_reviewed = 0`) — never invent a subcategory to fit it (see Category_Taxonomy.md's "closed list" rule).
+6. Dual-use merchants (e.g. gas stations that also sell groceries/snacks) are classified manually per-transaction, not given a blanket `merchant_patterns` entry — same logic as the Work-Expense dual-use rule. **Household has no gas-purchasing vehicles (all electric)** — a gas-station-branded charge (Marathon, Raceway, ExxonMobil, …) is a convenience-store purchase, not gasoline.
 
 ---
 
@@ -311,10 +320,19 @@ Session 19 (2026-09-08):
                            86_python_matcher_broken_pattern_cleanup_session19.sql
                            87_issue038_shopping_category_map_remap.sql
 
-Current high watermark: **87** (confirmed live 2026-09-08 — re-confirm
-live rather than trust this number next session too. Note: `taxonomy_audit.py`'s
-ISSUE-041 fix is a code change committed to AFAS `main` as 6c652ae, not a
-numbered SQL script. Session 17's ad-hoc SQL is still not reflected in any
+Session 19 cont. (2026-09-08):
+                           88_issue043_apple_uncategorized_backlog.sql
+                           89_issue012_checks1-3_undocumented_combos.sql
+                           90_issue012_check4_shadow_collisions.sql
+                           91_issue012_final_check1-2_items.sql
+                           92_issue012_check4_hotel_summerfest_cluster.sql
+                           93_issue012_check_pattern_and_rent_map_cleanup.sql
+
+Current high watermark: **93** (confirmed live 2026-09-08 — re-confirm
+live rather than trust this number next session too. Note: two `taxonomy_audit.py`
+code changes committed to AFAS `main` this session are NOT numbered SQL
+scripts — 6c652ae (ISSUE-041, parse doc live) and 1db78e4 (Check 4 no
+longer false-flags exact-match patterns). Session 17's ad-hoc SQL is still not reflected in any
 numbered file.)
 
 ---

@@ -1,6 +1,6 @@
 # AFAS Project — Category Taxonomy Reference
 **Update this file when any category, subcategory, or type assignment changes.**
-Last updated: 2026-09-04 (Session 18: resolved ISSUE-040 — Gifts/Charity/Gifts normalized to General; completed Bucket 1 taxonomy rename sweep — Car Wash, Charging, Medical, Grocery, Payment abbreviations, Transfer In/Out, Travel/Hotels in category_map)
+Last updated: 2026-09-08 (Session 19 cont.: added 6 subcategories — Clothing/Dry Cleaning, Large Purchases/General, Bills & Utilities/General, Other Income/Dividends, Uncategorized/eBay - Review, Uncategorized/PayPal - Review — as ISSUE-012's Check 1-3 cleanup landed; added the "closed list" hard rule)
 
 ---
 
@@ -82,6 +82,11 @@ Last updated: 2026-09-04 (Session 18: resolved ISSUE-040 — Gifts/Charity/Gifts
 | 2026-09-04 | Transfer: `Web` → `Transfer In`/`Transfer Out`, sign-based split (single merchant_pattern can't express directionality; pattern-level default set to `Transfer Out`, the majority real case) | 7 (transactions, $903.20) + 1 (merchant_patterns) |
 | 2026-09-04 | Transfer: `Savings` → `Transfer Out` (`%WEB FR DDA TO SAV%` pattern — direction unambiguous from the text itself) | 1 (merchant_patterns) |
 | 2026-09-04 | Travel: `Hotels` → `Lodging` in `category_map` specifically (merchant_patterns already got this rename in Session 17; category_map was missed) | 2 (category_map) |
+| 2026-09-08 | Clothing: added subcategory `Dry Cleaning` — Martinizing / Ogden Cleaners; 55 transactions backfilled (32 pre-2024 with blank merchant_name_raw, matched via `description`), 6 merchant_patterns repointed (scripts 88, 90, 92) | 55 (transactions) + 6 (merchant_patterns) |
+| 2026-09-08 | Large Purchases: added subcategory `General` — generic catch-all (Car/Vehicle Purchase + Large-Purchase category_map rows had no valid home); script 89 | — |
+| 2026-09-08 | Bills & Utilities: added subcategory `General` — generic-utilities Plaid codes (`Utilities`, `RENT_AND_UTILITIES_UTILITIES`) with no Electric/Gas/Internet/Phone specificity | 2 (category_map) |
+| 2026-09-08 | Other Income: added subcategory `Dividends` — Baird / investment dividend income; script 89 | 1 (category_map) |
+| 2026-09-08 | Uncategorized: added subcategories `eBay - Review` and `PayPal - Review` — review-queue holding pens matching the existing `VENMO - Review` convention | 3 (merchant_patterns) |
 
 ---
 
@@ -89,7 +94,7 @@ Last updated: 2026-09-04 (Session 18: resolved ISSUE-040 — Gifts/Charity/Gifts
 1. Check if an existing subcategory covers the case before adding a new one
 2. New subcategory must be approved and dated in this version history
 3. Add to `category_map` and `merchant_patterns` as needed
-4. Never add subcategories to `Uncategorized` — use it only as a holding pen
+4. `Uncategorized` is a holding pen — its only subcategories are `General` and the `<source> - Review` queues (`VENMO - Review`, `eBay - Review`, `PayPal - Review`), one per payment source that regularly needs manual review. Don't add category-style subcategories here.
 5. Trip-specific subcategories (France, Spain, Amy Europe, Turks) are acceptable under Travel and Large Purchases
 6. Subcategory name must never mirror the category name — use `General` instead
 
@@ -165,6 +170,7 @@ Bills & Utilities
   └─ Car Insurance
      Electric
      Gas & Water
+     General
      Home Insurance
      Internet
      Life Insurance
@@ -200,7 +206,8 @@ Children
      School Lunch
 
 Clothing
-  └─ General
+  └─ Dry Cleaning
+     General
 
 Dining Out
   └─ Bars & Alcohol
@@ -264,6 +271,7 @@ Large Purchases
      Fence
      Furniture
      Garage
+     General
      Gutters
      House Painting
      Lawyer
@@ -289,6 +297,7 @@ Other Income
      Check
      Customer Deposit
      Deposit
+     Dividends
      General
      Interest
      PayPal
@@ -374,7 +383,9 @@ Travel
      Vacation Dining
 
 Uncategorized
-  └─ General
+  └─ eBay - Review
+     General
+     PayPal - Review
      VENMO - Review
 
 Work - Expense

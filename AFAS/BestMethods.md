@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-09-04
+Last updated: 2026-09-08
 
 ---
 
@@ -1068,6 +1068,68 @@ transactions) and fixing one doesn't imply the others got the same
 treatment — always check all three before considering a taxonomy rename
 complete.
 *Source: Session 18 — Bucket 1 taxonomy renames, script 77*
+
+### A merchant_pattern with a `%` in the MIDDLE of its text is silently dead under the Python matcher
+
+`enrich_transactions.py` translates a stored LIKE pattern to a Python
+check by doing `pattern.replace("%", "")` and then treating only a
+leading/trailing `%` as a wildcard (exact / startswith / endswith /
+contains). An internal `%` is simply deleted — `%CASK%ALE%` becomes the
+literal substring `"CASKALE"`, which can never match "CASK & ALE". These
+patterns only ever worked via the old SQL-side `LIKE` matcher in
+`enrich_apple_csv.py` / `enrich_hsa_csv.py`; once those were retired
+(Session 19) and every source went through the Python matcher, all 31
+such patterns were confirmed dead. 26 turned out to already have a
+working same-destination replacement someone had added later without
+removing the broken original — so the fix was mostly deactivation, not
+rewriting. Find them with
+`WHERE SUBSTRING(pattern, 2, LEN(pattern)-2) LIKE '%[%]%'`.
+*Source: Session 19 — script 86, ISSUE-012*
+
+### Confirm a merchant_pattern's exact live text before writing a fix that assumes it
+
+ISSUE-039's IssuesTracker entry described the pattern as `%ACT%`. The
+live `merchant_patterns` row was actually `% ACT %` (space-bounded) — an
+earlier, undocumented partial narrowing that never made it into the
+issue notes. A fix written against the assumed `%ACT%` text would have
+updated zero rows. Caught by querying the live table for the pattern
+text before running the `UPDATE`, not by trusting the description. Same
+"doc/notes describe intent, not current state" lesson as "Resolved"
+statuses, deployed Function App code, and documented renames — applies
+to individual pattern rows too.
+*Source: Session 19 — script 83, ISSUE-039*
+
+### Duplicate per-source enrichment scripts accumulate their own independent bugs
+
+`enrich_apple_csv.py` and `enrich_hsa_csv.py` were written as scoped
+copies of `enrich_transactions.py`'s logic. Over time each drifted and
+picked up bugs that never existed in the canonical implementation:
+category_map matches mislabeled `category_source = 'plaid'`; no
+`in_budget`/`type` derivation (Payment rows kept the import-time
+`in_budget = 1`); historical carry-forward still writing the pre-rename
+`'historical'` label and willing to carry forward an Uncategorized row;
+a non-deterministic `ORDER BY priority` with no `pattern ASC` tiebreak.
+`enrich_transactions.py` already had no source filter and was the more
+complete implementation the whole time. Session 19 retired both copies —
+one enricher for every source. Same drift-prevention lesson already
+learned for `taxonomy_audit.py`'s hardcoded dict and for
+TechnicalArchitecture.md vs. deployed code: a second copy of shared
+logic is a liability, not a safety measure.
+*Source: Session 19 — enrichment consolidation, ISSUE-038 (AFAS b1a3ef3)*
+
+### "Compiles clean, 0 rows need backfill" is inference that a change is safe, not a live-run confirmation
+
+The Session 19 enrichment consolidation (dropping `enrich_transactions.py`'s
+date cutoff, changing `apply_fallback()`) could not be run end-to-end —
+the execution harness in use blocks prod-writing script runs. Safety was
+argued from inspection (0 `category IS NULL` rows, 0 rows needing
+`in_budget`/`type` backfill → a run would be a no-op) plus unit tests of
+the two logic changes. That's a real gap this project has been burned by
+before (ISSUE-019, ISSUE-023, ISSUE-018 all "verified by inspection,
+still had a hole"). When a change can't get a live run, say so
+explicitly and flag it for observation on the next real trigger — don't
+let inspection-only verification quietly become "done."
+*Source: Session 19 — enrichment consolidation*
 
 ---
 

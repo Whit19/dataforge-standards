@@ -907,6 +907,22 @@ contents when verifying a deploy landed.
 
 ## Taxonomy & Enrichment
 
+### Category_Taxonomy.md's Full Taxonomy block is a closed list — never write a value that isn't on it
+
+No SQL script, enrichment step, `merchant_patterns` row, `category_map`
+row, or manual correction may write a `category`/`subcategory` value that
+isn't already in `Category_Taxonomy.md`'s **Full Taxonomy** block. A new
+subcategory is added in one order only: Tom approves it → it's committed
+to `Category_Taxonomy.md` (version history + Full Taxonomy block) → *then*
+a script may use it. Never introduce a new value in the same script that
+uses it. When a transaction's correct category is unclear, route it to
+`Uncategorized / General` (`category_reviewed = 0`) for later review —
+don't invent a subcategory to fit it. This session alone, CC prompts
+proposed `Check - Review`, and earlier `Gifts` / `Dry Cleaning` slipped
+in ahead of the doc; `taxonomy_audit.py` Checks 1–3 exist to catch
+exactly this, and a clean audit is the compliance bar.
+*Source: ISSUE-012 — recurring "new value invented mid-fix" pattern (Session 19)*
+
 ### A documented pipeline step in TechnicalArchitecture.md is not evidence it was ever built
 
 The "Enrichment Pipeline — Logic Order" table had listed a "Historical —

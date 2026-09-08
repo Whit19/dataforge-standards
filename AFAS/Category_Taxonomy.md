@@ -93,6 +93,30 @@ Last updated: 2026-09-04 (Session 18: resolved ISSUE-040 — Gifts/Charity/Gifts
 5. Trip-specific subcategories (France, Spain, Amy Europe, Turks) are acceptable under Travel and Large Purchases
 6. Subcategory name must never mirror the category name — use `General` instead
 
+### Hard rule — this file is the closed list
+
+**No SQL script, enrichment step, `merchant_patterns` row, `category_map`
+row, or manual correction may ever write a `category` / `subcategory`
+value that is not already in the **Full Taxonomy** block below.** The
+Full Taxonomy block is the complete, authoritative list — nothing outside
+it is valid, ever.
+
+A new subcategory is created in exactly one order:
+1. Tom approves it explicitly.
+2. It is added to this file — a version-history row **and** the Full
+   Taxonomy block — and that change is committed.
+3. *Only then* may a script or correction use the value.
+
+Never introduce a new value inside the same script that would use it
+(the way `Clothing / Dry Cleaning` was handled — doc first, then SQL).
+
+**When a transaction's correct category is unclear, or a review turns up
+a value that isn't on the list, route it to `Uncategorized / General`
+(with `category_reviewed = 0`) for later review — do not invent a
+subcategory to fit it.** `taxonomy_audit.py` Checks 1–3 exist to catch
+any value that slips past this rule; a clean audit is the definition of
+compliance.
+
 ---
 
 ## Type Assignments and Budget Policy by Category

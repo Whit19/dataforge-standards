@@ -61,17 +61,6 @@ Last updated: 2026-09-14
 
 ---
 
-### ISSUE-045 — Power BI Options bucket / $137 Private Equity row not reproduced
-| Field | Value |
-|-------|-------|
-| Status | Open — unverified |
-| Opened | 2026-09-14 |
-| Priority | Low |
-| Description | Tom reported (via Power BI, relayed through a Claude.ai chat handoff) an `asset_type = 'Options'` bucket showing a negative value (-$20,370) and a $137 Private Equity row, neither addressed in the same day's sector/`asset_classification` cleanup (sql/96, 97). Checked against the current live latest-snapshot data in `vw_holdings_all`: **0 rows currently have `asset_type = 'Options'`**, and no Private Equity row is exactly $137 (closest live values are a real $45.75 row and two NULL-value "COMMITMENT IN..." unfunded-commitment placeholder rows — those look like a pre-existing, unrelated Baird data characteristic, not something introduced by this session's fixes). Not reproduced — may be a different/older snapshot date, a different Power BI filter/slicer context than what was checked, or a transient options position since closed out. |
-| Next Step | Next time it's visible in Power BI, get the exact date/account/filter context from Tom and re-check against that specific slice of `vw_holdings_all` rather than the latest snapshot. |
-
----
-
 ### ISSUE-014 (recurrence note on prior fix) — subcategory-mirror violations recurred
 2026-06-01 taxonomy fix corrected subcategory=category mirror violations (Clothing, Dining Out, Gifts/Charity, Groceries, Payment). By 2026-07-01, 294 merchant_patterns rows and 11 category_map rows had the same violation again (Clothing, Groceries, Car, Property Tax, Payment, Dining Out, Interest). Root cause of the recurrence not yet investigated — worth checking whether a specific import/enrichment script is reintroducing these values, rather than treating each occurrence as an isolated one-off fix.
 

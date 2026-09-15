@@ -154,18 +154,13 @@ top-level status, when verifying an automated sync actually ran.**
    filed Personal Care/Health & Wellness) will now fall to the generic
    `%SUNNYSIDE%` (→ Dining Out/General) or to review. If it recurs, decide
    whether it needs its own (contiguous-text) pattern.
-9. **ISSUE-045 — Power BI Options bucket / $137 Private Equity row.**
-   Reported by Tom, not reproduced against the current latest-snapshot
-   `vw_holdings_all` data (0 `Options` rows, no exact $137 Private Equity
-   row). Needs the exact date/filter context from Power BI next time it's
-   visible — see IssuesTracker.
-10. **Liability and Budget vs Actual Power BI pages not yet built.** Net
+9. **Liability and Budget vs Actual Power BI pages not yet built.** Net
     Worth, Holdings, and Asset Allocation pages were built and verified
     this session (`vw_net_worth`, `vw_holdings_all`); Liability and
     Budget vs Actual were designed with chat but not yet built/verified
     in Power BI. `budget_targets` still needs seeding before Budget vs
     Actual will show anything (carried over from Phase 4, never done).
-11. **`vw_holdings_summary` / `vw_asset_allocation` are now dead SQL** —
+10. **`vw_holdings_summary` / `vw_asset_allocation` are now dead SQL** —
     removed from the Power BI model (no pages were built on them), still
     exist in the database, still `FROM dbo.baird_holdings` only, same gap
     `vw_net_worth` had before this session's fix. Not deleted, not fixed
@@ -180,7 +175,6 @@ top-level status, when verifying an automated sync actually ran.**
 | ISSUE-012 | Low | Systemic taxonomy drift. **Effectively cleared** 2026-09-08 — Checks 1/2/3 at 0 (scripts 79-93, ISSUE-041/044-adjacent audit fixes, 6 new subcategories documented). Check 4 = 207 pairs: 8 `[DIFFERENT DEST]` all benign/intentional, ~199 `[same dest]` cosmetic — not being worked | Optional: audit Check 5 (subcategory==category mirrors, ISSUE-014) |
 | ISSUE-043 | Low | Apple portion DONE (script 88, 31 rows). Carryover: 61 HSA "Normal Distribution" rows ($9,885.16) at Uncategorized — policy question, CSV lacks the spend detail | Decide policy — Pick Up Here #1 |
 | ISSUE-044 | Medium | `enrich_transactions.py` has no write-time guard against off-taxonomy category/subcategory combos — audit only catches drift after the fact | Add a load-time validation check — Pick Up Here #3 |
-| ISSUE-045 | Low | Power BI-reported Options bucket (-$20,370) and $137 Private Equity row, not reproduced against current `vw_holdings_all` data | Get exact date/filter context from Tom — Pick Up Here #9 |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---
@@ -315,7 +309,7 @@ taxonomy-drift corrections (U-club / Airlines / Hotels / Fitness pattern
 renames, `%MARQUETTE UN%` priority → 40); 5 new merchant_patterns
 (WISCONSINGOV, Dave's Hot Chicken, ATM W D U S BANK, 1-800-FLOWERS,
 INDULGENCE CHOCOLAT); ~40 manual transaction corrections; 10 duplicate-row
-deletions. **Gap still open** — see Pick Up Here #9: decide whether to
+deletions. **Gap still open** — see Pick Up Here #7: decide whether to
 reconstruct these as scripts, or accept the gap.
 
 Session 18 (2026-09-04):

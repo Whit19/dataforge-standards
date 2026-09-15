@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-09-08 (Session 19 + cont.: `enrich_apple_csv.py` + `enrich_hsa_csv.py` retired — `enrich_transactions.py` is the single enricher for every source; date cutoff removed; `import_apple_csv.py` inserts `category_source = NULL`; `taxonomy_audit.py` parses Category_Taxonomy.md live + Check 4 no longer false-flags exact-match patterns)
+Last updated: 2026-09-14 (Session 20: ISSUE-009 genuinely closed — principal_sync.py deployed + verified; vw_net_worth's Investment category was Baird-only, fixed; new consolidated vw_holdings_all supersedes vw_holdings_summary/vw_asset_allocation; sector/asset_classification cleanup; Net Worth/Holdings/Asset Allocation Power BI pages built)
 
 ---
 
@@ -66,13 +66,15 @@ Power BI (star schema)
   │     ├── vw_category_yoy
   │     └── vw_enrichment_quality
   │
-  └── Phase 4 (planned)
-        ├── vw_net_worth
+  └── Phase 4 — Net Worth / Holdings / Asset Allocation pages built and
+        verified 2026-09-14; Liability and Budget vs Actual still planned
+        ├── vw_net_worth              (built — Investment/Cash/Insurance/Physical/Liability)
+        ├── vw_holdings_all           (built 2026-09-14 — consolidated Baird + Plaid Investments)
         ├── vw_account_balances
-        ├── vw_holdings_summary
-        ├── vw_asset_allocation
-        ├── vw_liability_summary
-        └── vw_budget_vs_actual
+        ├── vw_holdings_summary       (dead — Baird-only, superseded by vw_holdings_all, removed from PBI model)
+        ├── vw_asset_allocation       (dead — Baird-only, superseded by vw_holdings_all, removed from PBI model)
+        ├── vw_liability_summary      (planned — not yet built into a page)
+        └── vw_budget_vs_actual       (planned — blocked on budget_targets seeding)
     │
     ▼
 AI Agent Layer (Phase 5)
@@ -130,7 +132,7 @@ AI Agent Layer (Phase 5)
 | nwm_sync.py | Phase 4 — sync_nwm_valuations(): NWM Tom + Amy cash values → insurance_asset_valuations. Fixed account_id→insurance_id map. Created 2026-06-17. | ✅ Live |
 | monthly_sync.py | Monthly timer (1st of month 03:00 UTC) — runs balance_sync + nwm_sync. Created 2026-06-17. | ✅ Deployed |
 | import_baird_holdings.py | Phase 4 — Baird holdings CSV import → baird_holdings. Lot-level holding_id (account+symbol+date+lotN). Created 2026-06-17. | ✅ Ready |
-| principal_sync.py | Phase 4 — Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Created 2026-08-01. Standalone local script — not wired into http_ingest.py or any timer trigger yet. | ✅ Working — confirmed live |
+| principal_sync.py | Phase 4 — Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Created 2026-08-01. | ✅ 2026-09-14 (ISSUE-009 closed, AFAS 0cee6b6): wired into `monthly_sync.py`'s timer + new `/api/principal_ingest` route in `http_ingest.py`; deployed to Finance-ingest-Tom-v6 and verified via Application Insights (real HTTP-triggered run). Also now captures Plaid's `sector`/`industry` per security into `dbo.securities` (AFAS 64e45cc) — that specific change is committed but not yet redeployed as of session end (the deployed function still has the pre-sector-capture version; existing data was backfilled by re-running locally). Confirmed via a direct raw-API check that Plaid returns `cost_basis: null` and empty `tax_lots` for all 11 holdings — genuinely unavailable from this institution, not a pipeline gap. |
 | import_hsa_transactions.py | Imports Bank of America HSA cash-ledger CSV export into dbo.transactions. type/in_budget set deterministically at import (4 known non-spending description types whitelisted; everything else treated as real spending/income, typed by amount sign). category/subcategory left NULL for `enrich_transactions.py`. Created 2026-08-01. | ✅ Live — 461 rows |
 | import_hsa_holdings.py | Imports Bank of America HSA "Fund Summary" CSV into dbo.holdings — value-only (no units/price in this export). Snapshot date parsed from filename. Created 2026-08-01. | ✅ Live — 2 holdings |
 | db.py | DB connection — username/password local, Managed Identity in Azure | ✅ Ready |
@@ -263,6 +265,16 @@ All relationships: One-to-Many, Single cross-filter direction, Calendar as hub.
 | Transaction Review | ✅ Complete (added 2026-06-01) — Source/Year/Month slicers |
 | Data Health | ✅ Complete (added Session 13) — built on vw_source_freshness + vw_category_health |
 | Needs Review | ✅ Complete (added Session 17) — built on `vw_needs_review` (all `category_reviewed = 0` rows, with computed `suggested_category`/`suggested_subcategory` and a `review_priority` 1–4 tier). Backlog cleared 421 → 0 on 2026-09-03. See SessionStarter "Data Health (Power BI)". Table visuals on this page **must** include `transaction_id` (hidden) with numerics set to "Don't summarize" — see BestMethods. |
+| Net Worth | ✅ Complete (added Session 20, 2026-09-14) — built on `vw_net_worth`. Current total $10,816,888.91 across Investment/Cash/Insurance/Physical/Liability. |
+| Holdings / Asset Allocation | ✅ Complete (added Session 20, 2026-09-14) — built on `vw_holdings_all` (not `vw_holdings_summary`/`vw_asset_allocation`, both now dead — see below). Grouped by `account_name`, `sector`, `asset_classification`, `asset_type`. |
+| Liability Summary | ⏳ Designed with chat, not yet built/verified in Power BI — would use `vw_liability_summary` (already exists, unused). |
+| Budget vs Actual | ⏳ Designed with chat, not yet built/verified in Power BI — would use `vw_budget_vs_actual` (already exists). Blocked on `budget_targets` being seeded — table exists, empty. |
+
+#### vw_holdings_all (added 2026-09-14, script 95)
+Consolidates `dbo.baird_holdings` (CSV, flat) and `dbo.holdings` + `dbo.accounts` + `dbo.securities` (Plaid Investments — Principal 401k, HSA, any future connection) into one shape. Full history (every snapshot date), not just latest — built for equity-performance trending, not just a point-in-time number; downstream consumers filter to `MAX(snapshot_date)` per account themselves. Columns: `source`, `institution_id`, `holding_id`, `account_name`, `owner`, `snapshot_date`, `symbol`, `description`, `asset_type`, `asset_classification`, `sector`, `quantity`, `price`, `value`, `cost_basis`, `unit_cost`, `unrealized_gl`, `unrealized_gl_pct`, `term`, `est_annual_income`, `date_acquired`, `currency`, `include_in_net_worth`. Fields that only exist on one side (`sector`/`asset_classification`/`term`/`est_annual_income`/`date_acquired` are Baird-only) are `NULL` on the other; `unrealized_gl`/`unrealized_gl_pct`/`unit_cost` are computed from `cost_basis` for the Plaid side to keep parity (NULL when Plaid doesn't return `cost_basis`, e.g. the entire Principal 401k). `sector` for any fund-type Plaid holding (mutual fund/ETF, or Plaid's generic `'Miscellaneous'`) is normalized to `'Diversified'`, matching Baird's own convention (script 96). `asset_classification` for the Plaid side is derived from `security_type` (script 97) since Plaid has no equivalent field — mapped onto Baird's own bucket names (Equities/Fixed Income/Alternatives/Cash and Cash Equivalents). Supersedes `vw_holdings_summary` and `vw_asset_allocation` as the source of truth for holdings — both are dead (still `FROM dbo.baird_holdings` only, same gap `vw_net_worth` had before this session's fix), removed from the Power BI model, not deleted from SQL.
+
+#### vw_net_worth (updated 2026-09-14, scripts 94 + 98)
+The `Investment` category now correctly includes both Baird (`dbo.baird_holdings`) and Plaid Investments (`dbo.holdings`/`dbo.accounts`/`dbo.securities`) sources — previously Baird-only (the root cause of the Principal 401k never appearing on the net-worth page, ISSUE-009). Gated on `dbo.accounts.include_in_net_worth = 1` (script 98) — same flag the `Cash` branch already used — so HSA is now included too (Tom's explicit decision) and any future Plaid Investments connection is picked up automatically.
 
 #### Calendar Table Sort Orders
 | Column | Sort By |

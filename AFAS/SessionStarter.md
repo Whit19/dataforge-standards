@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-08 (Session 19 + continuation — ISSUE-043 Apple portion + ISSUE-012 cleared; SQL watermark 93)
+Last updated: 2026-09-14 (Session 20 — ISSUE-009 genuinely closed (deployed+verified), vw_holdings_all consolidation, Power BI Net Worth/Holdings/Asset Allocation pages built; SQL watermark 98)
 
 ---
 
@@ -154,6 +154,23 @@ top-level status, when verifying an automated sync actually ran.**
    filed Personal Care/Health & Wellness) will now fall to the generic
    `%SUNNYSIDE%` (→ Dining Out/General) or to review. If it recurs, decide
    whether it needs its own (contiguous-text) pattern.
+9. **ISSUE-045 — Power BI Options bucket / $137 Private Equity row.**
+   Reported by Tom, not reproduced against the current latest-snapshot
+   `vw_holdings_all` data (0 `Options` rows, no exact $137 Private Equity
+   row). Needs the exact date/filter context from Power BI next time it's
+   visible — see IssuesTracker.
+10. **Liability and Budget vs Actual Power BI pages not yet built.** Net
+    Worth, Holdings, and Asset Allocation pages were built and verified
+    this session (`vw_net_worth`, `vw_holdings_all`); Liability and
+    Budget vs Actual were designed with chat but not yet built/verified
+    in Power BI. `budget_targets` still needs seeding before Budget vs
+    Actual will show anything (carried over from Phase 4, never done).
+11. **`vw_holdings_summary` / `vw_asset_allocation` are now dead SQL** —
+    removed from the Power BI model (no pages were built on them), still
+    exist in the database, still `FROM dbo.baird_holdings` only, same gap
+    `vw_net_worth` had before this session's fix. Not deleted, not fixed
+    — `vw_holdings_all` supersedes both. Low priority: decide whether to
+    formally drop the two SQL views or just leave them unused.
 
 ---
 
@@ -163,6 +180,7 @@ top-level status, when verifying an automated sync actually ran.**
 | ISSUE-012 | Low | Systemic taxonomy drift. **Effectively cleared** 2026-09-08 — Checks 1/2/3 at 0 (scripts 79-93, ISSUE-041/044-adjacent audit fixes, 6 new subcategories documented). Check 4 = 207 pairs: 8 `[DIFFERENT DEST]` all benign/intentional, ~199 `[same dest]` cosmetic — not being worked | Optional: audit Check 5 (subcategory==category mirrors, ISSUE-014) |
 | ISSUE-043 | Low | Apple portion DONE (script 88, 31 rows). Carryover: 61 HSA "Normal Distribution" rows ($9,885.16) at Uncategorized — policy question, CSV lacks the spend detail | Decide policy — Pick Up Here #1 |
 | ISSUE-044 | Medium | `enrich_transactions.py` has no write-time guard against off-taxonomy category/subcategory combos — audit only catches drift after the fact | Add a load-time validation check — Pick Up Here #3 |
+| ISSUE-045 | Low | Power BI-reported Options bucket (-$20,370) and $137 Private Equity row, not reproduced against current `vw_holdings_all` data | Get exact date/filter context from Tom — Pick Up Here #9 |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---
@@ -191,7 +209,7 @@ top-level status, when verifying an automated sync actually ran.**
 | plaid_client.py | Plaid SDK wrapper | ✅ Ready |
 | balance_sync.py | Associated balance pull | ✅ Live |
 | nwm_sync.py | NWM Tom + Amy cash value sync | ✅ Live — both Items reconnected 2026-08-01 |
-| principal_sync.py | **NEW 2026-08-01** — Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Standalone local script only — not wired into http_ingest.py or any timer yet (carried-over item, not in this session's Pick Up Here top 5). | ✅ Working — confirmed live: 1 account, 11 securities, 11 holdings, $2,096,195.86 total value |
+| principal_sync.py | Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Created 2026-08-01. | ✅ 2026-09-14 (ISSUE-009 closed, AFAS 0cee6b6): wired into `monthly_sync.py`'s timer + new `/api/principal_ingest` route in `http_ingest.py`; **deployed to Finance-ingest-Tom-v6 and verified via Application Insights** (real HTTP-triggered run, not just local). Also now captures Plaid's `sector`/`industry` fields into `dbo.securities` (sql/96) — deployed code still needs this specific update pushed (committed to AFAS `main`, not yet redeployed as of session end). |
 | import_hsa_transactions.py | Imports Bank of America HSA cash-ledger CSV (Run_Monthly/imports/HSA/HSA_Transactions_*.csv) into dbo.transactions. type/in_budget set deterministically at import (not enrichment-dependent) — 4 known non-spending description types whitelisted, everything else treated as real spending/income typed by amount sign. category/subcategory left NULL for `enrich_transactions.py`. Created 2026-08-01. transaction_id hashes normalized (parsed) date/amount — fixed 2026-09-01 after BofA export-formatting drift caused ~400 duplicate groups; watermark check warns on unexpectedly-new IDs. UTF-8 stdout fix applied. | ✅ Live — 461 canonical rows |
 | import_hsa_holdings.py | Imports Bank of America HSA "Fund Summary" CSV (value-only, no units/price available in this export) into dbo.holdings. Snapshot date parsed from filename. Created 2026-08-01. UTF-8 stdout fix applied 2026-09-01. | ✅ Live — 2 holdings, $24,163.69 total |
 | import_baird_holdings.py | Baird holdings CSV → baird_holdings | ✅ Ready — Total-row detection bug fixed 2026-08-01 (was checking wrong column) |
@@ -328,10 +346,19 @@ Session 19 cont. (2026-09-08):
                            92_issue012_check4_hotel_summerfest_cluster.sql
                            93_issue012_check_pattern_and_rent_map_cleanup.sql
 
-Current high watermark: **93** (confirmed live 2026-09-08 — re-confirm
-live rather than trust this number next session too. Note: two `taxonomy_audit.py`
-code changes committed to AFAS `main` this session are NOT numbered SQL
-scripts — 6c652ae (ISSUE-041, parse doc live) and 1db78e4 (Check 4 no
+Session 20 (2026-09-14):
+                           94_vw_net_worth_add_principal_401k.sql
+                           95_vw_holdings_all_consolidated.sql
+                           96_securities_sector_industry_diversified_fix.sql
+                           97_securities_type_normalize_and_asset_classification.sql
+                           98_vw_net_worth_include_hsa.sql
+
+Current high watermark: **98** (confirmed live 2026-09-14 — re-confirm
+live rather than trust this number next session too. Note: three code
+changes committed to AFAS `main` this session are NOT numbered SQL
+scripts — 0cee6b6 (principal_sync.py wired into the automated pipeline),
+and two carried-over `taxonomy_audit.py` fixes from the prior session,
+6c652ae (ISSUE-041, parse doc live) and 1db78e4 (Check 4 no
 longer false-flags exact-match patterns). Session 17's ad-hoc SQL is still not reflected in any
 numbered file.)
 
@@ -340,8 +367,8 @@ numbered file.)
 ## Phase 4 Tables
 | Table | Status | Notes |
 |-------|--------|-------|
-| securities | ✅ Live | Now populated via principal_sync.py (11 securities as of 2026-08-01) |
-| holdings | ✅ Live | Was missing cost_basis and updated_at columns despite being documented — added 2026-08-01 (script 51). Populated via principal_sync.py (11 rows, Principal 401k) and import_hsa_holdings.py (2 rows, HSA Bank of America, value-only — no units/price in that export). |
+| securities | ✅ Live | Populated via principal_sync.py (14 rows as of 2026-09-14 — 12 Principal, 2 HSA). `sector`/`industry` columns added 2026-09-14 (script 96) — Plaid returns a generic 'Miscellaneous' sector for all 11 Principal holdings (no fund look-through); `vw_holdings_all` normalizes fund-type/Miscellaneous to 'Diversified' for display. `security_type` casing normalized 2026-09-14 (script 97) — was 'mutual fund' (Principal, live Plaid) vs 'mutual_fund' (HSA, hand-seeded Session 13), now one value. Cost basis is genuinely unavailable from Plaid for the 401k (confirmed via raw API check — `cost_basis: null`, `tax_lots: []` for all 11 holdings) — not a pipeline bug. |
+| holdings | ✅ Live | Was missing cost_basis and updated_at columns despite being documented — added 2026-08-01 (script 51). Populated via principal_sync.py (11 rows, Principal 401k) and import_hsa_holdings.py (2 rows, HSA Bank of America, value-only — no units/price in that export). `vw_holdings_all` (script 95, 2026-09-14) is now the consolidated read path across this table and `baird_holdings` — see TechnicalArchitecture. |
 | account_balances | ✅ Live | Associated 7 accounts |
 | liabilities | ✅ Live | Rocket Mortgage (rate corrected to 2.625%, origination_principal backfilled), US Bank LOC |
 | liability_balances | ✅ Live | Mortgage: $162,472 as of 2026-08-01 (YTD interest $2,636.93, YTD principal $16,998.91). US Bank LOC: $500,000, confirmed unchanged from 2026-06-01. |
@@ -385,14 +412,13 @@ running ad-hoc SQL to verify a data load — that's what it's for.
 
 ---
 
-## Net Worth Summary (as of 2026-08-01 — first fully verified figure; previous $8.27M figure never included Principal 401k)
+## Net Worth Summary (as of 2026-09-14 — first figure sourced directly from `vw_net_worth`, not hand-assembled; Power BI Net Worth page built on this same view)
 | Category | Value | Confidence |
 |----------|-------|------------|
-| Investment — Baird direct | $7,364,285.34 | Verified — reconciled to CSV |
-| Investment — Principal/Baird 401k | $2,096,195.86 | Verified — first connection, live data |
-| Physical Assets | $1,612,400.00 | Verified — fresh Zillow/KBB values |
-| Insurance (NWM Tom + Amy) | $150,493.15 | Verified — both reconnected and synced |
-| Cash (Associated — 7 accounts) | ~$150,085 (2026-06-17 figure) | **NOT reconfirmed this session** — balance sync ran successfully today (7/7 upserted) but total not re-queried. Query dbo.account_balances for exact current figure before reporting. |
-| Liabilities | -$662,472.00 (Mortgage $162,472 + LOC $500,000) | Verified |
-| **Total Net Worth (approx, pending cash confirmation)** | **~$10.71M** | Up from $8.27M — increase is almost entirely the newly-discovered Principal 401k account, not market movement |
-*Excludes HSA-Baird and any other non-canonical Baird accounts (never captured in any import — see ISSUE-017).*
+| Investment (Baird + Principal 401k + HSA) | $9,640,521.35 | Verified — `vw_net_worth`, `asset_category = 'Investment'`. Baird $7,494,018.08 + Principal 401k $2,121,113.45 + HSA $25,389.82. HSA included as of 2026-09-14 (script 98, Tom's explicit decision) |
+| Physical Assets | $1,612,400.00 | Verified — unchanged since 2026-08-01 (Zillow/KBB), not refreshed this session |
+| Insurance (NWM Tom + Amy) | $150,912.46 | Verified — `vw_net_worth`, `asset_category = 'Insurance'` |
+| Cash (Associated) | $75,527.10 | Verified — `vw_net_worth`, `asset_category = 'Cash'` |
+| Liabilities | -$662,472.00 (Mortgage $162,472 + LOC $500,000) | Verified — unchanged since 2026-08-01, not refreshed this session |
+| **Total Net Worth** | **$10,816,888.91** | `SELECT SUM(value) FROM dbo.vw_net_worth`, confirmed 2026-09-14. Up from the prior ~$10.71M estimate — the 401k and HSA were always real, this session fixed the view that was hiding them, not new money |
+*Excludes HSA-Baird and any other non-canonical Baird accounts (never captured in any import — see ISSUE-017). This is a different account from "HSA - Bank of America" above.*

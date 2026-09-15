@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-09-08
+Last updated: 2026-09-14
 
 ---
 
@@ -58,6 +58,17 @@ Last updated: 2026-09-08
 | Priority | Medium |
 | Description | Nothing stops the enricher from writing a `category`/`subcategory` combination that isn't in `Category_Taxonomy.md`. A wrong `merchant_patterns` / `category_map` row, or a future edit, silently propagates an off-list value onto every matching transaction; `taxonomy_audit.py` only catches it after the fact, and only when someone remembers to run it. This is the mechanism behind most of ISSUE-012. Tom's stated principle: the enricher should never be *able* to write an off-taxonomy combo. |
 | Next Step | Add a load-time validation step to `enrich_transactions.py` using the same live-parse-`Category_Taxonomy.md` mechanism ISSUE-041 built for the audit script (`load_canonical_taxonomy()` is already a reusable function in `scripts/taxonomy_audit.py`). Any `merchant_patterns` / `category_map` row whose `(category, subcategory)` isn't on the list should hard-fail the run with a clear message before any write. Real code change, not a data fix. |
+
+---
+
+### ISSUE-045 — Power BI Options bucket / $137 Private Equity row not reproduced
+| Field | Value |
+|-------|-------|
+| Status | Open — unverified |
+| Opened | 2026-09-14 |
+| Priority | Low |
+| Description | Tom reported (via Power BI, relayed through a Claude.ai chat handoff) an `asset_type = 'Options'` bucket showing a negative value (-$20,370) and a $137 Private Equity row, neither addressed in the same day's sector/`asset_classification` cleanup (sql/96, 97). Checked against the current live latest-snapshot data in `vw_holdings_all`: **0 rows currently have `asset_type = 'Options'`**, and no Private Equity row is exactly $137 (closest live values are a real $45.75 row and two NULL-value "COMMITMENT IN..." unfunded-commitment placeholder rows — those look like a pre-existing, unrelated Baird data characteristic, not something introduced by this session's fixes). Not reproduced — may be a different/older snapshot date, a different Power BI filter/slicer context than what was checked, or a transient options position since closed out. |
+| Next Step | Next time it's visible in Power BI, get the exact date/account/filter context from Tom and re-check against that specific slice of `vw_holdings_all` rather than the latest snapshot. |
 
 ---
 
@@ -207,8 +218,9 @@ Last updated: 2026-09-08
 - python-dotenv was added to db.py's dependencies during the July session but never added to requirements.txt. Deployed app crashed on every cold start (ModuleNotFoundError), causing the trigger indexer to find 0 functions — not a portal display quirk, a genuine failure. All automated syncs (daily transactions, monthly balance/NWM sync) were silently dead for at least 6 weeks. Fixed by adding python-dotenv to requirements.txt and redeploying; confirmed via Application Insights ("5 functions loaded", clean host start).
 
 ### RESOLVED — ISSUE-009 — Principal Financial 401k Token Pending
-- Resolved: 2026-08-01
+- Resolved: 2026-08-01 (connection); **genuinely closed 2026-09-14** (see follow-up)
 - First Plaid connection completed via get_plaid_tokens.py. Real account name confirmed: "BAIRD PROFIT SHARING AND SAVINGS PLAN" (Prft Shr 401(K) Def Thrift), owner Amy. New principal_sync.py script created to pull holdings via /investments/holdings/get — confirmed live: 1 account, 11 securities, 11 holdings, $2,096,195.86 total value. Not yet wired into the automated pipeline (standalone local script only).
+- **Follow-up (2026-09-14):** the 2026-08-01 "Resolved" only ever covered the standalone script working locally — same "resolved ≠ deployed" pattern this project has hit before (ISSUE-019/023/018). Wired into `monthly_sync.py`'s timer + a new `/api/principal_ingest` manual route (AFAS 0cee6b6), **deployed** to Finance-ingest-Tom-v6, and verified via the Application Insights log of a real HTTP-triggered run — not just a local test. Separately found and fixed a second bug that had nothing to do with deployment: `vw_net_worth`'s Investment category was hardcoded to `dbo.baird_holdings` only, so even a fully working pipeline never surfaced the 401k on the Power BI net-worth page (sql/94). See DecisionLog 2026-09-14 for the full chain, including the follow-on `vw_holdings_all` consolidation and sector/classification cleanup this surfaced.
 
 ### RESOLVED — ISSUE-013 — Chase/Amex/Associated transaction verification needed
 - Resolved: 2026-08-01

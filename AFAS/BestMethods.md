@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-09-08
+Last updated: 2026-09-14
 
 ---
 
@@ -1197,3 +1197,37 @@ a raw value (not an aggregate) to "Don't summarize". This is a durable
 trap, not a one-time glitch — check it on any table visual showing
 per-row scores or flags.
 *Source: Session 17 — Needs Review page build*
+
+### A "latest snapshot" DAX filter must group by the entity that updates atomically, not by a row-level key that embeds the date
+
+While building the Holdings page on `vw_holdings_all` (a full-history view
+— every snapshot date, not just the latest, by design), a "latest
+snapshot only" measure grouped by `holding_id` instead of `account_name`
+(or `source` + `account_name`). Baird's `holding_id` is
+`account+symbol+date+lotN` — the date is baked into the key — so "max
+snapshot_date per holding_id" is trivially always true for every row
+(each `holding_id` only ever has one date), and the filter became a
+silent no-op: every historical snapshot summed together instead of just
+the latest one. Total came out ~13x too high ($129M vs. an expected
+~$9.6–10.8M) before the mismatch was caught. When filtering any table to
+"latest per X," X must be the thing that actually gets a new row on each
+update cycle (here: source + account) — never a key that already has the
+date folded into it, or the filter can't distinguish "this row's date"
+from "the max date for this row's group" because they're always the same
+thing.
+*Source: Session 20 — Power BI Holdings page, vw_holdings_all*
+
+### Don't average a stored percentage column across a Power BI rollup — recompute it from the underlying sum ratio instead
+
+`vw_holdings_all.unrealized_gl_pct` is a per-row percentage
+(`unrealized_gl / cost_basis`). A DAX measure that does `AVERAGE()` (or an
+implicit average aggregation) across that column at an account or
+portfolio level treats every position as equally weighted regardless of
+size — a $500 position at +40% and a $500,000 position at +2% would
+average to +21%, nowhere near the actual blended return. The fix is
+`DIVIDE(SUM(unrealized_gl), SUM(cost_basis))` computed fresh at whatever
+level the visual is grouped to, not an aggregation of the pre-computed
+per-row percentage — this self-corrects at every level of a matrix or
+table (position, account, or total) instead of needing a different
+formula per grain.
+*Source: Session 20 — Power BI Holdings page, vw_holdings_all*

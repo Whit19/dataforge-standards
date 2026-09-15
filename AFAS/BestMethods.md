@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-09-14
+Last updated: 2026-09-15
 
 ---
 
@@ -1231,3 +1231,110 @@ per-row percentage — this self-corrects at every level of a matrix or
 table (position, account, or total) instead of needing a different
 formula per grain.
 *Source: Session 20 — Power BI Holdings page, vw_holdings_all*
+
+### A category assigned at the account level hides real cash sitting inside investment accounts — classify at the holding level instead
+
+`vw_net_worth` categorized every row of a Baird/Plaid account as
+`'Investment'` regardless of what it actually held. Confirmed live:
+`MAIN - BKG` carried $294,141.73 in literal cash and a Vanguard Treasury
+Money Market fund, and `IRA - TOM` carried $5,253.24 in the same fund —
+both already tagged `asset_classification = 'Cash and Cash Equivalents'`
+at the holding level, but reported as Investment because the whole
+account was. The fix (script 99) computes `net_worth_category` **per
+row**, not per account, so an account with both cash and real investments
+correctly splits across two categories instead of one hiding the other.
+Any "what type of account is this" categorization scheme should default
+to holding-level classification when the data supports it — account-level
+labels are a convenience that silently goes wrong the moment an account
+holds a mix.
+*Source: Session 21 — vw_net_worth/vw_holdings_all Cash reclassification*
+
+### Grouping "latest snapshot per account" by display name alone breaks the moment two accounts share a name
+
+`dbo.accounts` had 3 rows literally named "Kids Savings Account" with 3
+different `account_id`s (presumably one per kid, distinguished only by
+`account_id`, not `display_name`). A "latest snapshot" query grouped by
+`account_name` would compute one `MAX(snapshot_date)` across all three
+and silently drop the other two if their sync dates ever diverged. Fixed
+by introducing a real `account_key` (the underlying PK — Plaid
+`account_id`, or the source table's own PK for insurance/physical/
+liability) for any grouping/latest-snapshot logic, and using
+`account_name` only for display. Never assume a display name is unique
+just because it looks like an identifier.
+*Source: Session 21 — vw_holdings_all account_key introduction*
+
+### When merging a new source into an existing table's history, dedupe-to-latest-in-period isn't enough if the new source updates less often than the period — forward-fill instead
+
+Building `vw_net_worth_all_time` by keeping only the latest snapshot
+actually dated within each calendar month (a literal read of "view by
+month") broke badly for 2011-2019: most accounts in the newly-backfilled
+CSV were only recorded once a year (January), so April-December of those
+years collapsed to whatever one or two accounts happened to have an
+off-cycle update (e.g. a car, updated monthly), making the "monthly
+total" swing from ~$3.6M in January to ~$110K in April and back. The fix
+was a full month-spine per account with `CROSS APPLY ... TOP 1 ...
+ORDER BY snapshot_date DESC` — each account's last known value carried
+forward into every silent month, which is what a coherent trend actually
+needs. Whenever a new data source has a coarser update cadence than the
+output grain, forward-fill, don't just dedupe.
+*Source: Session 21 — vw_net_worth_all_time, 2011-2026 CSV backfill*
+
+### A recursive CTE inside a view can't raise MAXRECURSION — use a non-recursive row generator for a long spine instead
+
+SQL Server views can't carry query hints (`OPTION (MAXRECURSION n)`) —
+they're rejected at `CREATE VIEW` time. A recursive CTE generating a
+~190-month spine (2011 through today) would hit the default 100-level
+cap the moment it's queried through a view. Used the standard
+`CROSS JOIN sys.all_objects` row-number trick to generate the month
+sequence non-recursively instead — works inside a view, no recursion
+limit to hit.
+*Source: Session 21 — vw_net_worth_all_time month spine*
+
+### A historical source that simply stops mentioning a closed account (instead of recording a final $0) will make forward-fill carry a stale balance forever
+
+Two accounts in the CSV backfill (an old 401k that rolled over, an old
+HSA custodian) just stop appearing in the source data once closed,
+rather than showing one last $0 row. Combined with the forward-fill
+lesson above, this meant their last real balance ($13,850 and $345)
+carried forward into every subsequent month indefinitely — a real
+$14,195 discrepancy against the live net worth total, only caught by
+reconciling the combined view's total against the live source of truth
+rather than assuming the merge was correct. Any account known to be
+closed needs an explicit $0 (or otherwise terminal) row before
+forward-fill logic runs, or it silently keeps contributing forever.
+*Source: Session 21 — vw_net_worth_all_time, Tom 401K / HSA-GW closure*
+
+### Before seeding a table that feeds an existing view, read the view's actual join and filter logic — don't infer the table's expected shape from the column names alone
+
+Seeded `dbo.budget_targets` with `is_default = 1` and a specific `month`
+on every row, reasoning from the column name alone ("this is the default
+target"). The pre-existing `vw_budget_vs_actual` view actually treats
+`is_default = 1` as a flat *annual* figure (`month IS NULL`, divided by
+12) reserved for categories with no month-specific data, and only
+matches month-specific rows via a separate join branch requiring
+`is_default = 0`. The seed matched none of the view's three join
+branches — `budget_amount` would have shown NULL for every category
+despite the table having 240 rows. Separately, the view computes
+`actual_amount` as always-positive `SUM(ABS(amount))`, but the seeded
+`target_amount` was signed negative (matching the source spreadsheet's
+own presentation), making `variance`/`pct_of_budget` backwards. Both
+were only caught by querying the view's `OBJECT_DEFINITION()` directly
+and checking real output, not by assuming the table's schema was
+self-explanatory.
+*Source: Session 21 — budget_targets seed vs. vw_budget_vs_actual*
+
+### A Power BI Calendar table's date range must cover the full span of every fact table it relates to — not just the narrowest one
+
+A January-only stacked bar chart only showed data back to 2020 even
+though the underlying table (`vw_net_worth_all_time`) had rows back to
+2011. The Calendar table's date range had been sized to match
+transaction data (which starts ~2020), so it simply had no rows for
+2011-2019 for the relationship to match against — those years were
+silently dropped from anything sliced by Calendar, with no error. Fix:
+size the Calendar table's start date to the earliest date across *every*
+fact table it relates to, not whichever table it was originally built
+for. Also worth remembering: don't relate two fact tables (e.g.
+`vw_net_worth_all_time` and `vw_holdings_all`) directly to each other —
+they're different grains of the same data, and relating them causes
+fan-out. Relate each independently to Calendar instead.
+*Source: Session 21 — Power BI Calendar table date range gap*

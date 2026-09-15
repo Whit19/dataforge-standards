@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-14 (Session 20 — ISSUE-009 genuinely closed (deployed+verified), vw_holdings_all consolidation, Power BI Net Worth/Holdings/Asset Allocation pages built; SQL watermark 98)
+Last updated: 2026-09-15 (Session 21 — Cash/Retirement reclassification, full l1-l5 Power BI account hierarchy on vw_holdings_all, 2011-2026 net worth history backfill + vw_net_worth_all_time, budget_targets seeded and vw_budget_vs_actual verified working; SQL watermark 105)
 
 ---
 
@@ -154,18 +154,26 @@ top-level status, when verifying an automated sync actually ran.**
    filed Personal Care/Health & Wellness) will now fall to the generic
    `%SUNNYSIDE%` (→ Dining Out/General) or to review. If it recurs, decide
    whether it needs its own (contiguous-text) pattern.
-9. **Liability and Budget vs Actual Power BI pages not yet built.** Net
-    Worth, Holdings, and Asset Allocation pages were built and verified
-    this session (`vw_net_worth`, `vw_holdings_all`); Liability and
-    Budget vs Actual were designed with chat but not yet built/verified
-    in Power BI. `budget_targets` still needs seeding before Budget vs
-    Actual will show anything (carried over from Phase 4, never done).
+9. **Liability Power BI page not yet built.** `vw_liability_summary` exists,
+    not yet connected. Budget vs Actual (below) now has real data;
+    Liability is the one Phase 4 page still fully outstanding.
 10. **`vw_holdings_summary` / `vw_asset_allocation` are now dead SQL** —
     removed from the Power BI model (no pages were built on them), still
     exist in the database, still `FROM dbo.baird_holdings` only, same gap
     `vw_net_worth` had before this session's fix. Not deleted, not fixed
     — `vw_holdings_all` supersedes both. Low priority: decide whether to
     formally drop the two SQL views or just leave them unused.
+11. **Refine the Budget vs Actual Power BI page (Tom's explicit ask for
+    next session).** `dbo.budget_targets` is seeded for 2026 (script
+    seed_budget_targets.py, 240 rows) and `dbo.vw_budget_vs_actual`
+    (pre-existing view) is verified producing correct actual/budget/
+    variance/pct_of_budget numbers — no Power BI relationship needed,
+    the view already does the join, just refresh the dataset. What's
+    left is page design/refinement in Power BI itself, not a data gap.
+12. **Deployed `principal_sync.py` still needs the sector/industry-capture
+    redeploy** (AFAS commit `64e45cc`) — only the pipeline-wiring commit
+    (`0cee6b6`) was confirmed deployed as of Session 20. Carried forward,
+    not yet done.
 
 ---
 
@@ -347,14 +355,23 @@ Session 20 (2026-09-14):
                            97_securities_type_normalize_and_asset_classification.sql
                            98_vw_net_worth_include_hsa.sql
 
-Current high watermark: **98** (confirmed live 2026-09-14 — re-confirm
-live rather than trust this number next session too. Note: three code
-changes committed to AFAS `main` this session are NOT numbered SQL
-scripts — 0cee6b6 (principal_sync.py wired into the automated pipeline),
-and two carried-over `taxonomy_audit.py` fixes from the prior session,
-6c652ae (ISSUE-041, parse doc live) and 1db78e4 (Check 4 no
-longer false-flags exact-match patterns). Session 17's ad-hoc SQL is still not reflected in any
-numbered file.)
+Session 21 (2026-09-15):
+                           99_vw_holdings_all_single_net_worth_table.sql
+                           100_vw_holdings_all_retirement_category.sql
+                           101_df_checking_include_kids_rename.sql
+                           102_vw_holdings_all_account_hierarchy.sql
+                           103_net_worth_category_insurance_to_cash.sql
+                           104_net_worth_history_table.sql
+                           105_vw_net_worth_all_time_monthly.sql
+
+Current high watermark: **105** (confirmed live 2026-09-15 — re-confirm
+live rather than trust this number next session too. Note: code changes
+committed to AFAS `main` this session that are NOT numbered SQL scripts —
+scripts/load_net_worth_history.py + scripts/interpolate_net_worth_gaps.py
+(one-time 2011-2026 historical backfill, populates dbo.net_worth_history
+which script 104/105 then build on) and scripts/seed_budget_targets.py
+(one-time dbo.budget_targets seed for 2026). Session 17's ad-hoc SQL is
+still not reflected in any numbered file.)
 
 ---
 
@@ -372,7 +389,8 @@ numbered file.)
 | insurance_asset_valuations | ✅ Live | Both reconnected 2026-08-01. Tom $95,211.97, Amy $55,281.18 |
 | baird_holdings | ✅ Live | 737 rows as of 2026-08-01 snapshot ($7,364,285.34 total, reconciled to Baird's own CSV total + manual cash row to the penny). MAIN - Brokerage naming corrected to MAIN - BKG. |
 | security_sectors | ✅ Live | 115 tickers mapped |
-| budget_targets | ✅ Created | ⏳ Still not seeded |
+| budget_targets | ✅ Live | Seeded 2026-09-15 (seed_budget_targets.py) — 240 rows, 20 categories × 12 months, `budget_year = 2026`. Combined old-budget categories (Groceries/Dining Out, Personal Care/Clothing, Entertainment/Subscriptions, Housing blending Housing+Bills & Utilities) split using real trailing-12-month actual spend ratios from `dbo.transactions`, not guessed. `is_default = 0` (month-specific override — required by `vw_budget_vs_actual`'s join logic) and `target_amount` stored positive (view computes `actual_amount` as always-positive `SUM(ABS(amount))`) — both discovered as real bugs against the pre-existing view, not assumed. |
+| net_worth_history | ✅ Live | New 2026-09-15 (script 104). 2011-2026 backfill from Tom's manually-tracked CSV, `account_key` matching `vw_holdings_all`'s own scheme so historical + live union cleanly. `source_detail` = `CSV_IMPORT` or `INTERPOLATED` (linear interpolation across the interior gap between each account's last CSV value and first live value). Loaded via scripts/load_net_worth_history.py + scripts/interpolate_net_worth_gaps.py — see DecisionLog for the account-lineage decisions (Tom 401k rollover, HSA custodian history, NWM Tom/Amy split, the Vanguard/MAIN-BKG carve-out). |
 
 ---
 
@@ -406,13 +424,15 @@ running ad-hoc SQL to verify a data load — that's what it's for.
 
 ---
 
-## Net Worth Summary (as of 2026-09-14 — first figure sourced directly from `vw_net_worth`, not hand-assembled; Power BI Net Worth page built on this same view)
+## Net Worth Summary (as of 2026-09-15 — sourced directly from `vw_net_worth`, not hand-assembled; Power BI Net Worth page built on this same view)
 | Category | Value | Confidence |
 |----------|-------|------------|
-| Investment (Baird + Principal 401k + HSA) | $9,640,521.35 | Verified — `vw_net_worth`, `asset_category = 'Investment'`. Baird $7,494,018.08 + Principal 401k $2,121,113.45 + HSA $25,389.82. HSA included as of 2026-09-14 (script 98, Tom's explicit decision) |
-| Physical Assets | $1,612,400.00 | Verified — unchanged since 2026-08-01 (Zillow/KBB), not refreshed this session |
-| Insurance (NWM Tom + Amy) | $150,912.46 | Verified — `vw_net_worth`, `asset_category = 'Insurance'` |
-| Cash (Associated) | $75,527.10 | Verified — `vw_net_worth`, `asset_category = 'Cash'` |
-| Liabilities | -$662,472.00 (Mortgage $162,472 + LOC $500,000) | Verified — unchanged since 2026-08-01, not refreshed this session |
-| **Total Net Worth** | **$10,816,888.91** | `SELECT SUM(value) FROM dbo.vw_net_worth`, confirmed 2026-09-14. Up from the prior ~$10.71M estimate — the 401k and HSA were always real, this session fixed the view that was hiding them, not new money |
+| Investment (Baird ex-Retirement + HSA) | $5,967,532.08 | Verified — `vw_net_worth`, `asset_category = 'Investment'`. Retirement (401k/IRA/Roth) split out as its own category this session (script 100); cash-equivalent holdings inside Investment accounts moved to Cash (script 99) |
+| Retirement (Principal 401k + Baird IRAs) | $3,373,594.30 | Verified — new category this session (script 100). 4 Baird IRA accounts + Principal 401k |
+| Physical Assets | $1,612,400.00 | Verified — unchanged since 2026-08-01 (Zillow/KBB) |
+| Cash (bank accounts + cash-equivalent holdings + Insurance) | $526,589.98 | Verified — `vw_net_worth`, `asset_category = 'Cash'`. Insurance folded into Cash this session (script 103); DF Checking now included (+$755.45, was excluded); cash-equivalent holdings inside Investment/Retirement accounts (e.g. a Vanguard money market inside `MAIN - BKG`) now correctly counted here instead of Investment |
+| Liabilities | -$662,472.00 (Mortgage $162,472 + LOC $500,000) | Verified — unchanged since 2026-08-01 |
+| **Total Net Worth** | **$10,817,644.36** | `SELECT SUM(value) FROM dbo.vw_net_worth`, confirmed 2026-09-15. Up $755.45 from the 2026-09-14 figure — DF Checking inclusion only, not new money or a reclassification artifact (every other change this session was a pure reclassification, verified to net to zero) |
 *Excludes HSA-Baird and any other non-canonical Baird accounts (never captured in any import — see ISSUE-017). This is a different account from "HSA - Bank of America" above.*
+
+Full 2011-2026 monthly history (not just the current snapshot) is available in `dbo.vw_net_worth_all_time` — see Phase 4 Tables (`net_worth_history`) and DecisionLog for how it's built.

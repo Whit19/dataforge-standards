@@ -1,6 +1,6 @@
 # AFAS Project — Roadmap
 **Living document. Update status and tasks as work completes.**
-Last updated: 2026-09-14 (Sessions 14-20 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh)
+Last updated: 2026-09-15 (Sessions 14-21 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh)
 
 ---
 
@@ -131,8 +131,9 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ Net worth verified: ~$8,271,359 (Investment + Physical + Insurance + Cash - Liabilities)
 - ✅ Phase 4 Power BI views created: vw_net_worth, vw_holdings_summary, vw_asset_allocation, vw_liability_summary, vw_budget_vs_actual
 - ✅ Connect Phase 4 views to Power BI — Net Worth, Holdings, and Asset Allocation report pages built and live (2026-09-14, Session 20). vw_holdings_summary/vw_asset_allocation replaced by new vw_holdings_all (Baird + Plaid Investments consolidated); old views now dead SQL, still in the DB.
-- ⏳ Liability Summary and Budget vs Actual report pages — not yet built
-- ⏳ Seed budget_targets table with initial annual targets
+- ✅ vw_holdings_all reworked into the single source of truth for net worth (Session 21, 2026-09-15) — holding-level Cash reclassification, new Retirement category, full l1-l5 Power BI account hierarchy columns, 2011-2026 historical backfill (dbo.net_worth_history + vw_net_worth_all_time, forward-filled monthly).
+- 🟡 Budget vs Actual — data ready (Session 21, 2026-09-15): budget_targets seeded for 2026, vw_budget_vs_actual verified producing correct numbers (no Power BI relationship needed). Page itself not yet refined in Power BI — explicitly planned for next session.
+- ⏳ Liability Summary report page — not yet built
 - ✅ Principal Financial 401k Plaid Investments — connected 2026-08-01. Real account: Baird Profit Sharing and Savings Plan (401k), owner Amy. principal_sync.py created, confirmed live: $2,096,195.86 total value across 11 holdings. Not yet wired into automated pipeline (Pick Up Here item).
 - ✅ HSA (Bank of America) added as a manual CSV-tracked account (Session 13) — Plaid confirmed unsupported for this institution outright ("Connectivity not supported"), not a stale-credential issue. import_hsa_transactions.py + import_hsa_holdings.py built and live: 461 transactions imported (full account history back to 2014), 2 holdings (both mutual funds), $24,163.69 tracked value. Same permanent-CSV-fallback model as Baird. **Enrichment: `enrich_hsa_csv.py` retired 2026-09-08 — `enrich_transactions.py` is now the single enricher for all sources.**
 - ⏳ Plaid Investments for Baird (when ISSUE-008 resolves)
@@ -143,7 +144,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 ## Immediate Next Steps (Phase 4)
 1. ✅ Connect Phase 4 Power BI views — Net Worth, Holdings, Asset Allocation report pages built (2026-09-14, Session 20)
 1b. Build Liability Summary report page (vw_liability_summary exists, not yet connected)
-2. Seed budget_targets table with initial annual targets, then build Budget vs Actual report page (vw_budget_vs_actual exists, not yet connected)
+2. ✅ Seed budget_targets table with initial annual targets — done 2026-09-15 (240 rows, 2026). Next: refine the Budget vs Actual report page itself in Power BI (data verified working, page design is next session's explicit focus)
 3. ✅ Acquire Principal Financial 401k Plaid token (ISSUE-009) — resolved 2026-08-01; pipeline wiring + vw_net_worth fix completed and deployed 2026-09-14
 4. Monthly Baird CSV procedure — export, add Account Name + Date, run import_baird_holdings.py
 5. Update physical asset valuations monthly (Zillow + KBB)

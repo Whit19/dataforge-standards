@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-09-14 (Session 20: ISSUE-009 genuinely closed — principal_sync.py deployed + verified; vw_net_worth's Investment category was Baird-only, fixed; new consolidated vw_holdings_all supersedes vw_holdings_summary/vw_asset_allocation; sector/asset_classification cleanup; Net Worth/Holdings/Asset Allocation Power BI pages built)
+Last updated: 2026-09-15 (Session 21: vw_holdings_all now the single source of truth for net worth — holding-level Cash vs Investment reclassification, new Retirement category, full l1-l5 Power BI account hierarchy; DF Checking included + 3 identically-named Kids Savings accounts renamed; new dbo.net_worth_history + vw_net_worth_all_time backfills 2011-2026 from Tom's own tracking; dbo.budget_targets seeded for 2026 and vw_budget_vs_actual verified working)
 
 ---
 
@@ -48,7 +48,8 @@ Azure SQL Database (FinanceDB)
         ├── insurance_asset_valuations
         ├── baird_holdings          ← ✅ Live (5,509 rows, 11 accounts, lot-level)
         ├── security_sectors        ← ✅ Live (115 tickers mapped)
-        └── budget_targets
+        ├── budget_targets          ← ✅ Live, seeded 2026-09-15 (240 rows, 2026)
+        └── net_worth_history       ← ✅ Live, added 2026-09-15 — 2011-2026 CSV backfill
     │
     ▼
 External Valuation APIs (Phase 4 — not yet integrated)
@@ -67,14 +68,16 @@ Power BI (star schema)
   │     └── vw_enrichment_quality
   │
   └── Phase 4 — Net Worth / Holdings / Asset Allocation pages built and
-        verified 2026-09-14; Liability and Budget vs Actual still planned
-        ├── vw_net_worth              (built — Investment/Cash/Insurance/Physical/Liability)
-        ├── vw_holdings_all           (built 2026-09-14 — consolidated Baird + Plaid Investments)
+        verified 2026-09-14; Budget vs Actual data verified working
+        2026-09-15 (page refinement is next session); Liability still planned
+        ├── vw_net_worth              (thin wrapper over vw_holdings_all as of 2026-09-15 — Cash/Investment/Retirement/Physical/Liability)
+        ├── vw_holdings_all           (built 2026-09-14, consolidated Baird + Plaid Investments; extended 2026-09-15 with l1_group..l5_source Power BI account hierarchy columns)
+        ├── vw_net_worth_all_time     (built 2026-09-15 — full 2011-2026 monthly history, net_worth_history + vw_holdings_all, forward-filled)
         ├── vw_account_balances
         ├── vw_holdings_summary       (dead — Baird-only, superseded by vw_holdings_all, removed from PBI model)
         ├── vw_asset_allocation       (dead — Baird-only, superseded by vw_holdings_all, removed from PBI model)
         ├── vw_liability_summary      (planned — not yet built into a page)
-        └── vw_budget_vs_actual       (planned — blocked on budget_targets seeding)
+        └── vw_budget_vs_actual       (data verified working 2026-09-15 — budget_targets seeded; needs no Power BI relationship, joins internally; page itself not yet refined)
     │
     ▼
 AI Agent Layer (Phase 5)
@@ -265,16 +268,26 @@ All relationships: One-to-Many, Single cross-filter direction, Calendar as hub.
 | Transaction Review | ✅ Complete (added 2026-06-01) — Source/Year/Month slicers |
 | Data Health | ✅ Complete (added Session 13) — built on vw_source_freshness + vw_category_health |
 | Needs Review | ✅ Complete (added Session 17) — built on `vw_needs_review` (all `category_reviewed = 0` rows, with computed `suggested_category`/`suggested_subcategory` and a `review_priority` 1–4 tier). Backlog cleared 421 → 0 on 2026-09-03. See SessionStarter "Data Health (Power BI)". Table visuals on this page **must** include `transaction_id` (hidden) with numerics set to "Don't summarize" — see BestMethods. |
-| Net Worth | ✅ Complete (added Session 20, 2026-09-14) — built on `vw_net_worth`. Current total $10,816,888.91 across Investment/Cash/Insurance/Physical/Liability. |
-| Holdings / Asset Allocation | ✅ Complete (added Session 20, 2026-09-14) — built on `vw_holdings_all` (not `vw_holdings_summary`/`vw_asset_allocation`, both now dead — see below). Grouped by `account_name`, `sector`, `asset_classification`, `asset_type`. |
+| Net Worth | ✅ Complete (added Session 20, 2026-09-14; categories reworked Session 21, 2026-09-15) — built on `vw_net_worth`. Current total $10,817,644.36 across Cash/Investment/Retirement/Physical/Liability (category set changed this session — see vw_net_worth below). |
+| Holdings / Asset Allocation | ✅ Complete (added Session 20, 2026-09-14; hierarchy columns added Session 21) — built on `vw_holdings_all` (not `vw_holdings_summary`/`vw_asset_allocation`, both now dead — see below). Grouped by `account_name`, `sector`, `asset_classification`, `asset_type`, or the new `l1_group`..`l5_source` hierarchy. |
+| Net Worth History (full 2011-2026 trend) | ✅ Data ready, page not yet built (Session 21, 2026-09-15) — `vw_net_worth_all_time`, one row per account per calendar month, forward-filled. |
 | Liability Summary | ⏳ Designed with chat, not yet built/verified in Power BI — would use `vw_liability_summary` (already exists, unused). |
-| Budget vs Actual | ⏳ Designed with chat, not yet built/verified in Power BI — would use `vw_budget_vs_actual` (already exists). Blocked on `budget_targets` being seeded — table exists, empty. |
+| Budget vs Actual | 🟡 Data verified working (Session 21, 2026-09-15) — `budget_targets` seeded for 2026, `vw_budget_vs_actual` confirmed producing correct actual/budget/variance/pct_of_budget numbers (no Power BI relationship needed, the view joins internally). Page design/refinement is explicitly the next session's focus. |
 
-#### vw_holdings_all (added 2026-09-14, script 95)
-Consolidates `dbo.baird_holdings` (CSV, flat) and `dbo.holdings` + `dbo.accounts` + `dbo.securities` (Plaid Investments — Principal 401k, HSA, any future connection) into one shape. Full history (every snapshot date), not just latest — built for equity-performance trending, not just a point-in-time number; downstream consumers filter to `MAX(snapshot_date)` per account themselves. Columns: `source`, `institution_id`, `holding_id`, `account_name`, `owner`, `snapshot_date`, `symbol`, `description`, `asset_type`, `asset_classification`, `sector`, `quantity`, `price`, `value`, `cost_basis`, `unit_cost`, `unrealized_gl`, `unrealized_gl_pct`, `term`, `est_annual_income`, `date_acquired`, `currency`, `include_in_net_worth`. Fields that only exist on one side (`sector`/`asset_classification`/`term`/`est_annual_income`/`date_acquired` are Baird-only) are `NULL` on the other; `unrealized_gl`/`unrealized_gl_pct`/`unit_cost` are computed from `cost_basis` for the Plaid side to keep parity (NULL when Plaid doesn't return `cost_basis`, e.g. the entire Principal 401k). `sector` for any fund-type Plaid holding (mutual fund/ETF, or Plaid's generic `'Miscellaneous'`) is normalized to `'Diversified'`, matching Baird's own convention (script 96). `asset_classification` for the Plaid side is derived from `security_type` (script 97) since Plaid has no equivalent field — mapped onto Baird's own bucket names (Equities/Fixed Income/Alternatives/Cash and Cash Equivalents). Supersedes `vw_holdings_summary` and `vw_asset_allocation` as the source of truth for holdings — both are dead (still `FROM dbo.baird_holdings` only, same gap `vw_net_worth` had before this session's fix), removed from the Power BI model, not deleted from SQL.
+#### vw_holdings_all (added 2026-09-14, script 95; extended 2026-09-15, scripts 99-103)
+Consolidates `dbo.baird_holdings` (CSV, flat) and `dbo.holdings` + `dbo.accounts` + `dbo.securities` (Plaid Investments — Principal 401k, HSA, any future connection) into one shape. Full history (every snapshot date), not just latest — built for equity-performance trending, not just a point-in-time number; downstream consumers filter to `MAX(snapshot_date)` per account themselves. Columns: `source`, `institution_id`, `account_key`, `holding_id`, `account_name`, `owner`, `account_subtype`, `snapshot_date`, `symbol`, `description`, `asset_type`, `asset_classification`, `sector`, `quantity`, `price`, `value`, `cost_basis`, `unit_cost`, `unrealized_gl`, `unrealized_gl_pct`, `term`, `est_annual_income`, `date_acquired`, `currency`, `include_in_net_worth`, `lender_name`, `net_worth_category`, `l1_group`..`l5_source`. Fields that only exist on one side (`sector`/`asset_classification`/`term`/`est_annual_income`/`date_acquired` are Baird-only) are `NULL` on the other; `unrealized_gl`/`unrealized_gl_pct`/`unit_cost` are computed from `cost_basis` for the Plaid side to keep parity (NULL when Plaid doesn't return `cost_basis`, e.g. the entire Principal 401k). `sector` for any fund-type Plaid holding (mutual fund/ETF, or Plaid's generic `'Miscellaneous'`) is normalized to `'Diversified'`, matching Baird's own convention (script 96). `asset_classification` for the Plaid side is derived from `security_type` (script 97) since Plaid has no equivalent field — mapped onto Baird's own bucket names (Equities/Fixed Income/Alternatives/Cash and Cash Equivalents). Supersedes `vw_holdings_summary` and `vw_asset_allocation` as the source of truth for holdings — both are dead (still `FROM dbo.baird_holdings` only, same gap `vw_net_worth` had before Session 20's fix), removed from the Power BI model, not deleted from SQL.
 
-#### vw_net_worth (updated 2026-09-14, scripts 94 + 98)
-The `Investment` category now correctly includes both Baird (`dbo.baird_holdings`) and Plaid Investments (`dbo.holdings`/`dbo.accounts`/`dbo.securities`) sources — previously Baird-only (the root cause of the Principal 401k never appearing on the net-worth page, ISSUE-009). Gated on `dbo.accounts.include_in_net_worth = 1` (script 98) — same flag the `Cash` branch already used — so HSA is now included too (Tom's explicit decision) and any future Plaid Investments connection is picked up automatically.
+As of Session 21 (2026-09-15), also carries the non-holding net-worth sources (bank cash, insurance, physical, liabilities) as pseudo-holding rows (symbol/quantity/price/cost NULL, `value` = the balance/valuation) — this view is now the single source of truth for all net worth data, not just holdings. `account_key` is a real unique-per-account grouping key (Plaid `account_id` for Plaid-backed rows, the source's own PK for insurance/physical/liability, `'BAIRD-' + account_name` for Baird since it has no account table) — required because `dbo.accounts` had 3 rows literally named "Kids Savings Account" with different `account_id`s (since renamed, see DecisionLog), and grouping "latest snapshot per account" by `account_name` alone would silently collapse or drop rows for any account sharing a display name.
+
+`net_worth_category` (Cash/Investment/Retirement/Physical/Liability) is computed **per row**, not per account — a cash-equivalent holding inside an Investment or Retirement account (e.g. a money market fund inside `MAIN - BKG`) shows under Cash, not its account's usual category. Insurance rolls into Cash. This is a separate, flatter field from the `l1_group`..`l5_source` Power BI account hierarchy (script 102) built to match Tom's target Account Type tree (Assets/Liabilities → Financial/Physical/Cash → Investments/HSA/PE & Baird/Education 529/Retirement/Insurance/Bank → asset-type or account-specific subgroup → friendly institution label) — both are maintained independently; see DecisionLog for the specific derivation rules and documented deviations from Tom's original sketch.
+
+#### vw_net_worth (updated 2026-09-14 scripts 94+98; rebuilt as a thin wrapper 2026-09-15, script 99)
+Now just a latest-snapshot-per-account wrapper over `vw_holdings_all`'s `net_worth_category`/`account_key` — `SELECT account_name, net_worth_category AS asset_category, snapshot_date, SUM(value) FROM vw_holdings_all ... WHERE include_in_net_worth = 1`, grouped to the latest date per `account_key`. Kept so existing Power BI relationships built on it keep working; new Power BI work should point at `vw_holdings_all` directly (one table, full history, the l1-l5 hierarchy available) and this view can eventually be retired the same way `vw_holdings_summary`/`vw_asset_allocation` were. Categories are now Cash/Investment/Retirement/Physical/Liability (Insurance folded into Cash, script 103; Retirement split out of Investment, script 100) — different from the Investment/Cash/Insurance/Physical/Liability set as of Session 20.
+
+#### vw_net_worth_all_time (added 2026-09-15, script 105)
+Unions `dbo.net_worth_history` (2011-2026 CSV backfill + interpolated gap-fill — see `net_worth_history` in Phase 4 Tables) with `vw_holdings_all` for one continuous account-level **monthly** series. Forward-fills each account's last known value across every calendar month with no snapshot — a plain "latest date in month" approach breaks badly for the pre-2020 years, where most accounts in Tom's CSV were only recorded annually (January): without forward-fill, April-December of those years would collapse to whatever one or two accounts happened to have an off-cycle update, swinging the "monthly total" from millions to near-zero. Doesn't fabricate anything past an account's latest known snapshot (a physical asset or liability whose last sync was last month simply carries that value forward, same forward-fill logic — not a gap, just not re-measured yet). Columns: `account_key`, `account_name`, `net_worth_category`, `month_start`, `as_of_date` (the actual snapshot date the month's value came from), `value`.
+
+**Power BI modeling note:** don't relate `vw_net_worth_all_time` and `vw_holdings_all` to each other directly — they're two different grains of the same underlying data (one is literally built by aggregating the other) and relating two fact tables causes fan-out. Use whichever table fits the visual; relate each independently to the Calendar table instead. See BestMethods for the Calendar-table-date-range lesson this surfaced.
 
 #### Calendar Table Sort Orders
 | Column | Sort By |

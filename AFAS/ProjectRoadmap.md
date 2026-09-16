@@ -149,7 +149,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 4. Monthly Baird CSV procedure — export, add Account Name + Date, run import_baird_holdings.py
 5. Update physical asset valuations monthly (Zillow + KBB)
 6. ✅ ISSUE-043 fully resolved 2026-09-16 — Apple portion (31 rows, script 88) plus the HSA Consumer Note backlog (61 rows)
-7. ✅ Wire principal_sync.py into automated pipeline — done 2026-09-14 (monthly_sync.py + http_ingest.py manual trigger). Note: sector/industry capture fix (AFAS commit 64e45cc) still needs redeploy — only the pipeline-wiring commit (0cee6b6) was confirmed deployed.
+7. ✅ Wire principal_sync.py into automated pipeline — done 2026-09-14 (now run via http_monthly_ingest_all as of Session 22). Sector/industry capture fix (AFAS commit 64e45cc) confirmed live in production 2026-09-16 — queried dbo.securities directly, 10 of 11 current 401k holdings carry real sector/industry data timestamped to a live run.
 8. Add run_log logging to plaid_sync.py's daily transaction sync (gap discovered 2026-08-01)
 9. Investigate ISSUE-019 (Power BI Monthly Spend Apple-only data)
 10. Run ISSUE-022 diagnostic query — confirm extent of pre-existing March 2026 HSA merchant_patterns coverage

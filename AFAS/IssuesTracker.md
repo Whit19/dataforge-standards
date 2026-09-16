@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-09-16 (Session 22 — ISSUE-043 fully resolved and moved to DecisionLog; no new open issues, all Session 22 work resolved in-session)
+Last updated: 2026-09-16 (Session 22 — ISSUE-012, ISSUE-043, and ISSUE-044 all resolved and moved to DecisionLog; ISSUE-008 remains the only active issue)
 
 ---
 
@@ -25,33 +25,12 @@ Last updated: 2026-09-16 (Session 22 — ISSUE-043 fully resolved and moved to D
 
 ---
 
-### ISSUE-012 — Category taxonomy drift
-| Field | Value |
-|-------|-------|
-| Status | **Effectively cleared 2026-09-08.** Checks 1/2/3 = 0. Check 4 = 207 pairs, none actionable (8 benign `[DIFFERENT DEST]`, ~199 cosmetic `[same dest]`). Left Open only so Tom can formally close it and decide on the optional Check 5. |
-| Opened | 2026-07-01 |
-| Priority | Low |
-| Description | category_map / merchant_patterns / transactions contained category/subcategory combos not in Category_Taxonomy.md, plus same-priority shadow collisions. Sessions 17-18 built `taxonomy_audit.py` and worked a large chunk. **Session 19 + continuation (2026-09-08)** cleared the rest: scripts 79-81 (18 rule-level `[DIFFERENT DEST]` fixes), 86 (31 dead mid-`%` patterns), 88 (Apple Uncategorized + Dry Cleaning), **89** (~65 Checks 1-3 rule-table renames + backfills — with 3 verified Claude Code deviations: Transfer/Savings split by `TRANSFER_IN/OUT_SAVINGS` code direction, the one Car/Other txn → Car/Registration since it's a DMV charge, and a missed `%DAILY CASH ADJUSTMENT%` pattern folded into the Cash Adj consolidation), **90** (Check 4 shadows: EXXONMOBIL→Groceries, JOSTENS/MILWAUKEE GRAND/Hucks priority, SD DEPT OF GF&P / WEB FR DDA / etc.), **91** (`%ALLIANZ EVENT%`→Travel/General, `EDUCATION_CHILD_CARE`→Children/Babysit), **92** (hotel/Summerfest cluster — `%THE WESTIN%`→Dining Out p9, 12 misrouted Westin-restaurant rows reclassified, `%PFISTER HOTEL%` fixed, dead Hyatt/Summerfest patterns deactivated), **93** (`%CHECK%` deactivated, dead Housing/Rent category_map row deleted). `taxonomy_audit.py` itself was fixed twice: ISSUE-041 (parse doc live) and 1db78e4 (Check 4 no longer false-flags no-wildcard exact-match patterns like `ACT`). 6 new subcategories added and documented in Category_Taxonomy.md (Clothing/Dry Cleaning, Large Purchases/General, Bills & Utilities/General, Other Income/Dividends, Uncategorized/eBay - Review, Uncategorized/PayPal - Review). TOTAL: 332 → 207. |
-| Remaining (all non-actionable) | 8 `[DIFFERENT DEST]` Check 4 pairs, all confirmed benign/intentional: 5 Westin Milwaukee dining patterns vs generic `%WESTIN%` lodging (deliberate split); `%UBER EATS%` (Dining/Delivery, correct) and `%UBER CASH%` (Gifts/Charity — deliberate, gifted credit) vs `%UBER%`; `%ATM%` vs `%TM%` (never both match one string). ~199 `[same dest]` cosmetic pairs — accepted, not worked. Optional: add `taxonomy_audit.py` Check 5 for subcategory==category mirrors (ISSUE-014). |
-| Next Step | Formally close, or add Check 5. See also ISSUE-044 (write-time taxonomy guard). |
-
----
-
-### ISSUE-044 — enrich_transactions.py has no write-time taxonomy validation guard
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-09-08 |
-| Priority | Medium |
-| Description | Nothing stops the enricher from writing a `category`/`subcategory` combination that isn't in `Category_Taxonomy.md`. A wrong `merchant_patterns` / `category_map` row, or a future edit, silently propagates an off-list value onto every matching transaction; `taxonomy_audit.py` only catches it after the fact, and only when someone remembers to run it. This is the mechanism behind most of ISSUE-012. Tom's stated principle: the enricher should never be *able* to write an off-taxonomy combo. |
-| Next Step | Add a load-time validation step to `enrich_transactions.py` using the same live-parse-`Category_Taxonomy.md` mechanism ISSUE-041 built for the audit script (`load_canonical_taxonomy()` is already a reusable function in `scripts/taxonomy_audit.py`). Any `merchant_patterns` / `category_map` row whose `(category, subcategory)` isn't on the list should hard-fail the run with a clear message before any write. Real code change, not a data fix. |
-
----
-
 ### ISSUE-014 (recurrence note on prior fix) — subcategory-mirror violations recurred
 2026-06-01 taxonomy fix corrected subcategory=category mirror violations (Clothing, Dining Out, Gifts/Charity, Groceries, Payment). By 2026-07-01, 294 merchant_patterns rows and 11 category_map rows had the same violation again (Clothing, Groceries, Car, Property Tax, Payment, Dining Out, Interest). Root cause of the recurrence not yet investigated — worth checking whether a specific import/enrichment script is reintroducing these values, rather than treating each occurrence as an isolated one-off fix.
 
-**2026-09-03 note:** Session 17's taxonomy-drift work (ISSUE-012) established the general mechanism for this class — a rename applied to transaction rows but never propagated to `merchant_patterns`/`category_map`, so the pattern table keeps re-creating the old value on every match. The mirror-violation recurrence is very likely the same shape (the retired mirror value still living in merchant_patterns). `taxonomy_audit.py` does not yet check for subcategory==category specifically — add that as a 5th check when working the ISSUE-012 backlog.
+**2026-09-03 note:** Session 17's taxonomy-drift work (ISSUE-012) established the general mechanism for this class — a rename applied to transaction rows but never propagated to `merchant_patterns`/`category_map`, so the pattern table keeps re-creating the old value on every match. The mirror-violation recurrence is very likely the same shape (the retired mirror value still living in merchant_patterns).
+
+**2026-09-16 note:** Tom closed ISSUE-012 without adding the proposed `taxonomy_audit.py` Check 5 (subcategory==category mirrors) — low priority, diminishing returns given Checks 1-3 are at zero. However, `enrich_transactions.py`'s new write-time taxonomy validation guard (ISSUE-044, resolved same day) means any *new* mirror-value write would now be blocked outright before it reaches `dbo.transactions`, since none of Category_Taxonomy.md's documented pairs are subcategory==category mirrors — this doesn't clean up any mirror value already sitting in `merchant_patterns`/`category_map`, but it does close off the recurrence mechanism going forward without a dedicated Check 5.
 
 ---
 

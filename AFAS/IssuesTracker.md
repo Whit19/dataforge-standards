@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-09-17 (Session 22 — ISSUE-043 fully resolved and moved to DecisionLog; no new open issues, all Session 22 work resolved in-session)
+Last updated: 2026-09-16 (Session 22 — ISSUE-043 fully resolved and moved to DecisionLog; no new open issues, all Session 22 work resolved in-session)
 
 ---
 

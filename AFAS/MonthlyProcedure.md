@@ -1,12 +1,12 @@
 # AFAS Project — Monthly Procedure
 **Run this in order at the start of every month — covers every account/source
-that needs monthly attention.** Rewritten 2026-09-17 to match Tom's actual
-standing routine (superseded the 2026-09-16 first draft, which was extracted
-from SessionStarter.md's older per-source procedures and had drifted from
-real practice in a few places); Step 1 updated same day after the two
-monthly timers were deregistered in favor of a single combined manual
-trigger (`http_monthly_ingest_all`); institution hyperlinks and the
-liability/physical-valuation update mechanism added 2026-09-17. See
+that needs monthly attention.** Rewritten 2026-09-16 to match Tom's actual
+standing routine (superseded an earlier first draft the same day, which was
+extracted from SessionStarter.md's older per-source procedures and had
+drifted from real practice in a few places); Step 1 updated same day after
+the two monthly timers were deregistered in favor of a single combined
+manual trigger (`http_monthly_ingest_all`); institution hyperlinks and the
+liability/physical-valuation update mechanism added 2026-09-16. See
 DecisionLog.md for the history and rationale behind individual steps; see
 BestMethods.md for the lessons several of these steps encode.
 
@@ -33,7 +33,7 @@ paused. Both sub-steps below are required, not alternatives to each other.
 
 ## 1. Trigger the Plaid Syncs
 There is no automated monthly timer anymore — `timer_sync` and
-`monthly_sync` were deregistered 2026-09-17 (they fired on the same
+`monthly_sync` were deregistered 2026-09-16 (they fired on the same
 schedule Azure SQL was still auto-paused, ISSUE-032, and always needed a
 manual DB resume beforehand anyway). Every monthly sync is now a deliberate
 manual trigger, run here after Step 0's DB resume, from the

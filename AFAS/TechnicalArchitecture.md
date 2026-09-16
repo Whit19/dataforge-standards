@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-09-17 (Session 22: first live run-through of MonthlyProcedure.md — timer_sync/monthly_sync deregistered in favor of one manual http_monthly_ingest_all route; enrich_transactions.py's change-detection comparison fixed (was positional, not by transaction_id — flagged 9,604 untouched rows as changed); new vw_account_freshness (account-level freshness + latest_value, covers NWM/401k which vw_source_freshness never did); get_plaid_tokens.py pre-fills tokens; Tesla valuations switched to a flat monthly depreciation policy; the 61-row HSA ISSUE-043 backlog resolved via a previously-uncaptured Consumer Note CSV field)
+Last updated: 2026-09-16 (Session 22: first live run-through of MonthlyProcedure.md — timer_sync/monthly_sync deregistered in favor of one manual http_monthly_ingest_all route; enrich_transactions.py's change-detection comparison fixed (was positional, not by transaction_id — flagged 9,604 untouched rows as changed); new vw_account_freshness (account-level freshness + latest_value, covers NWM/401k which vw_source_freshness never did); get_plaid_tokens.py pre-fills tokens; Tesla valuations switched to a flat monthly depreciation policy; the 61-row HSA ISSUE-043 backlog resolved via a previously-uncaptured Consumer Note CSV field)
 
 ---
 

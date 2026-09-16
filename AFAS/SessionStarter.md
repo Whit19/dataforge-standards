@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-17 (Session 22 — first live run-through of MonthlyProcedure.md: enrich_transactions.py positional-comparison bug fixed, vw_account_freshness built, http_monthly_ingest_all added + the two auto-pause-prone timers deregistered, HSA Consumer Note discovery resolved the 61-row ISSUE-043 backlog, Tesla depreciation switched to a flat monthly policy; SQL watermark 109)
+Last updated: 2026-09-16 (Session 22 — first live run-through of MonthlyProcedure.md: enrich_transactions.py positional-comparison bug fixed, vw_account_freshness built, http_monthly_ingest_all added + the two auto-pause-prone timers deregistered, HSA Consumer Note discovery resolved the 61-row ISSUE-043 backlog, Tesla depreciation switched to a flat monthly policy; SQL watermark 109)
 
 ---
 
@@ -302,13 +302,13 @@ Session 21 (2026-09-15):
                            104_net_worth_history_table.sql
                            105_vw_net_worth_all_time_monthly.sql
 
-Session 22 (2026-09-16/17):
+Session 22 (2026-09-16):
                            106_vw_account_freshness.sql
                            107_vw_account_freshness_add_value.sql
                            108_tesla_monthly_depreciation_september2026.sql
                            109_house_valuation_september2026.sql
 
-Current high watermark: **109** (confirmed live 2026-09-17 — re-confirm
+Current high watermark: **109** (confirmed live 2026-09-16 — re-confirm
 live rather than trust this number next session too. Note: code changes
 committed to AFAS `main` this session that are NOT numbered SQL scripts —
 scripts/load_net_worth_history.py + scripts/interpolate_net_worth_gaps.py

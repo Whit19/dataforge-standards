@@ -80,9 +80,16 @@ routine, not a bug or a Plaid-wide outage (confirmed against Amex
 ---
 
 ## 2. Re-verify
-Run the same source-freshness query again (`vw_source_freshness` or
-`dbo.plaid_sync_state`) — confirm all four sources above now show a current
-`MAX(date)`. Also check the **JSON response from each endpoint** for errors
+Query `vw_account_freshness` (added 2026-09-16) — one row per **account**,
+not just per source, covering every monthly sync including NW Mutual and
+the Principal 401k (which `vw_source_freshness` never covered — it only
+queries `dbo.transactions`, and neither of those write there). Confirm
+every account under each of the four sources shows a current `max_date`,
+not just that the source as a whole looks current — a source can report
+success while one specific account under it (e.g. one of several Associated
+Bank accounts) still didn't actually get captured.
+
+Also check the **JSON response from each endpoint** for errors
 (e.g. `ITEM_LOGIN_REQUIRED`) before moving on — don't trust the
 [Azure Portal](https://portal.azure.com) Test/Run panel's "Succeeded" status
 alone; that doesn't reflect whether the internal SQL work actually

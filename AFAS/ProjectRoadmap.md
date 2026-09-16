@@ -134,7 +134,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ vw_holdings_all reworked into the single source of truth for net worth (Session 21, 2026-09-15) — holding-level Cash reclassification, new Retirement category, full l1-l5 Power BI account hierarchy columns, 2011-2026 historical backfill (dbo.net_worth_history + vw_net_worth_all_time, forward-filled monthly).
 - 🟡 Budget vs Actual — data ready (Session 21, 2026-09-15): budget_targets seeded for 2026, vw_budget_vs_actual verified producing correct numbers (no Power BI relationship needed). Page itself not yet refined in Power BI — explicitly planned for next session.
 - ⏳ Liability Summary report page — not yet built
-- ✅ Principal Financial 401k Plaid Investments — connected 2026-08-01. Real account: Baird Profit Sharing and Savings Plan (401k), owner Amy. principal_sync.py created, confirmed live: $2,096,195.86 total value across 11 holdings. Not yet wired into automated pipeline (Pick Up Here item).
+- ✅ Principal Financial 401k Plaid Investments — connected 2026-08-01. Real account: Baird Profit Sharing and Savings Plan (401k), owner Amy. principal_sync.py created and wired into the pipeline 2026-09-14 (see item 7 below).
 - ✅ HSA (Bank of America) added as a manual CSV-tracked account (Session 13) — Plaid confirmed unsupported for this institution outright ("Connectivity not supported"), not a stale-credential issue. import_hsa_transactions.py + import_hsa_holdings.py built and live: 461 transactions imported (full account history back to 2014), 2 holdings (both mutual funds), $24,163.69 tracked value. Same permanent-CSV-fallback model as Baird. **Enrichment: `enrich_hsa_csv.py` retired 2026-09-08 — `enrich_transactions.py` is now the single enricher for all sources.**
 - ⏳ Plaid Investments for Baird (when ISSUE-008 resolves)
 - ⏳ HSA-Baird and other non-canonical Baird accounts — confirmed never included in any monthly CSV import (new finding, 2026-08-01).
@@ -148,7 +148,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 3. ✅ Acquire Principal Financial 401k Plaid token (ISSUE-009) — resolved 2026-08-01; pipeline wiring + vw_net_worth fix completed and deployed 2026-09-14
 4. Monthly Baird CSV procedure — export, add Account Name + Date, run import_baird_holdings.py
 5. Update physical asset valuations monthly (Zillow + KBB)
-6. Assign categories to the 31 APPLE Uncategorized transactions (ISSUE-043)
+6. ✅ ISSUE-043 fully resolved 2026-09-16 — Apple portion (31 rows, script 88) plus the HSA Consumer Note backlog (61 rows)
 7. ✅ Wire principal_sync.py into automated pipeline — done 2026-09-14 (monthly_sync.py + http_ingest.py manual trigger). Note: sector/industry capture fix (AFAS commit 64e45cc) still needs redeploy — only the pipeline-wiring commit (0cee6b6) was confirmed deployed.
 8. Add run_log logging to plaid_sync.py's daily transaction sync (gap discovered 2026-08-01)
 9. Investigate ISSUE-019 (Power BI Monthly Spend Apple-only data)

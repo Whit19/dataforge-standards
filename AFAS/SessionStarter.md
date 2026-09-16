@@ -149,21 +149,11 @@ it's always sat here.
 
 ---
 
-## Watch List (no action needed unless it recurs)
-- **Sunnyside 651 Guerrero St (~2027-01).** `%SUNNYSIDE%651%` was
-  deactivated in script 86; the SF cannabis-dispensary charge (manually
-  filed Personal Care/Health & Wellness) now falls to the generic
-  `%SUNNYSIDE%` (→ Dining Out/General) or to review. If it recurs, decide
-  whether it needs its own (contiguous-text) pattern.
-
----
-
 ## Active Data Issues
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
 | ISSUE-012 | Low | Systemic taxonomy drift. **Effectively cleared** 2026-09-08 — Checks 1/2/3 at 0 (scripts 79-93, ISSUE-041/044-adjacent audit fixes, 6 new subcategories documented). Check 4 = 207 pairs: 8 `[DIFFERENT DEST]` all benign/intentional, ~199 `[same dest]` cosmetic — not being worked | Optional: audit Check 5 (subcategory==category mirrors, ISSUE-014) |
-| ISSUE-043 | Low | Apple portion DONE (script 88, 31 rows). Carryover: 61 HSA "Normal Distribution" rows at Uncategorized — policy question, CSV lacks the spend detail | Decide policy — Pick Up Here #1 |
-| ISSUE-044 | Medium | `enrich_transactions.py` has no write-time guard against off-taxonomy category/subcategory combos — audit only catches drift after the fact | Add a load-time validation check — Pick Up Here #3 |
+| ISSUE-044 | Medium | `enrich_transactions.py` has no write-time guard against off-taxonomy category/subcategory combos — audit only catches drift after the fact | Add a load-time validation check — Pick Up Here #4 |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---
@@ -210,7 +200,7 @@ one place and in run order.
 | timer_sync.py | Monthly timer trigger (1st @ 03:00 UTC) — Plaid transactions (Chase/Amex/Associated Personal) | ⚠️ **Deregistered 2026-09-16** (AFAS bd3ce83) — same reasoning as `monthly_sync.py` above; no longer imported in `function_app.py`. `http_monthly_ingest_all` covers this too. File left in place for reference. |
 | http_ingest.py | Manual HTTP triggers — http_ingest, http_balance_ingest, http_nwm_sync, http_principal_ingest, and (2026-09-16, AFAS bd3ce83) **http_monthly_ingest_all** — runs all four in one call, the one-click replacement for the two now-deregistered timers. The 4 single-source routes stay for targeted retries (e.g. only one source hit `ITEM_LOGIN_REQUIRED`). | ✅ Live |
 | get_plaid_tokens.py | Local Flask tool for Plaid token acquisition | ✅ 2026-09-16 (AFAS 602f0d3): each institution's existing-token box now pre-fills automatically from `local.settings.json` (the script already loaded these into the environment for `PLAID_CLIENT_ID`/`PLAID_SECRET` — no reason the reauth boxes couldn't too). Fixes a live failure: an empty token box launched a brand-new Link session instead of true update mode, and institution search matched the wrong entity ("Kabbage" instead of Amex). Earlier: added Plaid Link update-mode support (existing-token field per institution) and NW Mutual Tom/Amy cards, both 2026-08-01. |
-| db.py | DB connection | ✅ Ready — retry-with-backoff on Azure SQL error 40613 (auto-pause collision) added 2026-09-02, confirmed present in live code (ISSUE-032). Not yet exercised against a real auto-pause event — see Pick Up Here #5. |
+| db.py | DB connection | ✅ Ready — retry-with-backoff on Azure SQL error 40613 (auto-pause collision) added 2026-09-02, confirmed present in live code. Largely moot as of 2026-09-16 — the automated timers that used to collide with auto-pause (ISSUE-032) are deregistered; every sync is now a manual trigger run after an explicit DB resume (Step 0 of MonthlyProcedure.md). |
 
 ---
 
@@ -255,7 +245,7 @@ taxonomy-drift corrections (U-club / Airlines / Hotels / Fitness pattern
 renames, `%MARQUETTE UN%` priority → 40); 5 new merchant_patterns
 (WISCONSINGOV, Dave's Hot Chicken, ATM W D U S BANK, 1-800-FLOWERS,
 INDULGENCE CHOCOLAT); ~40 manual transaction corrections; 10 duplicate-row
-deletions. **Gap still open** — see Pick Up Here #7: decide whether to
+deletions. **Gap still open** — see Pick Up Here #1: decide whether to
 reconstruct these as scripts, or accept the gap.
 
 Session 18 (2026-09-04):

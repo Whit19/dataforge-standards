@@ -1,6 +1,6 @@
 # Master Claude Protocol — DataForge
 **Apply this to every Claude Project and every session. No exceptions.**
-Last updated: 2026-09-05 (restructured — see 3d "Read the Docs" [new explicit command], Section 4 [Path A/B fork for CC prompts vs. direct Claude Code edits, corrected to reflect chat-drafts-code-changes as the common case], Section 14 [consolidated "Update the Docs" procedure, absorbing former 14/16/17, with an explicit Case 1/2 fork mirroring Section 4 and a formal chat→Claude Code→chat handoff loop for the Session Summary])
+Last updated: 2026-09-16 (Section 6a [new — no dollar amounts in dataforge-standards, public repo]; 2026-09-05 restructure — see 3d "Read the Docs" [new explicit command], Section 4 [Path A/B fork for CC prompts vs. direct Claude Code edits, corrected to reflect chat-drafts-code-changes as the common case], Section 14 [consolidated "Update the Docs" procedure, absorbing former 14/16/17, with an explicit Case 1/2 fork mirroring Section 4 and a formal chat→Claude Code→chat handoff loop for the Session Summary])
 
 ---
 
@@ -412,6 +412,41 @@ required two rounds of manual cleanup this week alone.
 - **`.env` and `local.settings.json` are always in `.gitignore`** — confirm before first commit on any project
 - **`serviceAccountKey.json` is never committed** — delete after use
 - When referencing a key/token in docs, use the variable name only: e.g. `ANTHROPIC_API_KEY` — never the value
+
+---
+
+## 6a. No Dollar Amounts — dataforge-standards is a Public Repo
+
+**Never write a dollar amount, account balance, transaction value, net
+worth figure, or any other currency figure into any md file in the
+`dataforge-standards` repo.** This repo is public (Section 3a) — specific
+financial figures don't belong there even though the rest of the project
+detail does.
+
+- Use qualitative language instead of a figure: "a large deposit," "the
+  mortgage balance," "reconciled to the penny" (without the actual numbers
+  either side of that reconciliation), row/transaction counts, percentages,
+  or relative language ("increased" instead of "+$X") where the number
+  itself isn't the point of the sentence.
+- Row counts, dates, percentages, and other non-currency quantities
+  (transaction counts, account counts, script numbers) are fine — this rule
+  is about currency figures specifically, not all numbers.
+- **This applies going forward, not retroactively.** It does not require
+  rewriting DecisionLog's historical entries — DecisionLog is append-only
+  and past entries are never edited or deleted (Section 5c) — nor does it
+  require scrubbing dollar figures already committed in past
+  TechnicalArchitecture.md incident write-ups, BestMethods.md lesson
+  sources, or TimeLog.md session summaries, all of which describe what
+  actually happened at the time.
+- A **live-state** table (one that gets rewritten every session to reflect
+  current reality, as opposed to an append-only historical record) should
+  stop carrying dollar figures the next time it's touched — e.g.
+  SessionStarter.md's Net Worth Summary now points at the Power BI report /
+  `vw_net_worth` instead of hardcoding a total (see the companion CC prompt
+  for that specific edit).
+- If a future doc-sync (Section 14) would introduce a new dollar figure into
+  any of these files, rephrase it qualitatively instead, the same as any
+  other content that shouldn't go in a public file.
 
 ---
 

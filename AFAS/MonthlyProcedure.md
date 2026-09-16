@@ -286,6 +286,7 @@ convenience-store purchase, not gasoline.
 - See `BestMethods.md` for the lessons behind several of these steps
   (transaction_id normalization, MERGE overwrite protection, the taxonomy
   closed-list rule, etc.) and `IssuesTracker.md` for open issues these
-  procedures touch (ISSUE-044 — ISSUE-032 and ISSUE-043 are both resolved).
+  procedures touch (ISSUE-032, ISSUE-043, and ISSUE-044 — all resolved as
+  of 2026-09-16, kept here for the history behind these steps).
 - No dollar/currency figures belong in this file — see
   MASTER_CLAUDE_PROTOCOL.md Section 6a.

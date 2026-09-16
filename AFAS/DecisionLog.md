@@ -4,6 +4,20 @@ Last updated: 2026-09-16
 
 ---
 
+## 2026-09-16 (Session 22 continued — Pick Up Here Cleanup: ISSUE-044 Write-Time Taxonomy Guard, Dead View Drop, principal_sync.py Deploy Verified, ISSUE-012 Closed)
+
+*Worked the Pick Up Here backlog from the same day's earlier docs cleanup. Three items needed Tom's decision before any work could start; got all three, then closed out every non-Power-BI item in one pass.*
+
+| Date | Decision | Rows |
+|------|----------|------|
+| 2026-09-16 | Tom's calls on the three decision-gated items: (1) accept the Session 17 ad-hoc-SQL-never-reconstructed-as-scripts gap rather than spend time reconstructing it — it's already live in the DB, reconstruction would be paperwork with no functional benefit; (2) drop `vw_holdings_summary`/`vw_asset_allocation` (dead, Baird-only, superseded by `vw_holdings_all`) rather than leave them; (3) close ISSUE-012 as-is without adding `taxonomy_audit.py`'s proposed Check 5 (subcategory==category mirrors) — Checks 1-3 are at zero, low priority, diminishing returns. | — |
+| 2026-09-16 | Built the ISSUE-044 write-time taxonomy validation guard in `enrich_transactions.py` (AFAS `26f8472`). New `validate_taxonomy()` hard-fails the whole write batch — not just the bad rows — if any row about to be written has a (category, subcategory) pair not in Category_Taxonomy.md's Full Taxonomy list, so a partial write never leaves the DB in a mixed valid/invalid state mid-fix. Reuses `taxonomy_audit.py`'s `load_canonical_taxonomy()`/`_resolve_taxonomy_doc()` via a `sys.path` import rather than a second hand-maintained list (the exact mistake ISSUE-041 already cost this project once). Verified end-to-end against live data: taxonomy loads (29 categories, 180 pairs), a real full run against the current 16,754-row table passes clean with zero violations, no regression to the existing "only write changed rows" logic from earlier today. Also noted as a side benefit for ISSUE-014 (subcategory-mirror recurrence) — this guard blocks any *new* mirror-value write going forward, since no documented taxonomy pair is a mirror, without needing the Check 5 Tom just declined. | — |
+| 2026-09-16 | Dropped `vw_holdings_summary` and `vw_asset_allocation` (sql/110). Confirmed via `sys.sql_expression_dependencies` that no other view/proc/function referenced either before dropping — clean removal, verified gone afterward. | — |
+| 2026-09-16 | Verified the `principal_sync.py` sector/industry-capture fix (AFAS commit `64e45cc`) is actually live in production, closing out the last open question from Session 20. Queried `dbo.securities` directly for the Principal 401k account after a real `http_monthly_ingest_all` run: 10 of 11 current holdings carry real sector/industry data (`Miscellaneous` / `Investment Trusts or Mutual Funds`) with `updated_at` timestamped to that run. The 11th (MINGX) is a holding sold out of the account before August 2026 — its security row is a stale pre-fix leftover from before the sector capture existed, not evidence the fix is missing; harmless, since it's no longer part of any current holding. | — |
+| 2026-09-16 | Pick Up Here reduced from 8 items to 3 — everything remaining requires Power BI Desktop (`vw_potential_duplicates` Data Health tile, the Liability page, Budget vs Actual page refinement), none of which is a code or data task Claude Code can execute directly. | — |
+
+---
+
 ## 2026-09-16 (Session 22 — Monthly Procedure Live Test: Enrichment Bug Fix, vw_account_freshness, Combined Ingest Route, HSA Consumer Note Discovery, Tesla Depreciation Policy)
 
 *This session was the first live, interactive run-through of `MonthlyProcedure.md` (Session 21's new consolidated checklist), with Tom confirming each step and giving live feedback along the way. Several real bugs and gaps surfaced specifically because it was run for real rather than just reviewed on paper.*

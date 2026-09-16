@@ -112,38 +112,16 @@ top-level status, when verifying an automated sync actually ran.**
 ## Pick Up Here — Next Session
 
 Grouped by what each item actually needs, so nothing sits here just because
-it's always sat here.
-
-**Needs Tom's decision (no code/Power BI work until decided):**
-1. **Session 17's ad-hoc SQL still not reconstructed as numbered scripts** —
-   `vw_needs_review`, `vw_potential_duplicates`, and Session 17's
-   correction/pattern-rename SQL remain uncommitted (Sessions 18-19, scripts
-   72-93, ARE committed). Reconstruct Session 17's, or accept the gap?
-2. **`vw_holdings_summary` / `vw_asset_allocation` are dead SQL** — removed
-   from the Power BI model, still exist in the database, still Baird-only
-   (superseded by `vw_holdings_all`). Formally drop the two SQL views, or
-   leave them unused?
-3. **ISSUE-012 optional Check 5** — add a `taxonomy_audit.py` Check 5 for
-   subcategory==category mirrors (ISSUE-014), or close ISSUE-012 as-is
-   without it? Low priority either way.
-
-**Requires a Claude Code session (real code change):**
-4. **Write-time taxonomy validation guard for `enrich_transactions.py`
-   (ISSUE-044).** Nothing currently stops the enricher writing a
-   category/subcategory combo not in `Category_Taxonomy.md`. Add a
-   load-time check reusing `taxonomy_audit.py`'s `load_canonical_taxonomy()`
-   — hard-fail the run on an off-list combo.
-5. **`principal_sync.py` still needs the sector/industry-capture redeploy**
-   (AFAS commit `64e45cc`) — only the pipeline-wiring commit (`0cee6b6`) was
-   confirmed deployed as of Session 20. Deploy and verify via Application
-   Insights.
+it's always sat here. Five of the eight items from the last pass were
+resolved 2026-09-16 (see DecisionLog) — only the three Power BI Desktop
+items remain.
 
 **Requires Power BI Desktop (not a code or data task):**
-6. **Add `vw_potential_duplicates` as a Power BI Data Health tile** — the
+1. **Add `vw_potential_duplicates` as a Power BI Data Health tile** — the
    view exists and works; make it visible on the existing Data Health page.
-7. **Build the Liability Power BI page** — `vw_liability_summary` exists,
+2. **Build the Liability Power BI page** — `vw_liability_summary` exists,
    not yet connected.
-8. **Refine the Budget vs Actual Power BI page** — data is verified working
+3. **Refine the Budget vs Actual Power BI page** — data is verified working
    (`budget_targets` seeded, `vw_budget_vs_actual` correct); page
    design/refinement is still outstanding.
 
@@ -152,8 +130,6 @@ it's always sat here.
 ## Active Data Issues
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
-| ISSUE-012 | Low | Systemic taxonomy drift. **Effectively cleared** 2026-09-08 — Checks 1/2/3 at 0 (scripts 79-93, ISSUE-041/044-adjacent audit fixes, 6 new subcategories documented). Check 4 = 207 pairs: 8 `[DIFFERENT DEST]` all benign/intentional, ~199 `[same dest]` cosmetic — not being worked | Optional: audit Check 5 (subcategory==category mirrors, ISSUE-014) |
-| ISSUE-044 | Medium | `enrich_transactions.py` has no write-time guard against off-taxonomy category/subcategory combos — audit only catches drift after the fact | Add a load-time validation check — Pick Up Here #4 |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---
@@ -191,7 +167,7 @@ one place and in run order.
 | plaid_client.py | Plaid SDK wrapper | ✅ Ready |
 | balance_sync.py | Associated balance pull | ✅ Live |
 | nwm_sync.py | NWM Tom + Amy cash value sync | ✅ Live — both Items reconnected 2026-08-01 |
-| principal_sync.py | Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Created 2026-08-01. | ✅ 2026-09-14 (ISSUE-009 closed, AFAS 0cee6b6): wired into `monthly_sync.py`'s timer + new `/api/principal_ingest` route in `http_ingest.py`; **deployed to Finance-ingest-Tom-v6 and verified via Application Insights** (real HTTP-triggered run, not just local). Also now captures Plaid's `sector`/`industry` fields into `dbo.securities` (sql/96) — deployed code still needs this specific update pushed (committed to AFAS `main`, not yet redeployed as of session end). |
+| principal_sync.py | Pulls Principal/Baird 401k holdings via Plaid Investments (/investments/holdings/get), upserts dbo.accounts/dbo.securities/dbo.holdings. Created 2026-08-01. | ✅ 2026-09-14 (ISSUE-009 closed, AFAS 0cee6b6): wired into the pipeline, now run via `http_monthly_ingest_all` (Session 22) rather than the deregistered `monthly_sync.py` timer. Also captures Plaid's `sector`/`industry` fields into `dbo.securities` (sql/96) — **confirmed live in production 2026-09-16**: queried `dbo.securities` directly after a real `http_monthly_ingest_all` run and found 10 of 11 current 401k holdings carrying real sector/industry data (`Miscellaneous` / `Investment Trusts or Mutual Funds`) with `updated_at` timestamped that same run. The 11th (MINGX) is a holding sold out of the account before August — its security row is a stale pre-fix leftover, not evidence the fix is missing; harmless since it's no longer an active holding. |
 | import_hsa_transactions.py | Imports Bank of America HSA cash-ledger CSV (Run_Monthly/imports/HSA/HSA_Transactions_*.csv) into dbo.transactions. type/in_budget set deterministically at import (not enrichment-dependent) — 4 known non-spending description types whitelisted, everything else treated as real spending/income typed by amount sign. category/subcategory left NULL for `enrich_transactions.py`. Created 2026-08-01. transaction_id hashes normalized (parsed) date/amount — fixed 2026-09-01 after BofA export-formatting drift caused ~400 duplicate groups; watermark check warns on unexpectedly-new IDs. UTF-8 stdout fix applied. | ✅ Live — 461 canonical rows |
 | import_hsa_holdings.py | Imports Bank of America HSA "Fund Summary" CSV (value-only, no units/price available in this export) into dbo.holdings. Snapshot date parsed from filename. Created 2026-08-01. UTF-8 stdout fix applied 2026-09-01. | ✅ Live — 2 holdings, value confirmed reconciled to the CSV export. |
 | import_baird_holdings.py | Baird holdings CSV → baird_holdings | ✅ Ready — Total-row detection bug fixed 2026-08-01 (was checking wrong column) |
@@ -245,8 +221,9 @@ taxonomy-drift corrections (U-club / Airlines / Hotels / Fitness pattern
 renames, `%MARQUETTE UN%` priority → 40); 5 new merchant_patterns
 (WISCONSINGOV, Dave's Hot Chicken, ATM W D U S BANK, 1-800-FLOWERS,
 INDULGENCE CHOCOLAT); ~40 manual transaction corrections; 10 duplicate-row
-deletions. **Gap still open** — see Pick Up Here #1: decide whether to
-reconstruct these as scripts, or accept the gap.
+deletions. **Gap accepted 2026-09-16** — Tom's call: this SQL is already
+live in the DB; reconstructing it as numbered scripts now is paperwork
+with no functional benefit. Not being reconstructed.
 
 Session 18 (2026-09-04):
                            72_work_expense_pattern_cleanup.sql

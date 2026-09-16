@@ -4,6 +4,19 @@ Last updated: 2026-09-16
 
 ---
 
+## 2026-09-16 (Session 22 continued — Baird Account Activity Pipeline: New Table/View, Two Export Formats, Historical Backfill)
+
+*Tom asked for visibility he'd lost when net worth tracking moved off directly checking Baird's site: recent buy/sell activity, fees charged, and dividend/interest/capital-gain payouts per Baird account, for tax planning. None of this feeds Budget vs Actual — pure review.*
+
+| Date | Decision | Rows |
+|------|----------|------|
+| 2026-09-16 | Confirmed Baird's portal exports Account Activity as a CSV (separate from the existing Holdings export). Built `dbo.baird_activity` (script 111) + `vw_baird_activity` (script 112) — the raw table stores parsed values faithfully; categorization (`activity_category`: Trade/Fee/Income/Cash Movement/Other, `trade_direction`: Buy/Sell, `is_reinvestment` flag for DRIP purchases) lives in the view so it can be refined without re-importing, same pattern as `net_worth_category` over `vw_holdings_all`. `activity_id` hashes parsed/normalized values plus an occurrence counter — never raw CSV text, per the HSA transaction_id incident (Session 15) — so Tom's normal overlapping monthly export window (e.g. "last month to today") is idempotent on re-import; verified live by reimporting the same file twice with no row-count change. | — |
+| 2026-09-16 | Built `import_baird_activity.py`, reusing `import_baird_holdings.py`'s account-name normalization and currency parser. First real export (2026-05-01 to 2026-09-17, all 9 active Baird accounts) imported clean: 532 rows, 0 unknown activity types against a 20-type allowlist, 0 errors. | 532 |
+| 2026-09-16 | Tom offered additional historical activity data for BKG/PIM covering Jan-Apr 2026, in a **different column layout** than the first file (Account/Activity/Symbol/Description/Price vs Account Name/Activity Type/Security ID/Security Name/Execution Price) and a different Amount/Price number format (plain signed vs accounting parens). Rather than hand-transform the file, made the importer detect either layout from the CSV header and normalize both to one schema — Baird's export format has already drifted before (account-name drift, ISSUE-018/script 50/67) and will likely drift again. The legacy file also surfaced two genuinely new activity types: `Asset Bought` (a real discretionary purchase, distinct from the DRIP `Asset Bought-reinv`) and `Assignment` (an options contract record with no cash amount of its own — the real share movement is a companion same-day `Asset Sold` row); added both to the allowlist and `vw_baird_activity`'s categorization (script 113, `CREATE OR ALTER`). Also canonicalized a casing-only activity-type difference between vintages (`Ach/atm Activity` vs `ACH/ATM Activity`) so it doesn't read as two different types. Backfilled 141 rows, 0 unknown types, 0 errors — 673 total rows across both files, confirmed idempotent on a full re-run of both. | 141 |
+| 2026-09-16 | Closed out two more Pick Up Here items directly with Tom: the Liability Power BI page isn't needed (only 2 liabilities, already easily visible on the Net Worth page), and `vw_potential_duplicates` is already in use on an existing Power BI page (not actually a gap). Added "Build a Baird Activity Power BI page" as the new item in its place, with a suggested layout (3 filtered visuals matching Tom's 3 stated needs) since the data side is fully ready. | — |
+
+---
+
 ## 2026-09-16 (Session 22 continued — Pick Up Here Cleanup: ISSUE-044 Write-Time Taxonomy Guard, Dead View Drop, principal_sync.py Deploy Verified, ISSUE-012 Closed)
 
 *Worked the Pick Up Here backlog from the same day's earlier docs cleanup. Three items needed Tom's decision before any work could start; got all three, then closed out every non-Power-BI item in one pass.*

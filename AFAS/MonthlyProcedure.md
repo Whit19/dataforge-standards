@@ -39,8 +39,10 @@ manual DB resume beforehand anyway). Every monthly sync is now a deliberate
 manual trigger, run here after Step 0's DB resume, from the
 [Azure Portal](https://portal.azure.com).
 
-**Normal case — one click:** open `http_monthly_ingest_all`, click Run/Test,
-select **default (function key)** as the key, click Run. This runs all four
+**Normal case — one click:** open `http_monthly_ingest_all`, click Run/Test.
+The Test/Run panel opens with the Key dropdown defaulted to **`_master`
+(Host Key)** — change it to **`default` (Function Key)** before clicking
+Run, or the call may not authenticate as expected. This runs all four
 sources in one call: transactions (Chase/Amex/Associated Bank), Associated
 Bank balances, NW Mutual (Tom + Amy) valuations, and Principal 401k
 holdings. Check the JSON response — it reports `"status": "success"` or

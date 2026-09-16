@@ -192,11 +192,18 @@ Same mechanism as Step 6 — no dedicated script, a small `MERGE` into
 with Claude Code: give it the new value(s) and source, it writes/runs the
 next numbered script.
 
-- **House:** [Zillow](https://www.zillow.com) zestimate.
-- **Teslas (Nebula, Storm, Trinity):** [KBB](https://www.kbb.com). **KBB
-  "typical mileage" figures can be significantly off for high-mileage
-  vehicles** — get actual VIN/mileage-specific values when possible rather
-  than trusting a general web search result.
+- **House:** [Zillow](https://www.zillow.com) zestimate — Claude Code can't
+  fetch this automatically (Zillow blocks automated requests), so paste the
+  current Zestimate figure in directly.
+- **Teslas (Nebula, Storm, Trinity):** as of 2026-09-16, **no more manual
+  KBB lookup every month** — Tom's standing decision is a flat **1%/month
+  depreciation** applied to each vehicle's own last recorded value instead
+  (not meant to be exact). `valuation_source = 'monthly_depreciation_1pct'`
+  distinguishes these from a real check. Do a real [KBB](https://www.kbb.com)
+  lookup only if Tom wants to recalibrate against an actual value
+  periodically — in that case, get the actual VIN/mileage-specific number,
+  not KBB's generic "typical mileage" figure, which can be significantly
+  off for high-mileage vehicles.
 
 ---
 

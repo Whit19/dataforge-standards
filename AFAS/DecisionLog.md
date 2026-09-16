@@ -1,10 +1,10 @@
 # AFAS Project — Decision Log
 **Append only. Never delete entries. Most recent session at top.**
-Last updated: 2026-09-17
+Last updated: 2026-09-16
 
 ---
 
-## 2026-09-16/17 (Session 22 — Monthly Procedure Live Test: Enrichment Bug Fix, vw_account_freshness, Combined Ingest Route, HSA Consumer Note Discovery, Tesla Depreciation Policy)
+## 2026-09-16 (Session 22 — Monthly Procedure Live Test: Enrichment Bug Fix, vw_account_freshness, Combined Ingest Route, HSA Consumer Note Discovery, Tesla Depreciation Policy)
 
 *This session was the first live, interactive run-through of `MonthlyProcedure.md` (Session 21's new consolidated checklist), with Tom confirming each step and giving live feedback along the way. Several real bugs and gaps surfaced specifically because it was run for real rather than just reviewed on paper.*
 

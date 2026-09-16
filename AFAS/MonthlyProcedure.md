@@ -89,6 +89,14 @@ not just that the source as a whole looks current — a source can report
 success while one specific account under it (e.g. one of several Associated
 Bank accounts) still didn't actually get captured.
 
+`latest_value` (added 2026-09-16) sits alongside `max_date` for a complete
+check in one query — not just "did it sync" but "does the resulting number
+look right." Populated for every balance/holdings/insurance/physical/
+liability account (summed across all of that account's rows at its own
+latest snapshot date); left blank for transaction-type sources (Chase,
+Amex, Apple, HSA, Associated transactions) since a transaction stream
+doesn't have one single "current value" the way a balance does.
+
 Also check the **JSON response from each endpoint** for errors
 (e.g. `ITEM_LOGIN_REQUIRED`) before moving on — don't trust the
 [Azure Portal](https://portal.azure.com) Test/Run panel's "Succeeded" status

@@ -112,18 +112,28 @@ top-level status, when verifying an automated sync actually ran.**
 ## Pick Up Here — Next Session
 
 Grouped by what each item actually needs, so nothing sits here just because
-it's always sat here. Five of the eight items from the last pass were
-resolved 2026-09-16 (see DecisionLog) — only the three Power BI Desktop
-items remain.
+it's always sat here. 2026-09-16: Tom closed out two more items directly —
+`vw_potential_duplicates` is already in use on a Power BI page (not a gap),
+and the Liability page isn't needed (only 2 liabilities, easily visible on
+the Net Worth page already).
 
 **Requires Power BI Desktop (not a code or data task):**
-1. **Add `vw_potential_duplicates` as a Power BI Data Health tile** — the
-   view exists and works; make it visible on the existing Data Health page.
-2. **Build the Liability Power BI page** — `vw_liability_summary` exists,
-   not yet connected.
-3. **Refine the Budget vs Actual Power BI page** — data is verified working
+1. **Refine the Budget vs Actual Power BI page** — data is verified working
    (`budget_targets` seeded, `vw_budget_vs_actual` correct); page
    design/refinement is still outstanding.
+2. **Build a new "Baird Activity" Power BI page** (2026-09-16) — data side
+   is done: `vw_baird_activity` (673 rows, 2026-01-01 to present) has
+   `activity_category` (Trade / Fee / Income / Cash Movement / Other) and
+   `trade_direction` (Buy/Sell) ready to filter/slice on. Suggested layout
+   — 3 visuals/filters matching Tom's 3 stated needs: (a) a Trades table
+   filtered to `activity_category = 'Trade'`, probably defaulting
+   `is_reinvestment = 0` so DRIP noise doesn't swamp real buy/sell
+   decisions, with a toggle to include it; (b) a Fees table filtered to
+   `activity_category = 'Fee'` (Asset Based Fee vs Asset Fee Rebate); (c)
+   an Income table filtered to `activity_category = 'Income'`, grouped by
+   `activity_type` so Dividend/Interest/Capital Gain Distrib/foreign tax
+   withheld are visually distinguishable for tax planning. Pure
+   visibility/review — deliberately not wired into Budget vs Actual.
 
 ---
 
@@ -171,6 +181,7 @@ one place and in run order.
 | import_hsa_transactions.py | Imports Bank of America HSA cash-ledger CSV (Run_Monthly/imports/HSA/HSA_Transactions_*.csv) into dbo.transactions. type/in_budget set deterministically at import (not enrichment-dependent) — 4 known non-spending description types whitelisted, everything else treated as real spending/income typed by amount sign. category/subcategory left NULL for `enrich_transactions.py`. Created 2026-08-01. transaction_id hashes normalized (parsed) date/amount — fixed 2026-09-01 after BofA export-formatting drift caused ~400 duplicate groups; watermark check warns on unexpectedly-new IDs. UTF-8 stdout fix applied. | ✅ Live — 461 canonical rows |
 | import_hsa_holdings.py | Imports Bank of America HSA "Fund Summary" CSV (value-only, no units/price available in this export) into dbo.holdings. Snapshot date parsed from filename. Created 2026-08-01. UTF-8 stdout fix applied 2026-09-01. | ✅ Live — 2 holdings, value confirmed reconciled to the CSV export. |
 | import_baird_holdings.py | Baird holdings CSV → baird_holdings | ✅ Ready — Total-row detection bug fixed 2026-08-01 (was checking wrong column) |
+| import_baird_activity.py | **NEW 2026-09-16** — Baird Activity CSV (buys/sells, fees, dividends/interest/cap gains) → `dbo.baird_activity`, categorized by `vw_baird_activity`. Pure review/visibility, does not feed Budget vs Actual. Reuses `import_baird_holdings.py`'s account-name normalization + currency parser. Handles two different column layouts Baird has already used across export vintages (auto-detected from the CSV header), plus a plain-signed vs accounting-style Amount/Price format difference between them. `activity_id` hashes parsed values + an occurrence counter (never raw CSV text) so Tom's normal overlapping monthly export window is idempotent on re-import. | ✅ Live — 673 rows backfilled (2026-01-01 through 2026-09-16, BKG/PIM history plus all 9 other Baird accounts from May onward); verified idempotent by reimporting both files with no row-count change. |
 | monthly_sync.py | Monthly timer (1st of month, 03:00 UTC) — balance_sync + nwm_sync + principal_sync | ⚠️ **Deregistered 2026-09-16** (AFAS bd3ce83) — no longer imported in `function_app.py`, so this timer does not fire. Deliberately disabled: it fired on the same schedule Azure SQL was still auto-paused (ISSUE-032), always needing a manual DB resume beforehand anyway. `http_monthly_ingest_all` (in `http_ingest.py`) now covers the same syncs, plus transactions, as one manual call. File left in place for reference, not deleted. |
 | import_apple_csv.py | Apple Card monthly CSV import. Lives in Run_Monthly\, auto-discovers files, auto-moves to imported\. Stores Apple's CSV "Category" column in `plaid_category_raw` (no Plaid involvement — the column name is a legacy misnomer). | ✅ 2026-09-08 (AFAS b1a3ef3): inserts `category_source = NULL` (was `'historical'` — collided with the ~6k genuinely backfilled `'historical'` rows); MERGE re-default guard now treats only `NULL`/`'unmatched'` as "not yet enriched". Enrichment is now `enrich_transactions.py` (the Apple-specific enricher was retired). 2026-09-01: MERGE CASE protection for already-enriched rows; UTF-8 stdout fix. |
 | timer_sync.py | Monthly timer trigger (1st @ 03:00 UTC) — Plaid transactions (Chase/Amex/Associated Personal) | ⚠️ **Deregistered 2026-09-16** (AFAS bd3ce83) — same reasoning as `monthly_sync.py` above; no longer imported in `function_app.py`. `http_monthly_ingest_all` covers this too. File left in place for reference. |
@@ -274,8 +285,12 @@ Session 22 (2026-09-16):
                            107_vw_account_freshness_add_value.sql
                            108_tesla_monthly_depreciation_september2026.sql
                            109_house_valuation_september2026.sql
+                           110_drop_dead_holdings_views.sql
+                           111_baird_activity_table.sql
+                           112_vw_baird_activity.sql
+                           113_vw_baird_activity_add_asset_bought.sql
 
-Current high watermark: **109** (confirmed live 2026-09-16 — re-confirm
+Current high watermark: **113** (confirmed live 2026-09-16 — re-confirm
 live rather than trust this number next session too. Note: code changes
 committed to AFAS `main` this session that are NOT numbered SQL scripts —
 scripts/load_net_worth_history.py + scripts/interpolate_net_worth_gaps.py
@@ -285,8 +300,11 @@ which script 104/105 then build on), scripts/seed_budget_targets.py
 function_app.py (Session 22 — added http_monthly_ingest_all, deregistered
 timer_sync/monthly_sync), scripts/get_plaid_tokens.py (Session 22 — token
 auto-fill fix), Run_Monthly/enrich_transactions.py (Session 22 — fixed the
-positional change-detection comparison bug). Session 17's ad-hoc SQL is
-still not reflected in any numbered file.)
+positional change-detection comparison bug), Run_Monthly/import_baird_activity.py
+(Session 22 — new, imports Baird Activity CSV into dbo.baird_activity;
+handles two different column layouts Baird has used across export
+vintages). Session 17's ad-hoc SQL gap was formally accepted 2026-09-16,
+not reconstructed — see DecisionLog.)
 
 ---
 

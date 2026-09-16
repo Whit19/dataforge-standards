@@ -150,6 +150,29 @@ name in a past export required a SQL correction after the fact.
 
 ---
 
+## 4a. Baird Activity Export and Import (review only — not a Budget input)
+Added 2026-09-16. Separate from Holdings above — this is transaction-level
+activity (buys/sells, fees, dividends/interest/capital gains), not
+point-in-time positions. Pure visibility/review for Tom (trades, fees, and
+tax-planning income detail); nothing here feeds Budget vs Actual.
+1. [Baird Online](https://bol.rwbaird.com/sign-in): export **Account
+   Activity** for all accounts, date range = last export's end date
+   through today (overlap with the prior export is fine and expected —
+   the import is idempotent, re-importing an already-seen row is a no-op).
+2. Save the file as `activity_<start>_<end>.csv` (any descriptive name
+   starting with `activity_` works — the import script globs
+   `activity_*.csv`).
+3. Move the file to `Run_Monthly\imports\baird\`.
+4. Run `python import_baird_activity.py`. Check the output for
+   `unknown_activity_types` — an empty list means every row categorized
+   cleanly; a non-empty list means Baird used an activity type not yet
+   seen and it needs a quick review (see `import_baird_activity.py`'s
+   `KNOWN_ACTIVITY_TYPES` and `vw_baird_activity`'s categorization).
+5. No archive-move step needed yet — small volume so far; revisit if this
+   folder gets noisy.
+
+---
+
 ## 5. HSA (Bank of America) Exports
 Portal: [BofA HSA login](https://myhealth.bankofamerica.com/Login.aspx?ReturnUrl=%2fMain.aspx)
 
@@ -282,7 +305,10 @@ convenience-store purchase, not gasoline.
 - Steps 3-5 (Apple/Baird/HSA imports) can run in any order relative to each
   other — they don't depend on one another. Steps 0-2 (DB resume, sync
   triggers, re-verify) must always run first; Step 8 (enrichment) must run
-  after all three imports, not interspersed between them.
+  after all three imports, not interspersed between them. Step 4a (Baird
+  Activity) can also run any time after Step 0 — it writes to
+  `dbo.baird_activity`, not `dbo.transactions`, so it's independent of
+  Step 8's enrichment pass entirely.
 - See `BestMethods.md` for the lessons behind several of these steps
   (transaction_id normalization, MERGE overwrite protection, the taxonomy
   closed-list rule, etc.) and `IssuesTracker.md` for open issues these

@@ -55,6 +55,28 @@ failed, the same way (Run/Test → default (function key) → Run):
 - `http_nwm_sync` — NW Mutual (Tom + Amy) insurance cash values
 - `http_principal_ingest` — Principal 401k holdings
 
+### If the error is `ITEM_LOGIN_REQUIRED`
+This means one institution's Plaid connection needs re-authentication —
+routine, not a bug or a Plaid-wide outage (confirmed against Amex
+2026-09-16). Fix:
+1. Run `python scripts/get_plaid_tokens.py` locally — opens a local page in
+   your browser. Each institution's current access token is pre-filled
+   automatically from `local.settings.json`.
+2. Click that institution's **Connect** button. With the token already
+   filled in, this launches Plaid Link in *update mode* — straight to that
+   institution's login screen, no institution search. **If you clear that
+   box first, it launches a brand-new connection instead** and the search
+   can match the wrong institution (e.g. searching "AMEX" surfaced
+   "Kabbage (now AmEx Business Line)" — a different, unsupported
+   institution — instead of going straight to the existing American
+   Express item).
+3. Complete the re-login. The script prints the token to the terminal — if
+   it changed, update it in both `local.settings.json` and the Azure
+   Function App's Application Settings.
+4. Retrigger just that source's individual route (e.g. `http_ingest` for
+   Amex) to pick it up — no need to re-run the combined
+   `http_monthly_ingest_all` again.
+
 ---
 
 ## 2. Re-verify

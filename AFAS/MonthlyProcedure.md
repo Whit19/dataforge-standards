@@ -155,10 +155,11 @@ Added 2026-09-16. Separate from Holdings above — this is transaction-level
 activity (buys/sells, fees, dividends/interest/capital gains), not
 point-in-time positions. Pure visibility/review for Tom (trades, fees, and
 tax-planning income detail); nothing here feeds Budget vs Actual.
-1. [Baird Online](https://bol.rwbaird.com/sign-in): export **Account
-   Activity** for all accounts, date range = last export's end date
-   through today (overlap with the prior export is fine and expected —
-   the import is idempotent, re-importing an already-seen row is a no-op).
+1. [Baird Online](https://bol.rwbaird.com/sign-in): **Investments →
+   Activities → Export**, for all accounts, date range = last export's
+   end date through today (overlap with the prior export is fine and
+   expected — the import is idempotent, re-importing an already-seen row
+   is a no-op).
 2. Save the file as `activity_<start>_<end>.csv` (any descriptive name
    starting with `activity_` works — the import script globs
    `activity_*.csv`).

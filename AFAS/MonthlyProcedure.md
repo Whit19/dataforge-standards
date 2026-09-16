@@ -3,7 +3,9 @@
 that needs monthly attention.** Rewritten 2026-09-17 to match Tom's actual
 standing routine (superseded the 2026-09-16 first draft, which was extracted
 from SessionStarter.md's older per-source procedures and had drifted from
-real practice in a few places). See DecisionLog.md for the history and
+real practice in a few places); Step 1 updated same day after the two
+monthly timers were deregistered in favor of a single combined manual
+trigger (`http_monthly_ingest_all`). See DecisionLog.md for the history and
 rationale behind individual steps; see BestMethods.md for the lessons several
 of these steps encode.
 
@@ -21,16 +23,27 @@ paused. Both sub-steps below are required, not alternatives to each other.
 
 ---
 
-## 1. Manually Trigger Plaid Syncs (if needed)
-If any source looks stale (see Step 2), hit the Function URLs manually the
-same way as any other retrigger:
+## 1. Trigger the Plaid Syncs
+There is no automated monthly timer anymore — `timer_sync` and
+`monthly_sync` were deregistered 2026-09-17 (they fired on the same
+schedule Azure SQL was still auto-paused, ISSUE-032, and always needed a
+manual DB resume beforehand anyway). Every monthly sync is now a deliberate
+manual trigger, run here after Step 0's DB resume.
+
+**Normal case — one click:** open `http_monthly_ingest_all` in the Azure
+Portal, click Run/Test, select **default (function key)** as the key, click
+Run. This runs all four sources in one call: transactions (Chase/Amex/
+Associated Bank), Associated Bank balances, NW Mutual (Tom + Amy) valuations,
+and Principal 401k holdings. Check the JSON response — it reports
+`"status": "success"` or `"status": "partial_failure"` with a per-source
+breakdown.
+
+**If it reports a partial failure**, retrigger just the source(s) that
+failed, the same way (Run/Test → default (function key) → Run):
 - `http_ingest` — Chase / Amex / Associated Bank transactions
 - `http_balance_ingest` — Associated Bank balances
 - `http_nwm_sync` — NW Mutual (Tom + Amy) insurance cash values
 - `http_principal_ingest` — Principal 401k holdings
-
-For each: open it in the Azure Portal, click Run/Test, select **default
-(function key)** as the key, click Run.
 
 ---
 
@@ -38,9 +51,9 @@ For each: open it in the Azure Portal, click Run/Test, select **default
 Run the same source-freshness query again (`vw_source_freshness` or
 `dbo.plaid_sync_state`) — confirm all four sources above now show a current
 `MAX(date)`. Also check the **JSON response from each endpoint** for errors
-(e.g. `ITEM_LOGIN_REQUIRED`) before moving on — don't trust the automated
-timer's or the Portal Test/Run panel's "Succeeded" status alone; that doesn't
-reflect whether the internal SQL work actually completed.
+(e.g. `ITEM_LOGIN_REQUIRED`) before moving on — don't trust the Portal
+Test/Run panel's "Succeeded" status alone; that doesn't reflect whether the
+internal SQL work actually completed.
 
 ---
 

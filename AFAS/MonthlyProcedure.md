@@ -242,10 +242,39 @@ convenience-store purchase, not gasoline.
 
 ---
 
-## 10. Power BI Refresh
-Manual refresh in Power BI Desktop to confirm everything loaded cleanly —
-check the Data Health page first for any freshness or categorization-quality
-flags before trusting the rest of the report pages.
+## 10. Power BI Refresh and Final Review
+1. Manual refresh in Power BI Desktop to confirm everything loaded cleanly —
+   check the Data Health page first for any freshness or
+   categorization-quality flags before trusting the rest of the report
+   pages. If a table fails to load, don't assume the underlying data is
+   broken — check whether the errors are a generic connection error (Azure
+   SQL free tier hiccup during a big parallel refresh — retry the refresh)
+   versus something specific (e.g. a Power BI relationship built on a
+   non-unique column, which needs fixing in the model, not the SQL).
+2. **Check the Needs Review page (`vw_needs_review`).** Every unreviewed
+   transaction (`category_reviewed = 0`) shows up here with a computed
+   `suggested_category`/`suggested_subcategory` and a `review_priority`
+   tier: 1 = no suggestion + currently Uncategorized; 2 = no suggestion +
+   already has a category; 3 = suggestion disagrees with current category;
+   4 = suggestion already matches current category. Most rows here are
+   priority 4 — the automated pipeline categorized them correctly via a
+   merchant pattern or historical match, but `category_reviewed` only gets
+   set to 1 by a manual action, never by an automated match. Bulk-confirm
+   those rather than reviewing each one:
+   ```sql
+   UPDATE dbo.transactions
+   SET category_reviewed = 1, updated_at = GETDATE()
+   WHERE transaction_id IN (
+       SELECT transaction_id FROM dbo.vw_needs_review WHERE review_priority = 4
+   );
+   ```
+3. **Review whatever's left** (priority 1-3 — genuinely no suggestion, or
+   the suggestion disagrees) the same way as Step 9's Uncategorized
+   review: confident matches as a quick batch confirmation, ambiguous ones
+   as an option card, a new `merchant_patterns` rule for any recurring
+   merchant. Confirm each (`category_reviewed = 1`) once resolved.
+4. Confirm the Needs Review page is back to 0 rows before considering the
+   month closed out.
 
 ---
 

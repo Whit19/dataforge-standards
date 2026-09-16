@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-09-15 (Session 21 — no new open issues; all work this session was resolved in-session and lives in DecisionLog)
+Last updated: 2026-09-17 (Session 22 — ISSUE-043 fully resolved and moved to DecisionLog; no new open issues, all Session 22 work resolved in-session)
 
 ---
 
@@ -22,19 +22,6 @@ Last updated: 2026-09-15 (Session 21 — no new open issues; all work this sessi
 | Description | Plaid connection to Robert Baird Online (ins_117067) fails. Originally INTERNAL_SERVER_ERROR / API_ERROR. Baird support advised a platform migration disrupted Plaid. Retried 2026-06-15 — still fails with generic "Couldn't connect to your institution" error. Second email sent. CSV fallback pipeline (import_baird_holdings.py) now operational as permanent workaround — all 11 Baird accounts covered via monthly manual CSV export. |
 | Last Action | Second email sent to Baird Online Support. CSV fallback pipeline built and tested 2026-06-17. |
 | Next Step | Await Baird response. If Plaid resolves, holdings will auto-populate via Plaid Investments endpoint. CSV pipeline remains as monthly fallback regardless. |
-
----
-
-### ISSUE-043 — APPLE Uncategorized transaction backlog (real merchants, need categories)
-| Field | Value |
-|-------|-------|
-| Status | Open — **Apple portion resolved 2026-09-08 (script 88); HSA portion carried over** |
-| Opened | 2026-09-08 |
-| Priority | Low |
-| Description | **Apple (done):** 31 APPLE transactions ($3,586.58) at `category = 'Uncategorized'` — reviewed interactively with Tom, assigned real categories via script 88 (`category_source = 'manual'`, `category_reviewed = 1`). Merchants included Starlink → Bills & Utilities/Internet (new `%STARLINK%` pattern), Jostens → Children/Education, Bay Books → Entertainment/General, liquor stores → Groceries/Alcohol, My Martinizing → the new Clothing/Dry Cleaning. Claude Code also backfilled 54 historical dry-cleaning transactions in the same pass. Verified: 0 APPLE Uncategorized rows remain. **HSA (open):** 61 HSA rows sit at Uncategorized via a `%Normal Distribution%`-style pattern because the BofA HSA CSV doesn't itemize what each distribution paid for. This is a policy question (accept as-is / cross-reference against Apple+Chase spend near the same date / mark for review), not a quick classification. |
-| Next Step | HSA: decide the policy for the 61 distribution rows. Going forward, the new monthly interactive Uncategorized-review step (SessionStarter) should keep both sources' backlogs from re-accumulating. |
-
-*(Supersedes the former "8 Apple Uncategorized rows intentionally parked" note.)*
 
 ---
 

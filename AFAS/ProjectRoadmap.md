@@ -1,6 +1,6 @@
 # AFAS Project — Roadmap
 **Living document. Update status and tasks as work completes.**
-Last updated: 2026-09-15 (Sessions 14-21 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh)
+Last updated: 2026-09-17 (Sessions 14-22 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh; note Session 22 deregistered `timer_sync.py`/`monthly_sync.py` in favor of a manual `http_monthly_ingest_all` route — bullets below still referencing "monthly sync via monthly_sync.py" describe the sync logic, which is unchanged, not the now-inert automatic timer)
 
 ---
 
@@ -82,7 +82,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ enrich_transactions.py: bonus rule >$10,000 threshold confirmed implemented (ISSUE-005 closed)
 - ✅ enrich_transactions.py: retry path bug fixed — removed stale category_normalized parameter
 - ✅ Manual review of 46 Uncategorized/VENMO-Review transactions complete (ISSUE-004 closed)
-- ⏳ Assign categories to 31 APPLE Uncategorized transactions (ISSUE-043 — was "8 parked rows", now a tracked backlog)
+- ✅ ISSUE-043 fully resolved 2026-09-16/17 — Apple portion (31 rows, script 88) plus the HSA "Normal Distribution" backlog (61 rows, resolved via the CSV's previously-unused Consumer Note column)
 - ⏳ Baird Plaid connection failed — Baird support replied 2026-06-15 (expected fix did not resolve issue); second email sent, awaiting response (ISSUE-008)
 - ⚠️ 2026-08-01: discovered the deployed Function App had been silently crash-looping for 6+ weeks due to a missing python-dotenv dependency in requirements.txt — all timer-based sync was effectively dead during that window despite appearing operational in some tables. Fixed; see DecisionLog and BestMethods for full detail.
 

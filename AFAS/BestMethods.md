@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-09-15
+Last updated: 2026-09-17
 
 ---
 
@@ -1338,3 +1338,59 @@ for. Also worth remembering: don't relate two fact tables (e.g.
 they're different grains of the same data, and relating them causes
 fan-out. Relate each independently to Calendar instead.
 *Source: Session 21 — Power BI Calendar table date range gap*
+
+## Python — pandas (continued)
+
+### `pd.concat(..., ignore_index=True)` silently breaks a positional before/after comparison
+
+`enrich_transactions.py`'s `main()` captured a snapshot of every row's
+enrichment columns before running the pipeline, then compared it against
+the same columns after, to decide which rows actually changed and needed
+a DB write-back. Two of the pipeline's own functions
+(`enrich_from_merchant_patterns`, `enrich_from_history`) internally
+split the DataFrame into matched/unmatched, then reassembled it with
+`pd.concat([already_matched, unmatched], ignore_index=True)` — which
+resets the index and reorders rows. The before/after comparison, keyed
+purely on row position, was then comparing row 500's "before" against a
+completely different transaction's "after." This misreported up to
+9,604 of 16,754 untouched rows as changed on a single run, triggering
+large wasted write-backs (not data corruption — every affected row's
+actual enrichment values were unchanged, confirmed live via spot-checks
+of `category_reviewed`-flagged rows before any fix was applied). Fix:
+key the comparison on `transaction_id`, never on row position, whenever
+a DataFrame has passed through any `concat`/`sort`/`merge` step that
+doesn't guarantee order preservation.
+*Source: Session 22 — enrich_transactions.py change-detection bug, AFAS 3b6989d*
+
+## Power BI (continued)
+
+### A relationship auto-created on a coincidentally same-named column is a landmine, not a convenience
+
+Power BI's relationship autodetect created two Many-to-One relationships
+joining `vw_monthly_spend` and `vw_category_yoy` to `vw_enrichment_quality`
+on `txn_count` — a column all three views happen to name the same thing,
+but which is a `COUNT(*)` in each, never a unique key. This produced
+"duplicate value" refresh errors the moment the underlying counts
+changed. Diagnosed from the refresh error text alone before confirming
+via the relationship editor which exact relationships were at fault.
+Fix is Power BI-side only (delete the relationship) — there is nothing
+wrong on the SQL side to chase. General rule: don't trust autodetect on
+any column whose name describes a generic aggregate (`count`, `total`,
+`amount`) rather than an actual identifier.
+*Source: Session 22 — Monthly Procedure live test, Power BI refresh error*
+
+### A CSV re-exported with full history can carry a field the importer never looked at — check every column before declaring data unavailable
+
+The Bank of America HSA transactions CSV (re-exported fresh each time,
+full history) was long assumed to have no merchant detail for older
+"Normal Distribution" rows, because `import_hsa_transactions.py` only
+ever reads `Description`/`Merchant Name`, and `Merchant Name` is blank
+for that era. The same CSV has a `Consumer Note` column, never read by
+the importer, that contains embedded merchant text for those exact rows
+(e.g. "TERMINAL 426979 DAN FITZGERALD PHARMACY WHITEFISH WI"). Found by
+re-examining the raw CSV columns directly at Tom's prompt rather than
+trusting the prior assumption that the data simply wasn't captured
+anywhere. Resolved as a one-off manual historical cleanup (61 rows,
+2017-era) — scoped deliberately, not built into the importer, since the
+newer-era rows don't need it.
+*Source: Session 22 — HSA Consumer Note discovery, ISSUE-043*

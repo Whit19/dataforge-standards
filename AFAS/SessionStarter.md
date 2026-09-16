@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-15 (Session 21 — Cash/Retirement reclassification, full l1-l5 Power BI account hierarchy on vw_holdings_all, 2011-2026 net worth history backfill + vw_net_worth_all_time, budget_targets seeded and vw_budget_vs_actual verified working; SQL watermark 105)
+Last updated: 2026-09-17 (Session 22 — first live run-through of MonthlyProcedure.md: enrich_transactions.py positional-comparison bug fixed, vw_account_freshness built, http_monthly_ingest_all added + the two auto-pause-prone timers deregistered, HSA Consumer Note discovery resolved the 61-row ISSUE-043 backlog, Tesla depreciation switched to a flat monthly policy; SQL watermark 109)
 
 ---
 
@@ -115,43 +115,37 @@ Grouped by what each item actually needs, so nothing sits here just because
 it's always sat here.
 
 **Needs Tom's decision (no code/Power BI work until decided):**
-1. **HSA "Normal Distribution" Uncategorized backlog (ISSUE-043 carryover).**
-   61 HSA rows at `category = 'Uncategorized'` via a
-   `%Normal Distribution%`-style pattern — the BofA HSA CSV doesn't itemize
-   what each distribution paid for. Policy question: accept as-is /
-   cross-reference against Apple+Chase spend near the same date / mark for
-   review. The Apple portion of ISSUE-043 (31 rows) is done — script 88.
-2. **Session 17's ad-hoc SQL still not reconstructed as numbered scripts** —
+1. **Session 17's ad-hoc SQL still not reconstructed as numbered scripts** —
    `vw_needs_review`, `vw_potential_duplicates`, and Session 17's
    correction/pattern-rename SQL remain uncommitted (Sessions 18-19, scripts
    72-93, ARE committed). Reconstruct Session 17's, or accept the gap?
-3. **`vw_holdings_summary` / `vw_asset_allocation` are dead SQL** — removed
+2. **`vw_holdings_summary` / `vw_asset_allocation` are dead SQL** — removed
    from the Power BI model, still exist in the database, still Baird-only
    (superseded by `vw_holdings_all`). Formally drop the two SQL views, or
    leave them unused?
-4. **ISSUE-012 optional Check 5** — add a `taxonomy_audit.py` Check 5 for
+3. **ISSUE-012 optional Check 5** — add a `taxonomy_audit.py` Check 5 for
    subcategory==category mirrors (ISSUE-014), or close ISSUE-012 as-is
    without it? Low priority either way.
 
 **Requires a Claude Code session (real code change):**
-5. **Write-time taxonomy validation guard for `enrich_transactions.py`
+4. **Write-time taxonomy validation guard for `enrich_transactions.py`
    (ISSUE-044).** Nothing currently stops the enricher writing a
    category/subcategory combo not in `Category_Taxonomy.md`. Add a
    load-time check reusing `taxonomy_audit.py`'s `load_canonical_taxonomy()`
    — hard-fail the run on an off-list combo.
-6. **`principal_sync.py` still needs the sector/industry-capture redeploy**
+5. **`principal_sync.py` still needs the sector/industry-capture redeploy**
    (AFAS commit `64e45cc`) — only the pipeline-wiring commit (`0cee6b6`) was
    confirmed deployed as of Session 20. Deploy and verify via Application
    Insights.
 
 **Requires Power BI Desktop (not a code or data task):**
-7. **Add `vw_potential_duplicates` as a Power BI Data Health tile** — the
+6. **Add `vw_potential_duplicates` as a Power BI Data Health tile** — the
    view exists and works; make it visible on the existing Data Health page.
-8. **Build the Liability Power BI page** — `vw_liability_summary` exists,
+7. **Build the Liability Power BI page** — `vw_liability_summary` exists,
    not yet connected.
-9. **Refine the Budget vs Actual Power BI page** — data is verified working
+8. **Refine the Budget vs Actual Power BI page** — data is verified working
    (`budget_targets` seeded, `vw_budget_vs_actual` correct); page
-   design/refinement is explicitly the next session's focus.
+   design/refinement is still outstanding.
 
 ---
 
@@ -201,7 +195,7 @@ one place and in run order.
 | File | Purpose | Status |
 |------|---------|--------|
 | plaid_sync.py | Shared sync module | ✅ Both known bugs fixed AND deployed 2026-09-01 (confirmed via VS Code's "Files (Read-only)" remote view — both had been drafted-but-undeployed since Session 14): (1) plaid_category_raw now extracts a clean category string instead of storing full JSON; (2) INFLOW_CATEGORIES no longer includes BANK_FEES/LOAN_PAYMENTS (ISSUE-023). Still does not write to run_log (ISSUE-016, carried over). |
-| enrich_transactions.py | **The single enricher for every source** (Plaid CHASE/ASSOCIATED_PERSONAL/AMEX, Apple Card CSV, HSA CSV) as of 2026-09-08 | ✅ 2026-09-08 (AFAS b1a3ef3): `enrich_apple_csv.py` + `enrich_hsa_csv.py` retired — this file already had no source filter. `load_transactions()` date cutoff removed. `apply_fallback()` now only fills `in_budget`/`type` where NULL. **Matcher note:** only leading/trailing `%` are wildcards; a mid-pattern `%` is dead. Earlier: `enrich_from_history()` carry-forward step (2026-09-03, AFAS 557cdd1 + 4f0c052); write-back scoped to changed rows (ISSUE-035); apply_fallback() defaults + `--unenriched-only` retry (2026-08-03). |
+| enrich_transactions.py | **The single enricher for every source** (Plaid CHASE/ASSOCIATED_PERSONAL/AMEX, Apple Card CSV, HSA CSV) as of 2026-09-08 | ✅ 2026-09-16 (AFAS 3b6989d): fixed the "only write real changes" comparison — it compared rows by *position*, not `transaction_id`, so a full run flagged 9,604 of 16,754 rows as changed (most were untouched — `enrich_from_merchant_patterns`/`enrich_from_history` both reorder rows via `pd.concat(ignore_index=True)`, breaking positional alignment with the pre-pipeline snapshot). Not a data-safety bug (`write_results()` targets `transaction_id`) but destroyed `updated_at` as a "genuinely modified" signal. Verified: an immediate full re-run now reports "0 of 16,754 rows actually changed." Earlier: 2026-09-08 (AFAS b1a3ef3) `enrich_apple_csv.py` + `enrich_hsa_csv.py` retired — this file already had no source filter; `load_transactions()` date cutoff removed; `apply_fallback()` now only fills `in_budget`/`type` where NULL. **Matcher note:** only leading/trailing `%` are wildcards; a mid-pattern `%` is dead. Earlier still: `enrich_from_history()` carry-forward step (2026-09-03, AFAS 557cdd1 + 4f0c052); write-back scoped to changed rows (ISSUE-035); apply_fallback() defaults + `--unenriched-only` retry (2026-08-03). |
 | scripts/taxonomy_audit.py | Read-only taxonomy-drift diagnostic (4 checks: undocumented category/subcategory combos in merchant_patterns / category_map / transactions; same-priority pattern shadowing). AFAS 13b959e. | ✅ 2026-09-08: (a) ISSUE-041 (AFAS 6c652ae) — parses `Category_Taxonomy.md`'s `## Full Taxonomy` block live every run, no hardcoded dict, exits 2 on parse failure; (b) AFAS 1db78e4 — Check 4 no longer false-flags no-wildcard exact-match patterns (`ACT`, `IRS`) as substring collisions. As of session end: Checks 1/2/3 = 0, Check 4 = 207 (8 benign `[DIFFERENT DEST]` + 199 cosmetic `[same dest]`). |
 | scripts/plaid_transaction_name_check.py | **NEW 2026-09-03** — read-only Plaid /transactions/get diagnostic (CHASE/ASSOCIATED_PERSONAL/AMEX); prints raw name / merchant_name / PFC. No writes, not in any pipeline. AFAS 2ad1bf2. | ✅ Live |
 | plaid_client.py | Plaid SDK wrapper | ✅ Ready |
@@ -211,11 +205,11 @@ one place and in run order.
 | import_hsa_transactions.py | Imports Bank of America HSA cash-ledger CSV (Run_Monthly/imports/HSA/HSA_Transactions_*.csv) into dbo.transactions. type/in_budget set deterministically at import (not enrichment-dependent) — 4 known non-spending description types whitelisted, everything else treated as real spending/income typed by amount sign. category/subcategory left NULL for `enrich_transactions.py`. Created 2026-08-01. transaction_id hashes normalized (parsed) date/amount — fixed 2026-09-01 after BofA export-formatting drift caused ~400 duplicate groups; watermark check warns on unexpectedly-new IDs. UTF-8 stdout fix applied. | ✅ Live — 461 canonical rows |
 | import_hsa_holdings.py | Imports Bank of America HSA "Fund Summary" CSV (value-only, no units/price available in this export) into dbo.holdings. Snapshot date parsed from filename. Created 2026-08-01. UTF-8 stdout fix applied 2026-09-01. | ✅ Live — 2 holdings, value confirmed reconciled to the CSV export. |
 | import_baird_holdings.py | Baird holdings CSV → baird_holdings | ✅ Ready — Total-row detection bug fixed 2026-08-01 (was checking wrong column) |
-| monthly_sync.py | Monthly timer (1st of month, 03:00 UTC) — balance_sync + nwm_sync | ✅ Deployed — did not actually run successfully for at least 6 weeks prior to 2026-08-01 due to the dotenv outage; now fixed. Collides with Azure SQL auto-pause if the DB isn't warm at trigger time (ISSUE-032, occurred 2026-09-01) |
+| monthly_sync.py | Monthly timer (1st of month, 03:00 UTC) — balance_sync + nwm_sync + principal_sync | ⚠️ **Deregistered 2026-09-16** (AFAS bd3ce83) — no longer imported in `function_app.py`, so this timer does not fire. Deliberately disabled: it fired on the same schedule Azure SQL was still auto-paused (ISSUE-032), always needing a manual DB resume beforehand anyway. `http_monthly_ingest_all` (in `http_ingest.py`) now covers the same syncs, plus transactions, as one manual call. File left in place for reference, not deleted. |
 | import_apple_csv.py | Apple Card monthly CSV import. Lives in Run_Monthly\, auto-discovers files, auto-moves to imported\. Stores Apple's CSV "Category" column in `plaid_category_raw` (no Plaid involvement — the column name is a legacy misnomer). | ✅ 2026-09-08 (AFAS b1a3ef3): inserts `category_source = NULL` (was `'historical'` — collided with the ~6k genuinely backfilled `'historical'` rows); MERGE re-default guard now treats only `NULL`/`'unmatched'` as "not yet enriched". Enrichment is now `enrich_transactions.py` (the Apple-specific enricher was retired). 2026-09-01: MERGE CASE protection for already-enriched rows; UTF-8 stdout fix. |
-| timer_sync.py | Monthly timer trigger (1st @ 03:00 UTC) | ✅ Ready — confirmed 2026-09-01 this is the correct, deliberate design (not a stale "Daily" leftover); TechnicalArchitecture.md corrected to match |
-| http_ingest.py | Manual HTTP triggers — http_ingest, http_balance_ingest, http_nwm_sync | ✅ Ready |
-| get_plaid_tokens.py | Local Flask tool for Plaid token acquisition | ✅ Ready — added Plaid Link update-mode support (existing-token field per institution) and NW Mutual Tom/Amy cards, both 2026-08-01 |
+| timer_sync.py | Monthly timer trigger (1st @ 03:00 UTC) — Plaid transactions (Chase/Amex/Associated Personal) | ⚠️ **Deregistered 2026-09-16** (AFAS bd3ce83) — same reasoning as `monthly_sync.py` above; no longer imported in `function_app.py`. `http_monthly_ingest_all` covers this too. File left in place for reference. |
+| http_ingest.py | Manual HTTP triggers — http_ingest, http_balance_ingest, http_nwm_sync, http_principal_ingest, and (2026-09-16, AFAS bd3ce83) **http_monthly_ingest_all** — runs all four in one call, the one-click replacement for the two now-deregistered timers. The 4 single-source routes stay for targeted retries (e.g. only one source hit `ITEM_LOGIN_REQUIRED`). | ✅ Live |
+| get_plaid_tokens.py | Local Flask tool for Plaid token acquisition | ✅ 2026-09-16 (AFAS 602f0d3): each institution's existing-token box now pre-fills automatically from `local.settings.json` (the script already loaded these into the environment for `PLAID_CLIENT_ID`/`PLAID_SECRET` — no reason the reauth boxes couldn't too). Fixes a live failure: an empty token box launched a brand-new Link session instead of true update mode, and institution search matched the wrong entity ("Kabbage" instead of Amex). Earlier: added Plaid Link update-mode support (existing-token field per institution) and NW Mutual Tom/Amy cards, both 2026-08-01. |
 | db.py | DB connection | ✅ Ready — retry-with-backoff on Azure SQL error 40613 (auto-pause collision) added 2026-09-02, confirmed present in live code (ISSUE-032). Not yet exercised against a real auto-pause event — see Pick Up Here #5. |
 
 ---
@@ -308,13 +302,23 @@ Session 21 (2026-09-15):
                            104_net_worth_history_table.sql
                            105_vw_net_worth_all_time_monthly.sql
 
-Current high watermark: **105** (confirmed live 2026-09-15 — re-confirm
+Session 22 (2026-09-16/17):
+                           106_vw_account_freshness.sql
+                           107_vw_account_freshness_add_value.sql
+                           108_tesla_monthly_depreciation_september2026.sql
+                           109_house_valuation_september2026.sql
+
+Current high watermark: **109** (confirmed live 2026-09-17 — re-confirm
 live rather than trust this number next session too. Note: code changes
 committed to AFAS `main` this session that are NOT numbered SQL scripts —
 scripts/load_net_worth_history.py + scripts/interpolate_net_worth_gaps.py
 (one-time 2011-2026 historical backfill, populates dbo.net_worth_history
-which script 104/105 then build on) and scripts/seed_budget_targets.py
-(one-time dbo.budget_targets seed for 2026). Session 17's ad-hoc SQL is
+which script 104/105 then build on), scripts/seed_budget_targets.py
+(one-time dbo.budget_targets seed for 2026), Run_Monthly/http_ingest.py +
+function_app.py (Session 22 — added http_monthly_ingest_all, deregistered
+timer_sync/monthly_sync), scripts/get_plaid_tokens.py (Session 22 — token
+auto-fill fix), Run_Monthly/enrich_transactions.py (Session 22 — fixed the
+positional change-detection comparison bug). Session 17's ad-hoc SQL is
 still not reflected in any numbered file.)
 
 ---
@@ -326,12 +330,12 @@ still not reflected in any numbered file.)
 | holdings | ✅ Live | Was missing cost_basis and updated_at columns despite being documented — added 2026-08-01 (script 51). Populated via principal_sync.py (11 rows, Principal 401k) and import_hsa_holdings.py (2 rows, HSA Bank of America, value-only — no units/price in that export). `vw_holdings_all` (script 95, 2026-09-14) is now the consolidated read path across this table and `baird_holdings` — see TechnicalArchitecture. |
 | account_balances | ✅ Live | Associated 7 accounts |
 | liabilities | ✅ Live | Rocket Mortgage (rate corrected to 2.625%, origination_principal backfilled), US Bank LOC |
-| liability_balances | ✅ Live | Mortgage: $162,472 as of 2026-08-01 (YTD interest $2,636.93, YTD principal $16,998.91). US Bank LOC: $500,000, confirmed unchanged from 2026-06-01. |
+| liability_balances | ✅ Live | Mortgage and US Bank LOC balances updated as part of the monthly procedure (MonthlyProcedure.md Step 6) — most recently 2026-08-01 for both; see the Power BI Net Worth page for current figures (no dollar totals kept in this file — Section 6a). |
 | physical_assets | ✅ Live | WFB-Belle, TSLA Nebula/Storm/Trinity |
-| physical_asset_valuations | ✅ Live | Updated 2026-08-01: House $1,490,400 (Zillow), Nebula $79,000, Storm $23,000, Trinity $20,000 (KBB, mileage-specific) |
+| physical_asset_valuations | ✅ Live | House valuation via Zillow Zestimate, pasted in monthly (Claude Code can't fetch Zillow directly — 403 to automated requests). Teslas switched 2026-09-16 to a flat 1%/month depreciation policy instead of a monthly KBB lookup — see MonthlyProcedure.md Step 7. |
 | insurance_assets | ✅ Live | NWM-TOM, NWM-AMY |
-| insurance_asset_valuations | ✅ Live | Both reconnected 2026-08-01. Tom $95,211.97, Amy $55,281.18 |
-| baird_holdings | ✅ Live | 737 rows as of 2026-08-01 snapshot ($7,364,285.34 total, reconciled to Baird's own CSV total + manual cash row to the penny). MAIN - Brokerage naming corrected to MAIN - BKG. |
+| insurance_asset_valuations | ✅ Live | Both reconnected 2026-08-01, synced monthly via `http_monthly_ingest_all` (or `http_nwm_sync` individually). |
+| baird_holdings | ✅ Live | 737 rows as of 2026-08-01 snapshot, reconciled to Baird's own CSV total + manual cash row to the penny. MAIN - Brokerage naming corrected to MAIN - BKG. |
 | security_sectors | ✅ Live | 115 tickers mapped |
 | budget_targets | ✅ Live | Seeded 2026-09-15 (seed_budget_targets.py) — 240 rows, 20 categories × 12 months, `budget_year = 2026`. Combined old-budget categories (Groceries/Dining Out, Personal Care/Clothing, Entertainment/Subscriptions, Housing blending Housing+Bills & Utilities) split using real trailing-12-month actual spend ratios from `dbo.transactions`, not guessed. `is_default = 0` (month-specific override — required by `vw_budget_vs_actual`'s join logic) and `target_amount` stored positive (view computes `actual_amount` as always-positive `SUM(ABS(amount))`) — both discovered as real bugs against the pre-existing view, not assumed. |
 | net_worth_history | ✅ Live | New 2026-09-15 (script 104). 2011-2026 backfill from Tom's manually-tracked CSV, `account_key` matching `vw_holdings_all`'s own scheme so historical + live union cleanly. `source_detail` = `CSV_IMPORT` or `INTERPOLATED` (linear interpolation across the interior gap between each account's last CSV value and first live value). Loaded via scripts/load_net_worth_history.py + scripts/interpolate_net_worth_gaps.py — see DecisionLog for the account-lineage decisions (Tom 401k rollover, HSA custodian history, NWM Tom/Amy split, the Vanguard/MAIN-BKG carve-out). |
@@ -342,7 +346,15 @@ still not reflected in any numbered file.)
 
 Self-serve report page (added Session 13) built on:
 - **vw_source_freshness** — row_count / max_date / min_date /
-  days_since_last_transaction per source
+  days_since_last_transaction per source. Only ever queries
+  `dbo.transactions` — has no rows for NW Mutual or the Principal 401k
+  (see `vw_account_freshness` below).
+- **vw_account_freshness** (added 2026-09-16, script 106/107) —
+  account-level freshness across *every* monthly sync, including the two
+  `vw_source_freshness` misses. One row per (source, account), not per
+  source, plus `latest_value` (the value at that account's own latest
+  snapshot) so freshness and "does the number look right" check in one
+  query. See TechnicalArchitecture for the full column list.
 - **vw_category_health** — uncategorized / manual_override / low_confidence /
   subcategory_mirror_violation counts per source
 - **vw_needs_review** (added Session 17) — every `category_reviewed = 0` row,
@@ -351,11 +363,14 @@ Self-serve report page (added Session 13) built on:
   excluded) and a `review_priority` tier: 1 = no suggestion + currently
   Uncategorized; 2 = no suggestion + has a value; 3 = suggestion disagrees
   with current; 4 = suggestion matches current. Drives the **Needs Review**
-  page. Backlog was cleared 421 → 0 on 2026-09-03; the view stays live for
-  future rows. **Any table visual on this page must include `transaction_id`
-  (hidden) with numeric columns set to "Don't summarize"** — without the key,
-  the visual silently groups + SUMs `review_priority`/`amount` (see
-  BestMethods).
+  page. Backlog was cleared 421 → 0 on 2026-09-03; a fresh batch (49 rows,
+  all priority 4 — the auto-suggestion already agreed, just needed
+  `category_reviewed` flipped) was bulk-confirmed 2026-09-16 as part of
+  MonthlyProcedure.md's new Step 10 "Final Review" — do this every month
+  rather than letting priority-4 rows accumulate. **Any table visual on
+  this page must include `transaction_id` (hidden) with numeric columns
+  set to "Don't summarize"** — without the key, the visual silently
+  groups + SUMs `review_priority`/`amount` (see BestMethods).
 - **vw_potential_duplicates** (added Session 17) — flags two shapes:
   `legacy_vs_plaid` (a legacy bulk-import row sharing date/amount with a row
   that has a genuine non-null `pending` flag) and `pending_vs_settled` (the
@@ -381,6 +396,12 @@ Retirement / Physical / Liability (Retirement split out from Investment;
 Insurance folded into Cash; DF Checking included; cash-equivalent holdings
 inside Investment/Retirement accounts correctly counted under Cash). See
 DecisionLog 2026-09-15 for the reclassification detail.
+
+As of 2026-09-16, the Teslas' Physical valuation no longer comes from a
+monthly KBB lookup — a flat 1%/month depreciation is applied to each
+vehicle's own last recorded value instead (Tom's standing decision, not
+meant to be exact). See MonthlyProcedure.md Step 7 and DecisionLog
+2026-09-16.
 *Excludes HSA-Baird and any other non-canonical Baird accounts (never
 captured in any import — see ISSUE-017). This is a different account from
 "HSA - Bank of America" above.*

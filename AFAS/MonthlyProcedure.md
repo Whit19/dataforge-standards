@@ -5,9 +5,16 @@ standing routine (superseded the 2026-09-16 first draft, which was extracted
 from SessionStarter.md's older per-source procedures and had drifted from
 real practice in a few places); Step 1 updated same day after the two
 monthly timers were deregistered in favor of a single combined manual
-trigger (`http_monthly_ingest_all`). See DecisionLog.md for the history and
-rationale behind individual steps; see BestMethods.md for the lessons several
-of these steps encode.
+trigger (`http_monthly_ingest_all`); institution hyperlinks and the
+liability/physical-valuation update mechanism added 2026-09-17. See
+DecisionLog.md for the history and rationale behind individual steps; see
+BestMethods.md for the lessons several of these steps encode.
+
+**To run this interactively:** tell Claude Code "Run Monthly AFAS
+Procedure" — it reads this file and walks through it step by step,
+presenting each step's action (with the relevant link) and waiting for
+confirmation before moving to the next one, rather than dumping the whole
+file at once.
 
 ---
 
@@ -16,8 +23,9 @@ Azure SQL Free tier Serverless auto-pauses between uses. Every other step in
 this procedure will fail (or silently produce a stale result) if FinanceDB is
 paused. Both sub-steps below are required, not alternatives to each other.
 
-1. **Resume FinanceDB in Azure Portal** — SQL databases > FinanceDB > Resume.
-   Do this before anything else in the monthly routine.
+1. **Resume FinanceDB in the [Azure Portal](https://portal.azure.com)** —
+   SQL databases > FinanceDB > Resume. Do this before anything else in the
+   monthly routine.
 2. **In VS Code, reconnect the SQL Server extension** to FinanceDB (enter the
    Azure password when prompted).
 
@@ -28,15 +36,15 @@ There is no automated monthly timer anymore — `timer_sync` and
 `monthly_sync` were deregistered 2026-09-17 (they fired on the same
 schedule Azure SQL was still auto-paused, ISSUE-032, and always needed a
 manual DB resume beforehand anyway). Every monthly sync is now a deliberate
-manual trigger, run here after Step 0's DB resume.
+manual trigger, run here after Step 0's DB resume, from the
+[Azure Portal](https://portal.azure.com).
 
-**Normal case — one click:** open `http_monthly_ingest_all` in the Azure
-Portal, click Run/Test, select **default (function key)** as the key, click
-Run. This runs all four sources in one call: transactions (Chase/Amex/
-Associated Bank), Associated Bank balances, NW Mutual (Tom + Amy) valuations,
-and Principal 401k holdings. Check the JSON response — it reports
-`"status": "success"` or `"status": "partial_failure"` with a per-source
-breakdown.
+**Normal case — one click:** open `http_monthly_ingest_all`, click Run/Test,
+select **default (function key)** as the key, click Run. This runs all four
+sources in one call: transactions (Chase/Amex/Associated Bank), Associated
+Bank balances, NW Mutual (Tom + Amy) valuations, and Principal 401k
+holdings. Check the JSON response — it reports `"status": "success"` or
+`"status": "partial_failure"` with a per-source breakdown.
 
 **If it reports a partial failure**, retrigger just the source(s) that
 failed, the same way (Run/Test → default (function key) → Run):
@@ -51,9 +59,10 @@ failed, the same way (Run/Test → default (function key) → Run):
 Run the same source-freshness query again (`vw_source_freshness` or
 `dbo.plaid_sync_state`) — confirm all four sources above now show a current
 `MAX(date)`. Also check the **JSON response from each endpoint** for errors
-(e.g. `ITEM_LOGIN_REQUIRED`) before moving on — don't trust the Portal
-Test/Run panel's "Succeeded" status alone; that doesn't reflect whether the
-internal SQL work actually completed.
+(e.g. `ITEM_LOGIN_REQUIRED`) before moving on — don't trust the
+[Azure Portal](https://portal.azure.com) Test/Run panel's "Succeeded" status
+alone; that doesn't reflect whether the internal SQL work actually
+completed.
 
 ---
 
@@ -66,10 +75,11 @@ internal SQL work actually completed.
 ---
 
 ## 4. Baird Holdings Export and Import
-1. Baird Online: **Investments → Holdings → Unrealized Gain/Loss → Export.**
-   Account names are already included natively in this export — no manual
-   `Account Name` column needed (see the canonical-name reference table
-   below only to spot-check the export, not to fill anything in by hand).
+1. [Baird Online](https://bol.rwbaird.com/sign-in): **Investments →
+   Holdings → Unrealized Gain/Loss → Export.** Account names are already
+   included natively in this export — no manual `Account Name` column
+   needed (see the canonical-name reference table below only to spot-check
+   the export, not to fill anything in by hand).
 2. Rename the file to `holdings_YYYY-MM-DD_ALL`, save as CSV, and add a
    `Date` column (all rows, month-end date).
 3. Move the file to `Run_Monthly\imports\baird\`.
@@ -102,8 +112,10 @@ name in a past export required a SQL correction after the fact.
 ---
 
 ## 5. HSA (Bank of America) Exports
+Portal: [BofA HSA login](https://myhealth.bankofamerica.com/Login.aspx?ReturnUrl=%2fMain.aspx)
+
 **Account Activity (transactions):**
-1. Export account activity from the BofA HSA portal.
+1. Export account activity from the portal above.
 2. Rename to `HSA_Transactions_YYYY-MM-DD`.
 3. Run `python import_hsa_transactions.py`. type/in_budget are set
    deterministically at import (4 known non-spending description types
@@ -120,16 +132,32 @@ name in a past export required a SQL correction after the fact.
 ---
 
 ## 6. Update Liabilities
-1. Update the US Bank LOC balance if it's changed.
-2. Update the current mortgage amount from Rocket Money.
+No dedicated import script exists for either liability — these have always
+been a small, freshly-written SQL `MERGE` into `dbo.liability_balances`, one
+numbered script per month (see `sql/47_us_bank_loc_balance_august2026.sql`
+and `sql/49_mortgage_balance_august2026.sql` for the exact pattern). Do this
+with Claude Code: give it the new balance(s) and it writes/runs the next
+numbered script.
+
+1. **US Bank LOC** — no online login for this account; get the current
+   balance from the quarterly statement/report instead.
+2. **Mortgage** — current balance from
+   [Rocket Mortgage](https://auth.rocketaccount.com/u/login).
 
 ---
 
 ## 7. Physical Asset Valuations
-Update if needed (Zillow for the house, KBB for the Teslas). **KBB "typical
-mileage" figures can be significantly off for high-mileage vehicles** — get
-actual VIN/mileage-specific values when possible rather than trusting a
-general web search result.
+Same mechanism as Step 6 — no dedicated script, a small `MERGE` into
+`dbo.physical_asset_valuations` written fresh each month (see
+`sql/46_physical_asset_valuations_august2026.sql` for the pattern). Do this
+with Claude Code: give it the new value(s) and source, it writes/runs the
+next numbered script.
+
+- **House:** [Zillow](https://www.zillow.com) zestimate.
+- **Teslas (Nebula, Storm, Trinity):** [KBB](https://www.kbb.com). **KBB
+  "typical mileage" figures can be significantly off for high-mileage
+  vehicles** — get actual VIN/mileage-specific values when possible rather
+  than trusting a general web search result.
 
 ---
 

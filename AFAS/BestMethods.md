@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-09-16
+Last updated: 2026-09-17
 
 ---
 
@@ -1393,4 +1393,96 @@ trusting the prior assumption that the data simply wasn't captured
 anywhere. Resolved as a one-off manual historical cleanup (61 rows,
 2017-era) — scoped deliberately, not built into the importer, since the
 newer-era rows don't need it.
+
+## Power BI (continued) — DAX
+
+### A calculated column can't be sorted by another column in the same table whose own formula references the sorted column — even when it's not a real infinite loop
+
+Tried to sort an Account slicer by each account's total value using a
+`SortValue` calculated column defined via
+`LOOKUPVALUE(DimTable[TotalValue], DimTable[account_name],
+FactTable[account_name])` on the fact table itself, then set "Sort by
+Column" on `account_name` → `SortValue`. Power BI's dependency checker
+flags this as circular (`SortValue` reads `account_name`; `account_name`
+is sorted by `SortValue`) even though `SortValue`'s actual *value*
+doesn't depend on `account_name`'s *sort order* — the checker works at
+the formula-dependency level, not the semantic level. Fix: move the
+value into a genuine one-row-per-key dimension table (already had one
+handy from an earlier `AccountLatestValue` build), relate it to the fact
+table normally, and set "Sort by Column" *within* that dimension table
+instead — no self-reference, no circularity, and the slicer/relationship
+still filters the fact table exactly the same way regardless of which
+column in the related table is used for sort-by or display.
+*Source: Session 22 — Baird Activity page, Account slicer sort*
+
+### An `ADDCOLUMNS`-added column can't be referenced directly inside a nested `CALCULATE`'s filter argument
+
+`ADDCOLUMNS(PerAccount, "TotalValue", CALCULATE(SUM(...), table[date] =
+[LatestDate]))` — where `LatestDate` was itself added earlier in the
+same `ADDCOLUMNS` chain — fails with "Column 'LatestDate' cannot be
+found." `CALCULATE`'s filter-argument parser doesn't resolve a bare
+`[ColumnName]` reference to an ad-hoc `ADDCOLUMNS` column the same way
+plain row-context expressions do. Fix: capture the value into a `VAR`
+*before* the `CALCULATE` call (ordinary row-context evaluation, no
+ambiguity), then reference the `VAR` inside `CALCULATE`'s filter
+argument instead of the raw column name.
+*Source: Session 22 — AccountLatestValue calculated table*
+
+### Inside a calculated column, `CALCULATE` context-transitions on the *entire* current row, not just the column you care about — `ALLEXCEPT` is required to undo that
+
+A calculated column meant to sum a category's budget across all 12
+months (`CALCULATE(SUM(budget_amount), YEAR(month_start_date) =
+YEAR(TODAY()))`) silently returned only that row's own single month,
+not the full year. Reason: `CALCULATE` evaluated inside a calculated
+column's row context performs a full context transition — it filters
+the table to match *every* column of the current row (including
+`month_start_date`), not just the column being read. The explicit
+`YEAR(month_start_date) = YEAR(TODAY())` filter gets added on top of
+that implicit per-row filter, not instead of it. Fix:
+`ALLEXCEPT(table, table[category], table[type])` inside the `CALCULATE`
+strips the implicit row-context filter back down to just the columns
+that should stay fixed, before the explicit year/date filters are
+applied.
+*Source: Session 22 — CategoryWithOverspend/CategoryWithIncomeAhead calculated columns*
+
+### A card visual's "K/M" abbreviation is a separate setting from currency/decimal formatting, and lives under a different Format-pane tab
+
+Setting a measure's format to Currency with 0 decimals (both at the
+model level and in the visual's General → Data format section) had no
+effect on a Card visual still showing the abbreviated "K" form instead of the full number. The
+abbreviation is controlled by **Display Units**, found under the
+**Visual** tab's "Callout value" section — a completely different part
+of the Format pane from the General tab's Data format section, and not
+overridden by anything set there. Set Display Units to `None` to show
+the full number.
+*Source: Session 22 — Baird Activity Income Minus Net Fees card*
+
+### A chart's "Apply settings to" dropdown defaulting to a specific category means conditional formatting is being bound per-category, not to the plotted measure
+
+Tried to conditionally color a column chart's bars by the sign of the
+plotted measure (red for negative, green for positive) via Format pane
+→ Columns → Colors, but the dialog only offered per-category static
+color pickers (one row per axis value) instead of the expected Rules
+dialog. Cause: "Apply settings to" was set to an individual category
+instead of `All` — with a specific category selected, Power BI assumes
+you want a manual per-category color, not a value-based rule. Switching
+"Apply settings to" back to `All` collapses it to a single color swatch
+with an `fx` icon, which is the actual entry point to Rules-based
+conditional formatting bound to a measure's value.
+*Source: Session 22 — Budget vs Actual bar chart*
+
+### A seed process built around "spread the annual figure evenly across 12 months" will silently omit any category that doesn't actually work that way
+
+The original 20-category `budget_targets` seed assumed every Expense
+category has a real monthly cadence. `Property Tax` was never included
+at all — not underfunded, simply absent — because it's paid as one
+lump sum every January (confirmed against 7 years of actuals,
+2020-2026), not a recurring monthly bill like everything else that was
+seeded. It only surfaced as a fully-red, no-budget bar on a Power BI
+pace chart built much later. When seeding a budget/target table from a
+category list, check each category's actual payment cadence first
+(lump-sum vs. recurring) rather than assuming a uniform monthly split —
+a category that doesn't fit the assumed shape won't throw an error, it
+will just be silently missing.
+*Source: Session 22 — Property Tax budget gap, script 117*
 *Source: Session 22 — HSA Consumer Note discovery, ISSUE-043*

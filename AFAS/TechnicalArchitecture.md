@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-09-16 (Session 22: first live run-through of MonthlyProcedure.md — timer_sync/monthly_sync deregistered in favor of one manual http_monthly_ingest_all route; enrich_transactions.py's change-detection comparison fixed (was positional, not by transaction_id — flagged 9,604 untouched rows as changed); new vw_account_freshness (account-level freshness + latest_value, covers NWM/401k which vw_source_freshness never did); get_plaid_tokens.py pre-fills tokens; Tesla valuations switched to a flat monthly depreciation policy; the 61-row HSA ISSUE-043 backlog resolved via a previously-uncaptured Consumer Note CSV field)
+Last updated: 2026-09-17 (Session 22 cont.: Baird Activity and Budget vs Actual Power BI pages both completed, plus a new Budget Pace page with 100%-stacked pace charts; ISSUE-046 opened (Expense mismatch between vw_budget_vs_actual and vw_transactions_clean, not yet root-caused))
 
 ---
 
@@ -68,8 +68,10 @@ Power BI (star schema)
   │     └── vw_enrichment_quality
   │
   └── Phase 4 — Net Worth / Holdings / Asset Allocation pages built and
-        verified 2026-09-14; Budget vs Actual data verified working
-        2026-09-15 (page refinement still outstanding); Liability still planned
+        verified 2026-09-14; Budget vs Actual page complete 2026-09-17
+        (12-month matrix, current-month matrix, bar chart, plus a new
+        Budget Pace page); Baird Activity page complete 2026-09-17;
+        Liability page not needed (Tom, 2026-09-16 — only 2 liabilities)
         ├── vw_net_worth              (thin wrapper over vw_holdings_all as of 2026-09-15 — Cash/Investment/Retirement/Physical/Liability)
         ├── vw_holdings_all           (built 2026-09-14, consolidated Baird + Plaid Investments; extended 2026-09-15 with l1_group..l5_source Power BI account hierarchy columns)
         ├── vw_net_worth_all_time     (built 2026-09-15 — full 2011-2026 monthly history, net_worth_history + vw_holdings_all, forward-filled)
@@ -77,8 +79,8 @@ Power BI (star schema)
         ├── vw_account_balances
         ├── vw_holdings_summary       (dead — Baird-only, superseded by vw_holdings_all, removed from PBI model)
         ├── vw_asset_allocation       (dead — Baird-only, superseded by vw_holdings_all, removed from PBI model)
-        ├── vw_liability_summary      (planned — not yet built into a page)
-        └── vw_budget_vs_actual       (data verified working 2026-09-15 — budget_targets seeded; needs no Power BI relationship, joins internally; page itself not yet refined)
+        ├── vw_liability_summary      (exists, unused — Liability page not needed per Tom, only 2 liabilities)
+        └── vw_budget_vs_actual       (data verified working 2026-09-15 — budget_targets seeded; needs no Power BI relationship, joins internally; page complete 2026-09-17)
     │
     ▼
 AI Agent Layer (Phase 5)
@@ -274,8 +276,9 @@ All relationships: One-to-Many, Single cross-filter direction, Calendar as hub.
 | Holdings / Asset Allocation | ✅ Complete (added Session 20, 2026-09-14; hierarchy columns added Session 21) — built on `vw_holdings_all` (`vw_holdings_summary`/`vw_asset_allocation` dropped 2026-09-16, script 110 — see below). Grouped by `account_name`, `sector`, `asset_classification`, `asset_type`, or the new `l1_group`..`l5_source` hierarchy. |
 | Net Worth History (full 2011-2026 trend) | ✅ Data ready, page not yet built (Session 21, 2026-09-15) — `vw_net_worth_all_time`, one row per account per calendar month, forward-filled. |
 | Liability Summary | ❌ Not needed (Tom, 2026-09-16) — only 2 liabilities, already easily visible on the Net Worth page. `vw_liability_summary` exists in SQL, unused, no plan to connect it. |
-| Baird Activity | ⏳ Data ready, page not yet built (2026-09-16) — `vw_baird_activity` (673 rows, 2026-01-01 to present), `activity_category`/`trade_direction` ready to filter. Pure review/visibility (buys/sells, fees, dividend/interest/cap-gain payouts for tax planning) — deliberately not wired into Budget vs Actual. Sequenced ahead of Budget vs Actual 2026-09-17 (Tom's call). See SessionStarter Pick Up Here #1 for suggested layout. |
-| Budget vs Actual | 🟡 Data verified working (Session 21, 2026-09-15) — `budget_targets` seeded for 2026, `vw_budget_vs_actual` confirmed producing correct actual/budget/variance/pct_of_budget numbers (no Power BI relationship needed, the view joins internally). Page design/refinement is an active, ongoing focus (Pick Up Here #2) — queued behind Baird Activity as of 2026-09-17. |
+| Baird Activity | ✅ Complete (2026-09-17) — 3 sections on one page (Trades / Fees / Income) built on `vw_baird_activity`, filtered by `activity_category`, with a shared Account slicer (sorted by each account's latest total value via a small `AccountLatestValue` dimension table — see below). Pure review/visibility, deliberately not wired into Budget vs Actual. |
+| Budget vs Actual | ✅ Complete (2026-09-17) — 12-month matrix (Year/Month rows, Expense\|Income column groups, Amount/Budget/A-B), a current-month matrix (Type/Category rows, same 3 values, with data bars), and a bar chart (Actual-minus-Budget, Expense only, last 12 months). Built on 3 new measures — `Signed Actual`/`Signed Budget`/`Signed Variance (A-B)` — that flip sign for Expense only, since `actual_amount`/`budget_amount` are stored as positive magnitudes for both types. Surfaced ISSUE-046 (Expense mismatch vs `vw_transactions_clean`, not yet root-caused) and a real budget_targets gap — Sep-Dec 2025 had actuals but no budget line at all, fixed by backfilling from 2026's same months (script 116). |
+| Budget Pace | ✅ Complete (new page, 2026-09-17) — two 100%-stacked bar charts (Expense, Income), one bar per category = that category's full annual budget, split into YTD-spent/earned vs remaining, with a constant reference line at "% of year elapsed" (`Day of Year Pct` measure) so pace can be read at a glance regardless of each category's own budget size. Categories at or past their annual budget get an inline "(OVER $X)" / "(AHEAD $X)" label via a calculated column (`CategoryWithOverspend`/`CategoryWithIncomeAhead`) rather than breaking the 100%-stacked segments. Surfaced 2 isolated HSA misclassifications (script 118) and the missing Property Tax budget target (script 117, a lump-sum-in-January category the original 20-category seed never covered). |
 
 #### vw_holdings_all (added 2026-09-14, script 95; extended 2026-09-15, scripts 99-103)
 Consolidates `dbo.baird_holdings` (CSV, flat) and `dbo.holdings` + `dbo.accounts` + `dbo.securities` (Plaid Investments — Principal 401k, HSA, any future connection) into one shape. Full history (every snapshot date), not just latest — built for equity-performance trending, not just a point-in-time number; downstream consumers filter to `MAX(snapshot_date)` per account themselves. Columns: `source`, `institution_id`, `account_key`, `holding_id`, `account_name`, `owner`, `account_subtype`, `snapshot_date`, `symbol`, `description`, `asset_type`, `asset_classification`, `sector`, `quantity`, `price`, `value`, `cost_basis`, `unit_cost`, `unrealized_gl`, `unrealized_gl_pct`, `term`, `est_annual_income`, `date_acquired`, `currency`, `include_in_net_worth`, `lender_name`, `net_worth_category`, `l1_group`..`l5_source`. Fields that only exist on one side (`sector`/`asset_classification`/`term`/`est_annual_income`/`date_acquired` are Baird-only) are `NULL` on the other; `unrealized_gl`/`unrealized_gl_pct`/`unit_cost` are computed from `cost_basis` for the Plaid side to keep parity (NULL when Plaid doesn't return `cost_basis`, e.g. the entire Principal 401k). `sector` for any fund-type Plaid holding (mutual fund/ETF, or Plaid's generic `'Miscellaneous'`) is normalized to `'Diversified'`, matching Baird's own convention (script 96). `asset_classification` for the Plaid side is derived from `security_type` (script 97) since Plaid has no equivalent field — mapped onto Baird's own bucket names (Equities/Fixed Income/Alternatives/Cash and Cash Equivalents). Superseded `vw_holdings_summary` and `vw_asset_allocation` as the source of truth for holdings — both were `FROM dbo.baird_holdings` only (same gap `vw_net_worth` had before Session 20's fix), removed from the Power BI model, and formally dropped from SQL 2026-09-16 (script 110, Tom's call — confirmed no other object referenced either first).

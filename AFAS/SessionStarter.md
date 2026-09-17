@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-16 (Session 22 — first live run-through of MonthlyProcedure.md: enrich_transactions.py positional-comparison bug fixed, vw_account_freshness built, http_monthly_ingest_all added + the two auto-pause-prone timers deregistered, HSA Consumer Note discovery resolved the 61-row ISSUE-043 backlog, Tesla depreciation switched to a flat monthly policy; SQL watermark 109)
+Last updated: 2026-09-17 (Session 22 cont. — built the Baird Activity Power BI page (Trades/Fees/Income) and the full Budget vs Actual build-out (12-month matrix, current-month matrix, bar chart, plus a new Budget Pace page with 100%-stacked pace charts); found and fixed 4 real data gaps along the way (missing IRA fee rows, missing Property Tax budget, 2 isolated HSA misclassifications); opened ISSUE-046 (Expense mismatch between vw_budget_vs_actual and vw_transactions_clean); SQL watermark 118)
 
 ---
 
@@ -112,35 +112,31 @@ top-level status, when verifying an automated sync actually ran.**
 ## Pick Up Here — Next Session
 
 Grouped by what each item actually needs, so nothing sits here just because
-it's always sat here. 2026-09-16: Tom closed out two more items directly —
-`vw_potential_duplicates` is already in use on a Power BI page (not a gap),
-and the Liability page isn't needed (only 2 liabilities, easily visible on
-the Net Worth page already).
+it's always sat here. 2026-09-17: both Power BI page builds from the last
+pass are done — Baird Activity (3-section page: Trades/Fees/Income) and
+Budget vs Actual (12-month matrix, current-month matrix, bar chart, plus
+a new "Budget Pace" page with 100%-stacked pace charts). See DecisionLog
+for the full build detail.
 
-**Requires Power BI Desktop (not a code or data task):**
-1. **Build a new "Baird Activity" Power BI page** (2026-09-16, moved ahead
-   of Budget vs Actual 2026-09-17 — Tom's call) — data side is done:
-   `vw_baird_activity` (673 rows, 2026-01-01 to present) has
-   `activity_category` (Trade / Fee / Income / Cash Movement / Other) and
-   `trade_direction` (Buy/Sell) ready to filter/slice on. Suggested layout
-   — 3 visuals/filters matching Tom's 3 stated needs: (a) a Trades table
-   filtered to `activity_category = 'Trade'`, probably defaulting
-   `is_reinvestment = 0` so DRIP noise doesn't swamp real buy/sell
-   decisions, with a toggle to include it; (b) a Fees table filtered to
-   `activity_category = 'Fee'` (Asset Based Fee vs Asset Fee Rebate); (c)
-   an Income table filtered to `activity_category = 'Income'`, grouped by
-   `activity_type` so Dividend/Interest/Capital Gain Distrib/foreign tax
-   withheld are visually distinguishable for tax planning. Pure
-   visibility/review — deliberately not wired into Budget vs Actual.
-2. **Refine the Budget vs Actual Power BI page** — data is verified working
-   (`budget_targets` seeded, `vw_budget_vs_actual` correct); page
-   design/refinement is still outstanding.
+**Needs investigation (data question, not yet root-caused):**
+1. **ISSUE-046 — Expense totals disagree between `vw_budget_vs_actual`
+   and `vw_transactions_clean` for the same month.** Tom compared the two
+   while building the Budget vs Actual page — Income matched, Expense
+   didn't. Not yet root-caused; likely candidates to check first: the
+   `in_budget = 1` filter `vw_budget_vs_actual` applies (does
+   `vw_transactions_clean` apply the same filter, or does it include
+   every expense regardless of budget-tracking status?), `ISNULL(pending,
+   0) = 0` handling, and whether `SUM(ABS(amount))` vs however
+   `vw_transactions_clean` aggregates sign differently for a specific
+   category. Compare the two views' `OBJECT_DEFINITION()` directly rather
+   than guessing.
 
 ---
 
 ## Active Data Issues
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
+| ISSUE-046 | Medium | Expense totals disagree between `vw_budget_vs_actual` and `vw_transactions_clean` for the same month (Income matches) | Compare both views' `OBJECT_DEFINITION()` — see Pick Up Here #1 |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---
@@ -290,8 +286,13 @@ Session 22 (2026-09-16):
                            111_baird_activity_table.sql
                            112_vw_baird_activity.sql
                            113_vw_baird_activity_add_asset_bought.sql
+                           114_ira_tom_missing_pim_fees.sql
+                           115_ira_roth_tom_missing_pim_fees.sql
+                           116_backfill_2025_budget_sep_dec_from_2026.sql
+                           117_property_tax_budget_2026.sql
+                           118_hsa_income_type_and_in_budget_fixes.sql
 
-Current high watermark: **113** (confirmed live 2026-09-16 — re-confirm
+Current high watermark: **118** (confirmed live 2026-09-17 — re-confirm
 live rather than trust this number next session too. Note: code changes
 committed to AFAS `main` this session that are NOT numbered SQL scripts —
 scripts/load_net_worth_history.py + scripts/interpolate_net_worth_gaps.py

@@ -118,11 +118,9 @@ and the Liability page isn't needed (only 2 liabilities, easily visible on
 the Net Worth page already).
 
 **Requires Power BI Desktop (not a code or data task):**
-1. **Refine the Budget vs Actual Power BI page** — data is verified working
-   (`budget_targets` seeded, `vw_budget_vs_actual` correct); page
-   design/refinement is still outstanding.
-2. **Build a new "Baird Activity" Power BI page** (2026-09-16) — data side
-   is done: `vw_baird_activity` (673 rows, 2026-01-01 to present) has
+1. **Build a new "Baird Activity" Power BI page** (2026-09-16, moved ahead
+   of Budget vs Actual 2026-09-17 — Tom's call) — data side is done:
+   `vw_baird_activity` (673 rows, 2026-01-01 to present) has
    `activity_category` (Trade / Fee / Income / Cash Movement / Other) and
    `trade_direction` (Buy/Sell) ready to filter/slice on. Suggested layout
    — 3 visuals/filters matching Tom's 3 stated needs: (a) a Trades table
@@ -134,6 +132,9 @@ the Net Worth page already).
    `activity_type` so Dividend/Interest/Capital Gain Distrib/foreign tax
    withheld are visually distinguishable for tax planning. Pure
    visibility/review — deliberately not wired into Budget vs Actual.
+2. **Refine the Budget vs Actual Power BI page** — data is verified working
+   (`budget_targets` seeded, `vw_budget_vs_actual` correct); page
+   design/refinement is still outstanding.
 
 ---
 

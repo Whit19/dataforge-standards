@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-09-21 (Session 23: fixed vw_budget_vs_actual's ABS/SUM ordering bug (ISSUE-046, script 119) — Expense actuals were overstated in any month containing a refund/return)
+Last updated: 2026-09-21 (Session 23: fixed vw_budget_vs_actual's ABS/SUM ordering bug (ISSUE-046); rebuilt Monthly Spend, Cash Flow, Year Over Year and Top Merchants on vw_transactions_clean; plaid_sync.py sign fix (ISSUE-047) deployed, live confirmation pending)
 
 ---
 
@@ -60,11 +60,11 @@ External Valuation APIs (Phase 4 — not yet integrated)
 Power BI (star schema)
   ├── Phase 3 (live — scheduled refresh 4:00 AM CT daily)
   │     ├── Calendar table (DAX hub)
-  │     ├── vw_transactions_clean
-  │     ├── vw_monthly_spend
-  │     ├── vw_cash_flow
-  │     ├── vw_top_merchants
-  │     ├── vw_category_yoy
+  │     ├── vw_transactions_clean     (base view for every spending page as of 2026-09-21)
+  │     ├── vw_monthly_spend          (retired from Power BI 2026-09-21, still in SQL)
+  │     ├── vw_cash_flow              (retired from Power BI 2026-09-21, still in SQL)
+  │     ├── vw_top_merchants          (retired from Power BI 2026-09-21, still in SQL)
+  │     ├── vw_category_yoy           (retired from Power BI 2026-09-21, still in SQL)
   │     └── vw_enrichment_quality
   │
   └── Phase 4 — Net Worth / Holdings / Asset Allocation pages built and
@@ -130,7 +130,7 @@ AI Agent Layer (Phase 5)
 | File | Purpose | Status |
 |------|---------|--------|
 | function_app.py | Azure Functions v2 entry point | ✅ Ready |
-| plaid_sync.py | Shared sync module (de-duplicated from timer + HTTP) | ⚠️ Two issues found 2026-08-03: plaid_category_raw stores the full personal_finance_category JSON object via json.dumps() instead of an extracted category string (ISSUE-019 root cause — category_map's exact-string match has never worked for Plaid-synced sources as a result; fix drafted, not yet deployed). INFLOW_CATEGORIES incorrectly includes BANK_FEES and LOAN_PAYMENTS as inflows (ISSUE-023, sign regression, ~25 rows/~$136K affected; fix not yet drafted). description column confirmed dead code (ISSUE-024) — Plaid's transaction object has no field by that name, so tx.get("description", "") has always returned empty. |
+| plaid_sync.py | Shared sync module (de-duplicated from timer + HTTP) | ✅ Live. Sign logic reworked 2026-09-21 (ISSUE-047, deployed; live confirmation pending the next sync): INCOME/TRANSFER_IN store `abs`, LOAN_PAYMENTS (transfers) store `-abs` as before, every other category stores `-amount` — Plaid's sign is uniform across credit-card and checking/savings accounts (positive = money out, negative = money in), verified against live Chase and Associated data; the previous blanket `-abs` stored refunds and statement credits as charges. `plaid_category_raw` now stores the extracted category string (ISSUE-019, fixed and deployed 2026-09-01); the `description` column stores Plaid's raw `name` field (ISSUE-024). |
 | enrich_transactions.py | **The single enricher for every source** (Plaid CHASE/ASSOCIATED_PERSONAL/AMEX, Apple Card CSV, HSA CSV). Note: previously listed here as "enrichment.py" — corrected 2026-08-03. | ✅ 2026-09-16 (AFAS 3b6989d): fixed a false-positive "changed" bug in `main()`'s before/after comparison — `enrich_from_merchant_patterns()`/`enrich_from_history()` both reorder rows via `pd.concat(..., ignore_index=True)`, which broke the comparison's positional alignment against the pre-pipeline snapshot and misreported up to 9,604 of 16,754 untouched rows as changed (wasted writes only — verified live that no prior enrichment/`category_reviewed` data was actually overwritten). Comparison now keys off `transaction_id` instead of row position. 2026-09-08: `enrich_apple_csv.py` + `enrich_hsa_csv.py` retired — this file already had no source filter and is now the sole enricher (AFAS b1a3ef3). `load_transactions()` date cutoff (`date >= '2024-01-01'`) removed so a backdated pre-2024 CSV row isn't permanently skipped. `apply_fallback()` now only fills `in_budget`/`type` where NULL, preserving an importer's deliberate classification for an unmatched row. 2026-09-03: docstring order corrected; `enrich_from_history()` added between category_map and bonus_rule → `category_source = 'historical_carryforward'` / `MEDIUM` (AFAS 557cdd1 + 4f0c052). 2026-09-02: write-back scoped to changed rows (ISSUE-035). 2026-08-03: apply_fallback() defaults corrected; `--unenriched-only` retry fixed. |
 | import_apple_csv.py | Apple Card CSV import script (manual monthly). Stores Apple's CSV "Category" column in `plaid_category_raw` (despite the column name — no Plaid involvement). | ✅ 2026-09-08: inserts `category_source = NULL` (was `'historical'`, which collided with the ~6k genuinely backfilled `'historical'` rows); MERGE re-default guard now treats only `NULL` / `'unmatched'` as "not yet enriched" (AFAS b1a3ef3). 2026-09-01: MERGE fixed to protect already-enriched rows via CASE. |
 | plaid_client.py | Plaid SDK wrapper — created 2026-06-15 (did not previously exist despite this entry). _make_plaid_client() (duplicated from plaid_sync.py) + get_account_balances() | ✅ Ready — prior "plaid_category_raw fix" note likely describes logic actually in plaid_sync.py, needs verification |
@@ -255,20 +255,19 @@ All relationships: One-to-Many, Single cross-filter direction, Calendar as hub.
 
 | View | Connects to Calendar via | Notes |
 |------|--------------------------|-------|
-| vw_transactions_clean | date | Base view — COALESCE merchant fix applied |
-| vw_monthly_spend | month_start_date | |
-| vw_cash_flow | month_start_date | |
-| vw_top_merchants | — | Standalone — no Calendar relationship; COALESCE merchant fix applied |
-| vw_category_yoy | year_start_date | |
+| vw_transactions_clean | date | Base view for every spending page as of 2026-09-21 (Monthly Spend, Cash Flow, Year Over Year, Top Merchants, plus the transaction-level drill). Live definition is the script-26 shape (`yr`, `mo`, `month_name`, `account_name`, `institution_name`; `merchant_normalized` already COALESCEd) — `sql/16_powerbi_views.sql` does NOT match what is deployed |
+| vw_monthly_spend, vw_cash_flow, vw_category_yoy, vw_top_merchants | — | **Retired from Power BI 2026-09-21** — no page uses them; no SQL dependents, no code references. Still exist in SQL; drop pending Tom's go-ahead. Three summed `ABS(amount)` per row (refunds overstated as spend); `vw_top_merchants` had no date column so its Year slicer never filtered |
 | vw_enrichment_quality | — | Standalone |
+
+Shared measures on `vw_transactions_clean` (2026-09-21): `Net Spend` and `Txn Count` (Expense, `in_budget` = TRUE), `Total Income`, `Total Expense`, `Net Cash Flow` (all Income/Expense rows, no `in_budget` filter — cash flow includes taxes, fees and HSA deposits by design). `Category Sort` is a small calculated table (Expense categories ranked by trailing-12-month net spend) related to `vw_transactions_clean[category]` purely so the category slicer can be ordered by spend; it is a snapshot at model refresh. Theme file: `powerbi/AFAS_Theme.json` in the AFAS repo.
 
 #### Report Pages
 | Page | Status |
 |------|--------|
-| Monthly Spend | ✅ Complete |
-| Cash Flow | ✅ Complete |
-| Year Over Year | ✅ Complete |
-| Top Merchants | ✅ Complete |
+| Monthly Spend | ✅ Rebuilt 2026-09-21 on `vw_transactions_clean` — Net Spend/Txn Count cards, category bars, subcategory table, and a transaction table that follows slicers and bar clicks (drill to individual transactions) |
+| Cash Flow | ✅ Rebuilt 2026-09-21 on `vw_transactions_clean` — Total Income / Total Expense / Net Cash Flow measures, no `in_budget` filter (unlike Budget vs Actual) |
+| Year Over Year | ✅ Rebuilt 2026-09-21 on `vw_transactions_clean` — Net Spend by category and Calendar year; category slicer restricted to Expense categories |
+| Top Merchants | ✅ Rebuilt 2026-09-21 on `vw_transactions_clean` — Top 25 merchants by Net Spend, month legend, category slicer ordered by spend via `Category Sort`; the Year slicer now actually filters (the old view had no date) |
 | Transaction Review | ✅ Complete (added 2026-06-01) — Source/Year/Month slicers |
 | Data Health | ✅ Complete (added Session 13) — built on vw_source_freshness + vw_category_health |
 | Needs Review | ✅ Complete (added Session 17) — built on `vw_needs_review` (all `category_reviewed = 0` rows, with computed `suggested_category`/`suggested_subcategory` and a `review_priority` 1–4 tier). Backlog cleared 421 → 0 on 2026-09-03. See SessionStarter "Data Health (Power BI)". Table visuals on this page **must** include `transaction_id` (hidden) with numerics set to "Don't summarize" — see BestMethods. |

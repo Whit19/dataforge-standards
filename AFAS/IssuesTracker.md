@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-09-21 (Session 23 — ISSUE-046 resolved and moved to DecisionLog; ISSUE-047 opened, fix committed, awaiting deploy)
+Last updated: 2026-09-21 (Session 23 — ISSUE-046 resolved and moved to DecisionLog; ISSUE-047 opened, fix deployed, awaiting live confirmation)
 
 ---
 
@@ -28,12 +28,12 @@ Last updated: 2026-09-21 (Session 23 — ISSUE-046 resolved and moved to Decisio
 ### ISSUE-047 — plaid_sync.py stores refunds and statement credits as charges
 | Field | Value |
 |-------|-------|
-| Status | In Progress — fix committed 2026-09-21, **not yet deployed to the Function App** |
+| Status | In Progress — fix deployed 2026-09-21 (deployed copy matched the local file), **awaiting live confirmation on the next sync** |
 | Opened | 2026-09-21 |
 | Priority | High |
 | Description | `plaid_sync.py` stored every Plaid transaction outside `INCOME`/`TRANSFER_IN` as `-abs(amount)`, discarding the sign. Plaid sends a credit (refund, statement credit, return) as a negative amount, so it landed in `dbo.transactions` as a charge and was counted as spend. Verified 2026-09-21 against live Plaid data that the sign convention is identical for the Chase credit card and Associated checking/savings (positive = money out, negative = money in) — it is not account-type specific. Found while investigating a Chase rideshare statement credit stored with the wrong sign. |
 | Last Action | Sign logic fixed in `plaid_sync.py` (merchant/spend categories now use `-amount`; `LOAN_PAYMENTS` transfers keep `-abs` as before). A replay of 825 live Chase + Associated transactions changed exactly 8, all credits. Eight already-stored rows corrected by script 122. Amex could not be checked — its Plaid item needs a Link update-mode re-login (`ITEM_LOGIN_REQUIRED`). |
-| Next Step | Deploy the updated `plaid_sync.py` to the Function App **and verify the deployed copy** (a fix in git is not a fix in production — see BestMethods on deployment verification). Until then, any new credit synced from Plaid is still stored as a charge; one already sitting in Plaid, not yet in the database, is a Chase hotel credit dated 2026-09-18. After the Amex re-login, re-run the sign comparison on the Amex credit card. A text search only catches credits with telltale wording, so other credits stored as charges before 2026-09-21 may remain — the Amazon return found here had no such wording. |
+| Next Step | Run the next sync (Portal `http_ingest`, or the monthly run) and confirm a Chase hotel credit already sitting in Plaid, dated 2026-09-18, lands in `dbo.transactions` as a positive amount — that is the live proof; then close this issue. Amex will error on that run until its Plaid item is re-logged-in. After the Amex re-login, re-run the sign comparison on the Amex credit card. A text search only catches credits with telltale wording, so other credits stored as charges before 2026-09-21 may remain — the Amazon return found here had no such wording. |
 
 ---
 

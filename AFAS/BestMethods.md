@@ -1507,3 +1507,47 @@ Income matching and only Expense drifting. When a magnitude is needed
 for display, apply `ABS()` to the group's net total, not to each row
 inside it.
 *Source: Session 23 — ISSUE-046, script 119*
+
+### Never `abs()` a signed source amount at ingestion — it turns refunds and credits into spend
+
+`plaid_sync.py` stored every Plaid transaction outside two categories as
+`-abs(amount)`. Plaid sends a refund, return or statement credit as a
+*negative* amount, so `abs()` discarded exactly the information that
+distinguishes a credit from a charge, and every credit landed as spend. It
+went unnoticed for months because most rows are ordinary charges, the
+effect only shows in months with a refund, and a text search for
+"refund"/"credit" catches only credits that happen to say so — an Amazon
+return had no such wording and was found only by comparing the stored sign
+against the raw source. Negate a signed amount (`-amount`), don't take its
+absolute value, and if a category genuinely needs `abs` (transfers whose
+direction is meaningless) special-case that category explicitly and say why.
+Related: a sign convention that "differs by account type" is a hypothesis to
+test against the raw source per account, not an assumption to build
+around — here it was uniform across the credit card and the bank accounts.
+*Source: Session 23 — ISSUE-047, scripts 121-122*
+
+### Rebuild pages on one base view with measures instead of many pre-summed views
+
+Four spending pages each sat on their own pre-aggregated SQL view
+(`vw_monthly_spend`, `vw_cash_flow`, `vw_category_yoy`, `vw_top_merchants`).
+Each re-implemented its own aggregation, and three of them summed
+`ABS(amount)` per row, so one aggregation mistake was copied four times. One
+of them (`vw_top_merchants`) had no date column at all, so its Year slicer
+never filtered anything — the page silently showed all-time totals under a
+single-year label. A single base view (`vw_transactions_clean`) with a small
+set of shared DAX measures has one aggregation rule to get right, makes
+every slicer work because the Calendar relationship is on the fact table,
+and gives transaction-level drill for free. Pre-summed views are worth it
+only for a genuine performance problem, not as the default.
+*Source: Session 23 — Power BI page review*
+
+### A Power BI slicer can't be sorted by a measure — sort a small dimension table by column and slice on that
+
+A slicer sorts only by its own field. To order a category slicer by spend,
+build a one-row-per-category calculated table that carries the spend value,
+relate it to the fact table, set `Sort by column` *inside that table*, and
+slice on the table's category column. The order is a snapshot taken at
+model refresh, not responsive to other slicers; a small table visual
+(category plus the measure, sorted by the measure, click to filter) is the
+alternative when it must follow the Year slicer.
+*Source: Session 23 — Top Merchants category slicer*

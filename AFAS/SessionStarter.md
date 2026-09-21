@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-21 (Session 23 — root-caused and fixed ISSUE-046: vw_budget_vs_actual was summing ABS(amount) per row instead of ABS(SUM(amount)), so any month with a refund/return overstated Expense actuals; fixed via script 119; opened ISSUE-047 (plaid_sync stores credits as charges — fixed in code, awaiting deploy); SQL watermark 122)
+Last updated: 2026-09-21 (Session 23 — root-caused and fixed ISSUE-046: vw_budget_vs_actual was summing ABS(amount) per row instead of ABS(SUM(amount)), so any month with a refund/return overstated Expense actuals; fixed via script 119; opened ISSUE-047 (plaid_sync stored credits as charges — fixed and deployed, awaiting live confirmation); Monthly Spend, Cash Flow, Year Over Year and Top Merchants pages rebuilt on vw_transactions_clean; a future projections page recorded; SQL watermark 122)
 
 ---
 
@@ -119,19 +119,73 @@ a new "Budget Pace" page with 100%-stacked pace charts). 2026-09-21:
 ISSUE-046 root-caused and fixed (script 119 — see DecisionLog).
 
 **Needs action:**
-1. **Deploy the `plaid_sync.py` sign fix (ISSUE-047) to the Function App
-   and verify the deployed copy.** Committed 2026-09-21 but not deployed —
-   until it is, every credit Plaid sends still lands as a charge.
+1. **Confirm the `plaid_sync.py` sign fix (ISSUE-047) live.** Deployed
+   2026-09-21 (Tom pasted the deployed file; it matched). No sync has run
+   since. After the next sync (Portal `http_ingest` or the monthly run),
+   check that a Chase hotel credit already sitting in Plaid, dated
+   2026-09-18, lands as a positive amount, then close the issue.
 2. **Amex Plaid item needs a Link update-mode re-login**
-   (`ITEM_LOGIN_REQUIRED`, seen 2026-09-21). Afterward, re-run the sign
-   comparison on the Amex credit card (it could not be checked).
+   (`ITEM_LOGIN_REQUIRED`, seen 2026-09-21) — its sync will error until
+   then. Afterward, re-run the sign comparison on the Amex credit card
+   (it could not be checked).
+3. **Drop the four retired SQL views** (`vw_monthly_spend`,
+   `vw_cash_flow`, `vw_category_yoy`, `vw_top_merchants`) once Tom
+   confirms — no page, SQL object or script references them any more.
+
+**Continue the Power BI page review** (Tom is walking the built pages one
+at a time to improve them): Monthly Spend, Cash Flow, Year Over Year and
+Top Merchants are done (rebuilt on `vw_transactions_clean`). Not yet
+reviewed in this pass: Transaction Review, Data Health, Needs Review,
+Net Worth, Holdings / Asset Allocation, Baird Activity, Budget vs Actual /
+Budget Pace polish.
+
+**Future work — not started (Tom, 2026-09-21): a Power BI page that
+projects future years.** Tom built the model in Excel and wants it in
+Power BI. The Excel workbook is the spec; it has two halves:
+1. *Cash flow by category by year, with the ability to change a category's
+   assumption for any year.* Columns are historical years (2020 through
+   last year, actuals) then estimate years (current year through five
+   years out), each with an amount and a percent-change-vs-prior-year
+   column. Rows: **Budgeted Expenses** (Housing, Groceries / Dining Out,
+   Sports / Clubs, Travel, Personal Care / Clothing, Gifts / Charity,
+   Children, Entertainment / Subscription, Car, Medical / Health,
+   Work - Expense, ATM / Cash Spending) with a total; **Budgeted Income**
+   (Pay, Bonus, Work - Reimb, Mobile Deposit) with a total; Budgeted Cash
+   Flow; **Other Expenses** (One Time, Taxes, Fee, LOC Interest Payment)
+   with a total; **Other Income** (Baird Stock Div, Dividend, HSA Deposit,
+   Interest) with a total; Other Cash Flow; and All Annual Cash Flow.
+2. *Overall holdings / net worth roll-forward, year-end by year.* Rows:
+   Fixed Assets (Car, Home), Cash (Checking, DF Checking, Insurance,
+   Savings, Equities), Equity (Baird Stock, Education 529, HSA, Equities),
+   Retirement (401k/IRA, Roth IRA), Loans (LOC, Mortgage), Net Worth Year
+   End; plus household age rows (parents, each child) and a per-year Notes
+   row holding the life-event assumptions that drive the numbers (college
+   start and finish, loan payoff, contribution changes, and similar).
+
+Design notes for when this is picked up:
+- The workbook's "Budgeted" vs "Other" split lines up with the
+  `in_budget` flag, and its current-year estimate column lines up with
+  `dbo.budget_targets` — both already exist in SQL. Its category names are
+  the older combined ones (e.g. Groceries / Dining Out), not the current
+  taxonomy, so a mapping is needed.
+- Editable per-year assumptions need somewhere to live: Power BI cannot
+  write back. Options are an assumptions table in SQL (like
+  `budget_targets`, edited by script), what-if parameters, or a writeback
+  tool — decide before building.
+- The balance-sheet half can start from the latest `vw_holdings_all` /
+  `vw_net_worth` snapshot plus a growth rate and contribution per account;
+  `vw_net_worth_all_time` already has monthly history back to 2011.
+- The workbook's later-year Total Liabilities and Net Worth cells show
+  `#REF!` errors — compute them, don't copy them.
+- The workbook itself is not in the repo; ask Tom for a copy when this
+  starts.
 
 ---
 
 ## Active Data Issues
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
-| ISSUE-047 | High | `plaid_sync.py` stores refunds/statement credits as charges (`-abs`); fix committed, not deployed | Deploy + verify; re-check Amex after re-login |
+| ISSUE-047 | High | `plaid_sync.py` stored refunds/statement credits as charges (`-abs`); fix deployed 2026-09-21 | Confirm on the next sync; re-check Amex after re-login |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---

@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues only. Resolved items move to Decision Log with date closed.**
-Last updated: 2026-09-17 (Session 22 — ISSUE-012, ISSUE-043, and ISSUE-044 all resolved and moved to DecisionLog; ISSUE-046 opened)
+Last updated: 2026-09-21 (Session 23 — ISSUE-046 resolved and moved to DecisionLog)
 
 ---
 
@@ -22,17 +22,6 @@ Last updated: 2026-09-17 (Session 22 — ISSUE-012, ISSUE-043, and ISSUE-044 all
 | Description | Plaid connection to Robert Baird Online (ins_117067) fails. Originally INTERNAL_SERVER_ERROR / API_ERROR. Baird support advised a platform migration disrupted Plaid. Retried 2026-06-15 — still fails with generic "Couldn't connect to your institution" error. Second email sent. CSV fallback pipeline (import_baird_holdings.py) now operational as permanent workaround — all 11 Baird accounts covered via monthly manual CSV export. |
 | Last Action | Second email sent to Baird Online Support. CSV fallback pipeline built and tested 2026-06-17. |
 | Next Step | Await Baird response. If Plaid resolves, holdings will auto-populate via Plaid Investments endpoint. CSV pipeline remains as monthly fallback regardless. |
-
----
-
-### ISSUE-046 — Expense totals disagree between vw_budget_vs_actual and vw_transactions_clean
-| Field | Value |
-|-------|-------|
-| Status | Open |
-| Opened | 2026-09-17 |
-| Priority | Medium |
-| Description | Comparing `vw_budget_vs_actual` to `vw_transactions_clean` for the same month, Expense totals disagree between the two views. Income matches. Found while building the Budget vs Actual Power BI page — not yet root-caused. |
-| Next Step | Compare both views' `OBJECT_DEFINITION()` directly. Likely candidates: the `in_budget = 1` filter `vw_budget_vs_actual` applies (does `vw_transactions_clean` apply the same filter, or does it include every expense regardless of budget-tracking status?), `ISNULL(pending, 0) = 0` handling, and whether `SUM(ABS(amount))` vs however `vw_transactions_clean` aggregates differs in sign handling for a specific category. |
 
 ---
 

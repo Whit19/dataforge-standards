@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-21 (Session 23 — root-caused and fixed ISSUE-046: vw_budget_vs_actual was summing ABS(amount) per row instead of ABS(SUM(amount)), so any month with a refund/return overstated Expense actuals; fixed via script 119; SQL watermark 119)
+Last updated: 2026-09-21 (Session 23 — root-caused and fixed ISSUE-046: vw_budget_vs_actual was summing ABS(amount) per row instead of ABS(SUM(amount)), so any month with a refund/return overstated Expense actuals; fixed via script 119; opened ISSUE-047 (plaid_sync stores credits as charges — fixed in code, awaiting deploy); SQL watermark 122)
 
 ---
 
@@ -116,14 +116,22 @@ it's always sat here. 2026-09-17: both Power BI page builds from the last
 pass are done — Baird Activity (3-section page: Trades/Fees/Income) and
 Budget vs Actual (12-month matrix, current-month matrix, bar chart, plus
 a new "Budget Pace" page with 100%-stacked pace charts). 2026-09-21:
-ISSUE-046 root-caused and fixed (script 119 — see DecisionLog). No open
-items currently sitting here.
+ISSUE-046 root-caused and fixed (script 119 — see DecisionLog).
+
+**Needs action:**
+1. **Deploy the `plaid_sync.py` sign fix (ISSUE-047) to the Function App
+   and verify the deployed copy.** Committed 2026-09-21 but not deployed —
+   until it is, every credit Plaid sends still lands as a charge.
+2. **Amex Plaid item needs a Link update-mode re-login**
+   (`ITEM_LOGIN_REQUIRED`, seen 2026-09-21). Afterward, re-run the sign
+   comparison on the Amex credit card (it could not be checked).
 
 ---
 
 ## Active Data Issues
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
+| ISSUE-047 | High | `plaid_sync.py` stores refunds/statement credits as charges (`-abs`); fix committed, not deployed | Deploy + verify; re-check Amex after re-login |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---
@@ -281,8 +289,11 @@ Session 22 (2026-09-16):
 
 Session 23 (2026-09-21):
                            119_fix_budget_vs_actual_refund_netting.sql
+                           120_budget_vs_actual_signed_net_by_type.sql
+                           121_rideshare_credit_to_travel_transportation.sql
+                           122_credits_stored_as_charges_sign_fix.sql
 
-Current high watermark: **119** (confirmed live 2026-09-21 — re-confirm
+Current high watermark: **122** (confirmed live 2026-09-21 — re-confirm
 live rather than trust this number next session too. Note: code changes
 committed to AFAS `main` this session that are NOT numbered SQL scripts —
 scripts/load_net_worth_history.py + scripts/interpolate_net_worth_gaps.py

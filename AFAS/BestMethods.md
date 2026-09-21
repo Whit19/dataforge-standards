@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-09-17
+Last updated: 2026-09-21
 
 ---
 
@@ -1393,6 +1393,7 @@ trusting the prior assumption that the data simply wasn't captured
 anywhere. Resolved as a one-off manual historical cleanup (61 rows,
 2017-era) — scoped deliberately, not built into the importer, since the
 newer-era rows don't need it.
+*Source: Session 22 — HSA Consumer Note discovery, ISSUE-043*
 
 ## Power BI (continued) — DAX
 
@@ -1485,4 +1486,24 @@ category list, check each category's actual payment cadence first
 a category that doesn't fit the assumed shape won't throw an error, it
 will just be silently missing.
 *Source: Session 22 — Property Tax budget gap, script 117*
-*Source: Session 22 — HSA Consumer Note discovery, ISSUE-043*
+
+## SQL — Aggregation
+
+### `SUM(ABS(x))` and `ABS(SUM(x))` are not the same thing — the first silently turns refunds into additional spend
+
+`vw_budget_vs_actual` computed actual spend as `SUM(ABS(amount))` — take
+the absolute value of each row, then sum. That's fine only if every row
+in the group shares the same sign. An Expense-typed category also holds
+positive-signed rows (returns, refunds, credits against an earlier
+purchase, manual reimbursements), and `ABS()` per row flips each of those
+to positive spend, so they get *added* to the total instead of netted
+against the purchase they reverse. `ABS(SUM(amount))` sums the signed
+amounts first (so a refund cancels against its purchase), then takes the
+absolute value of the net. The gap showed up as a per-month overstatement
+that was exactly twice the sum of that month's positive-signed rows, and
+it was invisible for Income because Income rows are already virtually all
+positive-signed — which is exactly why a side-by-side comparison showed
+Income matching and only Expense drifting. When a magnitude is needed
+for display, apply `ABS()` to the group's net total, not to each row
+inside it.
+*Source: Session 23 — ISSUE-046, script 119*

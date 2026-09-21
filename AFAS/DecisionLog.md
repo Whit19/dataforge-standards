@@ -1,6 +1,18 @@
 # AFAS Project — Decision Log
 **Append only. Never delete entries. Most recent session at top.**
-Last updated: 2026-09-17
+Last updated: 2026-09-21
+
+---
+
+## 2026-09-21 (Session 23 — ISSUE-046 Root-Caused and Fixed: vw_budget_vs_actual Refund-Netting Bug)
+
+*Picked up the Expense-mismatch investigation flagged at the end of last session. Confirmed via direct query that both `vw_budget_vs_actual` and Tom's comparison report (a matrix on `vw_transactions_clean` filtered to the same `in_budget = 1`) apply identical row-level filters, which ruled out the initial hypothesis (a missing filter) and pointed to an aggregation-order bug instead.*
+
+| Date | Decision | Rows |
+|------|----------|------|
+| 2026-09-21 | Root cause: `vw_budget_vs_actual`'s `actual` CTE computed `SUM(ABS(amount))` — taking the absolute value of each row before summing. Any Expense-typed row with a positive sign (a refund, return, or credit against an earlier purchase) got added to spend instead of netted against it, so any month containing a refund had its actual Expense total overstated. Income was never affected since Income rows are already virtually all positive-signed, which is exactly why Tom's own side-by-side comparison showed Income matching and only Expense drifting. | — |
+| 2026-09-21 | Fix (script 119): changed the aggregation to `ABS(SUM(amount))` — sum the signed amounts first (netting refunds against purchases within the group), then take the absolute value of the total. Verified against the raw signed-sum figures computed directly from `dbo.transactions` before applying — every 2026 month with a refund now matches exactly; months with no refunds were already correct and are unchanged. One month's overstatement had been substantial — on the order of 30% of that month's reported Expense actual. | — |
+| 2026-09-21 | **Resolved ISSUE-046**, moved from IssuesTracker to here. | — |
 
 ---
 

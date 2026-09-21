@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-17 (Session 22 cont. — built the Baird Activity Power BI page (Trades/Fees/Income) and the full Budget vs Actual build-out (12-month matrix, current-month matrix, bar chart, plus a new Budget Pace page with 100%-stacked pace charts); found and fixed 4 real data gaps along the way (missing IRA fee rows, missing Property Tax budget, 2 isolated HSA misclassifications); opened ISSUE-046 (Expense mismatch between vw_budget_vs_actual and vw_transactions_clean); SQL watermark 118)
+Last updated: 2026-09-21 (Session 23 — root-caused and fixed ISSUE-046: vw_budget_vs_actual was summing ABS(amount) per row instead of ABS(SUM(amount)), so any month with a refund/return overstated Expense actuals; fixed via script 119; SQL watermark 119)
 
 ---
 
@@ -115,28 +115,15 @@ Grouped by what each item actually needs, so nothing sits here just because
 it's always sat here. 2026-09-17: both Power BI page builds from the last
 pass are done — Baird Activity (3-section page: Trades/Fees/Income) and
 Budget vs Actual (12-month matrix, current-month matrix, bar chart, plus
-a new "Budget Pace" page with 100%-stacked pace charts). See DecisionLog
-for the full build detail.
-
-**Needs investigation (data question, not yet root-caused):**
-1. **ISSUE-046 — Expense totals disagree between `vw_budget_vs_actual`
-   and `vw_transactions_clean` for the same month.** Tom compared the two
-   while building the Budget vs Actual page — Income matched, Expense
-   didn't. Not yet root-caused; likely candidates to check first: the
-   `in_budget = 1` filter `vw_budget_vs_actual` applies (does
-   `vw_transactions_clean` apply the same filter, or does it include
-   every expense regardless of budget-tracking status?), `ISNULL(pending,
-   0) = 0` handling, and whether `SUM(ABS(amount))` vs however
-   `vw_transactions_clean` aggregates sign differently for a specific
-   category. Compare the two views' `OBJECT_DEFINITION()` directly rather
-   than guessing.
+a new "Budget Pace" page with 100%-stacked pace charts). 2026-09-21:
+ISSUE-046 root-caused and fixed (script 119 — see DecisionLog). No open
+items currently sitting here.
 
 ---
 
 ## Active Data Issues
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
-| ISSUE-046 | Medium | Expense totals disagree between `vw_budget_vs_actual` and `vw_transactions_clean` for the same month (Income matches) | Compare both views' `OBJECT_DEFINITION()` — see Pick Up Here #1 |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---
@@ -292,7 +279,10 @@ Session 22 (2026-09-16):
                            117_property_tax_budget_2026.sql
                            118_hsa_income_type_and_in_budget_fixes.sql
 
-Current high watermark: **118** (confirmed live 2026-09-17 — re-confirm
+Session 23 (2026-09-21):
+                           119_fix_budget_vs_actual_refund_netting.sql
+
+Current high watermark: **119** (confirmed live 2026-09-21 — re-confirm
 live rather than trust this number next session too. Note: code changes
 committed to AFAS `main` this session that are NOT numbered SQL scripts —
 scripts/load_net_worth_history.py + scripts/interpolate_net_worth_gaps.py

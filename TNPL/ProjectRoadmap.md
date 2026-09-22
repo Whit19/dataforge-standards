@@ -11,18 +11,17 @@
 
 ## Phase 2 — Core build [IN PROGRESS]
 - [x] Vite/React app scaffold, Firebase SDK init, firestorePaths.js/constants.js, functions/ skeleton
-- [x] Firebase project `tnpl-pwa` created (Tom, manual step)
-- [ ] Tom: populate `.env.local` with real Firebase config values
-- [ ] Tom: enable Google + Email Link providers in Firebase console; Firestore in production mode
-- [ ] Auth wiring — sign-in, email-to-player lookup, access-denied path for non-roster emails
-- [ ] Firestore security rules (see TechnicalArchitecture.md permission model)
-- [ ] `seasonEnrollment` collection + opt-in UI
-- [ ] Page shells: Home, Players, Rankings, Matches, Admin (route structure + nav, no full feature logic yet)
+- [x] Firebase project `tnpl-pwa` created; Firestore (production mode) + Google/Email Link providers enabled
+- [x] `.env.local` populated
+- [x] Auth wiring (src/auth.js) — sign-in, email-to-player lookup, playerLinks reverse index, not_on_roster path
+- [x] Firestore security rules (all 8 collections, validated via dry-run)
+- [x] Page shells: Home, Players, Rankings, Matches, Admin, SignIn — route guards by role
+- [ ] `seasonEnrollment` opt-in UI (collection exists in rules/model; UI not built yet)
 - [ ] Availability collection UI
 - [ ] Pairing engine (Cloud Function)
 - [ ] Live scoring UI (matchGroups.sets, editable until locked)
 - [ ] Lock Week admin function (Elo calc + players.currentElo update)
-- [ ] Change-request create + admin approve/deny flow
+- [ ] Change-request create + admin approve/deny UI
 
 ## Phase 3 — Migration
 - [ ] Import current player roster + Season 3 starting Elos from TNPL_MAIN.xlsx

@@ -38,13 +38,20 @@ everywhere a value is needed below. Do the following now:
    dataforge-standards repo, not the project's own private repo.
 
 2. Generate the Project Instructions block I'll paste into this
-   project's new Claude Project — the curl-fetch session-start/session-end
-   protocol, with [GitHub repo name] substituted into every URL.
+   project's new Claude Project — the minimal bootstrap snippet per Master
+   Protocol Section 3b: raw GitHub URLs for all 7 docs plus
+   MASTER_CLAUDE_PROTOCOL.md (with [GitHub repo name] substituted into every
+   URL), the curl fetch command, the "curl not web_fetch" rule, and a line
+   stating that MASTER_CLAUDE_PROTOCOL.md is authoritative once loaded and
+   wins any disagreement with this snippet. Do not include session-end
+   procedure detail, the CDN-caching rationale, or any other paraphrased
+   policy — that content lives only in the Master Protocol itself.
 
 3. Present all of the above as downloadable files.
 
 4. Do this automatically via the Notion connector, no confirmation needed
-   (Section 17 of the Master Protocol):
+   (Section 14f of the Master Protocol — chat-only; this kickoff always runs
+   in a plain Claude.ai chat, so that constraint is automatically satisfied):
    - Create the project row in the Notion Projects database
    - Set Status to Planning or In Progress
    - Add services to the Notion Services database, linked to this project

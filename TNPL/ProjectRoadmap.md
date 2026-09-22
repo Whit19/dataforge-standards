@@ -3,35 +3,30 @@
 **Last updated:** 2026-09-22
 
 ## Phase 0 — Kickoff (done)
-- [x] Define project name, stack, repo name
-- [x] Create Notion project row + link services
-- [x] Create GitHub repo (private)
-- [x] Commit standard docs to dataforge-standards/TNPL/
-- [x] Create Claude Project and paste in Project Instructions
-- [x] Confirm .gitignore and no committed secrets
-- [x] Copy pwa-firebase-rules skill into .claude/skills/
+- [x] Repo, Notion, docs, .gitignore, pwa-firebase-rules skill
 
 ## Phase 1 — Discovery / Requirements (done)
-- [x] Turn existing Excel Elo workbook + manual process notes into formal requirements
-- [x] Decide data model (players, matches, weeks, sets, Elo history, availability, change requests)
-- [x] Confirm time-slot/court structure (3 slots × 2 courts, from live workbook)
-- [x] Decide match-pairing algorithm approach
-- [x] Decide v1 scope: full weekly loop, not staged
+- [x] Data model, time-slot/court structure, pairing approach, v1 scope
+- [x] Auth/roles model, season-enrollment model, staff visibility, score-lock flow
 
-## Phase 2 — Core build [NEXT]
-- [ ] Firebase project setup (Auth, Firestore, Hosting) — needs project ID decision
-- [ ] Vite/React app scaffolding
-- [ ] Firestore security rules (players, seasons, weeks, availability, matchGroups, changeRequests, eloHistory)
-- [ ] Member sign-up / auth
+## Phase 2 — Core build [IN PROGRESS]
+- [x] Vite/React app scaffold, Firebase SDK init, firestorePaths.js/constants.js, functions/ skeleton
+- [x] Firebase project `tnpl-pwa` created (Tom, manual step)
+- [ ] Tom: populate `.env.local` with real Firebase config values
+- [ ] Tom: enable Google + Email Link providers in Firebase console; Firestore in production mode
+- [ ] Auth wiring — sign-in, email-to-player lookup, access-denied path for non-roster emails
+- [ ] Firestore security rules (see TechnicalArchitecture.md permission model)
+- [ ] `seasonEnrollment` collection + opt-in UI
+- [ ] Page shells: Home, Players, Rankings, Matches, Admin (route structure + nav, no full feature logic yet)
 - [ ] Availability collection UI
-- [ ] Pairing engine (Cloud Function, per TechnicalArchitecture.md algorithm)
-- [ ] Weekly match creation + live scoring UI
-- [ ] Elo calculation engine (port existing formulas)
-- [ ] Change-request approve/deny flow
-- [ ] Season rankings / history views
+- [ ] Pairing engine (Cloud Function)
+- [ ] Live scoring UI (matchGroups.sets, editable until locked)
+- [ ] Lock Week admin function (Elo calc + players.currentElo update)
+- [ ] Change-request create + admin approve/deny flow
 
 ## Phase 3 — Migration
 - [ ] Import current player roster + Season 3 starting Elos from TNPL_MAIN.xlsx
+- [ ] Seed initial `seasonEnrollment` from known opt-ins
 
 ## Phase 4 — Polish / launch [PLACEHOLDER]
 - [ ] Offline support (as in UP Golf PWA)

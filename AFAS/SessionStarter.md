@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-09-21 (Session 23 — root-caused and fixed ISSUE-046: vw_budget_vs_actual was summing ABS(amount) per row instead of ABS(SUM(amount)), so any month with a refund/return overstated Expense actuals; fixed via script 119; opened ISSUE-047 (plaid_sync stored credits as charges — fixed and deployed, awaiting live confirmation); Monthly Spend, Cash Flow, Year Over Year and Top Merchants pages rebuilt on vw_transactions_clean; a future projections page recorded; SQL watermark 122)
+Last updated: 2026-09-22 (Session 24 — full page-by-page Power BI review complete for every built page; fixed a stale September liability snapshot found via Data Health (script 123); dropped the 4 retired summary views from SQL (script 124); sorted the Net Worth history chart's legend by value; SQL watermark 124)
 
 ---
 
@@ -111,33 +111,21 @@ top-level status, when verifying an automated sync actually ran.**
 
 ## Pick Up Here — Next Session
 
-Grouped by what each item actually needs, so nothing sits here just because
-it's always sat here. 2026-09-17: both Power BI page builds from the last
-pass are done — Baird Activity (3-section page: Trades/Fees/Income) and
-Budget vs Actual (12-month matrix, current-month matrix, bar chart, plus
-a new "Budget Pace" page with 100%-stacked pace charts). 2026-09-21:
-ISSUE-046 root-caused and fixed (script 119 — see DecisionLog).
+2026-09-22: every built Power BI page has now been reviewed page-by-page
+against live data (see DecisionLog for the full list and findings) — this
+closes out the review pass Tom started last session. One real gap found
+and fixed along the way (a stale liability snapshot, script 123). No
+open Power BI review items remain.
 
-**Needs action:**
-1. **Confirm the `plaid_sync.py` sign fix (ISSUE-047) live.** Deployed
-   2026-09-21 (Tom pasted the deployed file; it matched). No sync has run
-   since. After the next sync (Portal `http_ingest` or the monthly run),
-   check that a Chase hotel credit already sitting in Plaid, dated
-   2026-09-18, lands as a positive amount, then close the issue.
+**Needs action, deferred to next month's regular downloads/enrichment
+(Tom's call, 2026-09-22) — not urgent before then:**
+1. **Confirm the `plaid_sync.py` sign fix (ISSUE-047) live** on the next
+   Plaid sync. A Chase hotel credit already sitting in Plaid, dated
+   2026-09-18, should land as a positive amount.
 2. **Amex Plaid item needs a Link update-mode re-login**
-   (`ITEM_LOGIN_REQUIRED`, seen 2026-09-21) — its sync will error until
-   then. Afterward, re-run the sign comparison on the Amex credit card
-   (it could not be checked).
-3. **Drop the four retired SQL views** (`vw_monthly_spend`,
-   `vw_cash_flow`, `vw_category_yoy`, `vw_top_merchants`) once Tom
-   confirms — no page, SQL object or script references them any more.
-
-**Continue the Power BI page review** (Tom is walking the built pages one
-at a time to improve them): Monthly Spend, Cash Flow, Year Over Year and
-Top Merchants are done (rebuilt on `vw_transactions_clean`). Not yet
-reviewed in this pass: Transaction Review, Data Health, Needs Review,
-Net Worth, Holdings / Asset Allocation, Baird Activity, Budget vs Actual /
-Budget Pace polish.
+   (`ITEM_LOGIN_REQUIRED`) before its sync will work again. Afterward,
+   re-run the sign comparison on the Amex credit card (it could not be
+   checked when ISSUE-047 was fixed).
 
 **Future work — not started (Tom, 2026-09-21): a Power BI page that
 projects future years.** Tom built the model in Excel and wants it in
@@ -180,12 +168,10 @@ Design notes for when this is picked up:
 - The workbook itself is not in the repo; ask Tom for a copy when this
   starts.
 
----
-
 ## Active Data Issues
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
-| ISSUE-047 | High | `plaid_sync.py` stored refunds/statement credits as charges (`-abs`); fix deployed 2026-09-21 | Confirm on the next sync; re-check Amex after re-login |
+| ISSUE-047 | High | `plaid_sync.py` stored refunds/statement credits as charges (`-abs`); fix deployed 2026-09-21 | Confirm on next month's sync (Tom's call, 2026-09-22 — not urgent before then); re-check Amex after re-login |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---
@@ -347,7 +333,11 @@ Session 23 (2026-09-21):
                            121_rideshare_credit_to_travel_transportation.sql
                            122_credits_stored_as_charges_sign_fix.sql
 
-Current high watermark: **122** (confirmed live 2026-09-21 — re-confirm
+Session 24 (2026-09-22):
+                           123_liability_balances_september2026.sql
+                           124_drop_retired_summary_views.sql
+
+Current high watermark: **124** (confirmed live 2026-09-22 — re-confirm
 live rather than trust this number next session too. Note: code changes
 committed to AFAS `main` this session that are NOT numbered SQL scripts —
 scripts/load_net_worth_history.py + scripts/interpolate_net_worth_gaps.py

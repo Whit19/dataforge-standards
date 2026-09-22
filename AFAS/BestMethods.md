@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 ---
 
@@ -1551,3 +1551,17 @@ model refresh, not responsive to other slicers; a small table visual
 (category plus the measure, sorted by the measure, click to filter) is the
 alternative when it must follow the Year slicer.
 *Source: Session 23 — Top Merchants category slicer*
+
+### The same "sort a dimension table, relate it, point the visual at it" technique fixes a chart legend's stacking order too
+
+A stacked column/bar chart's segment order is set by its legend field's
+sort order — fixed across every bar in the chart, not recomputed per-bar
+by that bar's own values (there's no way to make the biggest segment
+always render at the bottom of *each* bar individually if bar composition
+changes over time). To get a consistent largest-to-smallest stack order,
+build the same kind of small calculated table used for slicer ordering
+(one row per legend category, ranked by a chosen total), relate it to the
+fact table, set `Sort by Column` inside the dimension table, and point the
+chart's Legend well at the dimension table's field instead of the fact
+table's own field.
+*Source: Session 24 — Net Worth history chart legend order*

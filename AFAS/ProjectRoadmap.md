@@ -1,6 +1,6 @@
 # AFAS Project — Roadmap
 **Living document. Update status and tasks as work completes.**
-Last updated: 2026-09-21 (Sessions 14-22 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh; note Session 22 deregistered `timer_sync.py`/`monthly_sync.py` in favor of a manual `http_monthly_ingest_all` route — bullets below still referencing "monthly sync via monthly_sync.py" describe the sync logic, which is unchanged, not the now-inert automatic timer)
+Last updated: 2026-09-22 (Sessions 14-24 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh; note Session 22 deregistered `timer_sync.py`/`monthly_sync.py` in favor of a manual `http_monthly_ingest_all` route — bullets below still referencing "monthly sync via monthly_sync.py" describe the sync logic, which is unchanged, not the now-inert automatic timer)
 
 ---
 
@@ -156,6 +156,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 10. Run ISSUE-022 diagnostic query — confirm extent of pre-existing March 2026 HSA merchant_patterns coverage
 11. ✅ Spending pages (Monthly Spend, Cash Flow, Year Over Year, Top Merchants) consolidated onto `vw_transactions_clean` — 2026-09-21
 12. ⏳ FUTURE Power BI page: project future years — cash flow by category with per-year overrides, plus an overall holdings/net worth roll-forward, modeled on Tom's Excel projection workbook. See SessionStarter Pick Up Here for scope and design notes.
+13. ✅ Full page-by-page review of every built Power BI page against live data — 2026-09-22 (Session 24). Found and fixed one real gap (a stale liability snapshot, script 123) along the way; every other page confirmed accurate.
 
 ---
 

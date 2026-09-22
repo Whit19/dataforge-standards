@@ -1,6 +1,6 @@
 # AFAS Project — Decision Log
 **Append only. Never delete entries. Most recent session at top.**
-Last updated: 2026-09-21
+Last updated: 2026-09-22
 
 ---
 

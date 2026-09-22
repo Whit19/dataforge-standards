@@ -1,6 +1,6 @@
 # AFAS Project — Technical Architecture
 **Update this file when any component, connection, or configuration changes.**
-Last updated: 2026-09-21 (Session 23: fixed vw_budget_vs_actual's ABS/SUM ordering bug (ISSUE-046); rebuilt Monthly Spend, Cash Flow, Year Over Year and Top Merchants on vw_transactions_clean; plaid_sync.py sign fix (ISSUE-047) deployed, live confirmation pending)
+Last updated: 2026-09-22 (Session 24: full page-by-page Power BI review complete; the 4 retired summary views dropped from SQL entirely (script 124); a stale liability snapshot fixed (script 123); Net Worth history chart legend sorted by value via a new NetWorthCategorySort table)
 
 ---
 
@@ -61,11 +61,9 @@ Power BI (star schema)
   ├── Phase 3 (live — scheduled refresh 4:00 AM CT daily)
   │     ├── Calendar table (DAX hub)
   │     ├── vw_transactions_clean     (base view for every spending page as of 2026-09-21)
-  │     ├── vw_monthly_spend          (retired from Power BI 2026-09-21, still in SQL)
-  │     ├── vw_cash_flow              (retired from Power BI 2026-09-21, still in SQL)
-  │     ├── vw_top_merchants          (retired from Power BI 2026-09-21, still in SQL)
-  │     ├── vw_category_yoy           (retired from Power BI 2026-09-21, still in SQL)
   │     └── vw_enrichment_quality
+  │     (vw_monthly_spend, vw_cash_flow, vw_top_merchants, vw_category_yoy —
+  │      retired from Power BI 2026-09-21, dropped from SQL 2026-09-22, script 124)
   │
   └── Phase 4 — Net Worth / Holdings / Asset Allocation pages built and
         verified 2026-09-14; Budget vs Actual page complete 2026-09-17
@@ -256,7 +254,7 @@ All relationships: One-to-Many, Single cross-filter direction, Calendar as hub.
 | View | Connects to Calendar via | Notes |
 |------|--------------------------|-------|
 | vw_transactions_clean | date | Base view for every spending page as of 2026-09-21 (Monthly Spend, Cash Flow, Year Over Year, Top Merchants, plus the transaction-level drill). Live definition is the script-26 shape (`yr`, `mo`, `month_name`, `account_name`, `institution_name`; `merchant_normalized` already COALESCEd) — `sql/16_powerbi_views.sql` does NOT match what is deployed |
-| vw_monthly_spend, vw_cash_flow, vw_category_yoy, vw_top_merchants | — | **Retired from Power BI 2026-09-21** — no page uses them; no SQL dependents, no code references. Still exist in SQL; drop pending Tom's go-ahead. Three summed `ABS(amount)` per row (refunds overstated as spend); `vw_top_merchants` had no date column so its Year slicer never filtered |
+| ~~vw_monthly_spend, vw_cash_flow, vw_category_yoy, vw_top_merchants~~ | — | **Retired from Power BI 2026-09-21, dropped from SQL 2026-09-22** (script 124) — no page used them, no SQL dependents, no code references. Three summed `ABS(amount)` per row (refunds overstated as spend); `vw_top_merchants` had no date column so its Year slicer never filtered |
 | vw_enrichment_quality | — | Standalone |
 
 Shared measures on `vw_transactions_clean` (2026-09-21): `Net Spend` and `Txn Count` (Expense, `in_budget` = TRUE), `Total Income`, `Total Expense`, `Net Cash Flow` (all Income/Expense rows, no `in_budget` filter — cash flow includes taxes, fees and HSA deposits by design). `Category Sort` is a small calculated table (Expense categories ranked by trailing-12-month net spend) related to `vw_transactions_clean[category]` purely so the category slicer can be ordered by spend; it is a snapshot at model refresh. Theme file: `powerbi/AFAS_Theme.json` in the AFAS repo.
@@ -294,6 +292,8 @@ Now just a latest-snapshot-per-account wrapper over `vw_holdings_all`'s `net_wor
 
 #### vw_net_worth_all_time (added 2026-09-15, script 105)
 Unions `dbo.net_worth_history` (2011-2026 CSV backfill + interpolated gap-fill — see `net_worth_history` in Phase 4 Tables) with `vw_holdings_all` for one continuous account-level **monthly** series. Forward-fills each account's last known value across every calendar month with no snapshot — a plain "latest date in month" approach breaks badly for the pre-2020 years, where most accounts in Tom's CSV were only recorded annually (January): without forward-fill, April-December of those years would collapse to whatever one or two accounts happened to have an off-cycle update, swinging the "monthly total" from millions to near-zero. Doesn't fabricate anything past an account's latest known snapshot (a physical asset or liability whose last sync was last month simply carries that value forward, same forward-fill logic — not a gap, just not re-measured yet). Columns: `account_key`, `account_name`, `net_worth_category`, `month_start`, `as_of_date` (the actual snapshot date the month's value came from), `value`.
+
+The historical Net Worth stacked-column chart's legend/stacking order is driven by a small calculated table, `NetWorthCategorySort` (added 2026-09-22) — one row per `net_worth_category`, ranked by that category's value in the most recent `month_start`, related to `vw_net_worth_all_time[net_worth_category]` with `Sort by Column` set inside the dimension table. Same technique as the Top Merchants page's `Category Sort` table — see BestMethods.
 
 **Power BI modeling note:** don't relate `vw_net_worth_all_time` and `vw_holdings_all` to each other directly — they're two different grains of the same underlying data (one is literally built by aggregating the other) and relating two fact tables causes fan-out. Use whichever table fits the visual; relate each independently to the Calendar table instead. See BestMethods for the Calendar-table-date-range lesson this surfaced.
 

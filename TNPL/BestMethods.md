@@ -14,6 +14,24 @@ Hard-won lessons for this project. Read before writing any code.
 - Centralize repeated identity checks (`isAdmin()`, `isPlayerRole()`) as rule helper functions rather than repeating the `playerLinks` lookup in every rule.
 - Validate rules with `firebase deploy --only firestore:rules --dry-run` before a real deploy.
 
+- **Firestore rules can't hide individual fields.** Data with a different audience needs its own collection (`socialPlans` vs `availability`).
+- **Store per-week docs with explicit `weekId`/`playerId` fields** even when the composite doc ID encodes them. Doc-ID prefix lookups work but are a workaround.
+
+## Planning and data
+- **Simulate a proposed constraint against real data before building on it.** The "max−min Elo ≤ 75" rule would have left players unplaced in about half of weeks.
+- **Verify workbook columns against their source before migration.** MAIN's "S3 ELO" held Season 2 final Elos, not the regressed start values.
+
+## Pairing / cost-model design
+- **Zero isn't a bonus.** A preference that only removes a penalty ties with unused options; give it a real negative cost.
+- **Negative costs break branch-and-bound pruning** that assumes partial costs only grow. Shift costs per group to a minimum of 0 for the search and add the offset back.
+- **Slot assignment is per group**, so one player's preference competes with three groupmates' rotation costs. Surface unmet preferences to the admin rather than over-weighting them.
+- Keep the engine pure (no Firestore) so it can be unit-tested and re-run deterministically; put the Firestore loading/writing in a separate callable.
+
+## Emulator and environment
+- Use a `demo-` project ID for emulator work so nothing can reach real Firebase resources. Set the emulator env vars before `firebase-admin` loads, and reset emulator state at the start of each run.
+- The Firestore emulator needs JDK 21+ (firebase-tools 15.x). After installing Java, set User PATH and `JAVA_HOME` with `[Environment]::SetEnvironmentVariable` (not `setx`) and fully restart VS Code — a new terminal tab inherits VS Code's old environment.
+- `node --test pairing/` (directory argument) fails on Node 24; the bare `node --test` works on Node 20 and 24.
+
 ## Elo/scoring logic
 - Not yet built. When porting the Elo formulas from the existing Excel workbook, watch for the same edge cases that came up in the original VBA macro build: merged cells, subs playing for regulars, duplicate player initials, and per-week (not per-set) Elo basis.
 - Scores are last-write-wins and editable until an explicit "Lock Week" action — Elo must never be computed off `reported`-but-unlocked scores.

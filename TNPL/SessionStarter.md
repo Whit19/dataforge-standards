@@ -2,25 +2,26 @@
 
 **Project:** Thursday Night Paddle League (TNPL) PWA
 **Status:** In progress
-**Last updated:** 2026-09-23
+**Last updated:** 2026-09-28
 
 ## One-line description
 A PWA for Thursday Night Paddle League: live scoring, member sign-up, Elo rankings, and weekly match creation/viewing — similar to the UP Golf and Club Golf PWAs.
 
 ## Current status
-Phase 2 core build is underway. Done: app scaffold, Firebase project (`tnpl-pwa`) with Firestore + Google/Email Link auth, auth wiring (incl. the `playerLinks` reverse index, TP-014), Firestore security rules for every collection, page shells with role-based route guards, and the **pairing engine** — a pure, tested engine plus the admin-only `generatePairings` callable, verified end-to-end against the local Firebase emulators (see TechnicalArchitecture.md "Pairing engine" and "Local emulator testing"). Nothing is deployed yet; rules and functions exist locally and in the emulator only.
+Deployed and in real use. Firestore rules, all 17 Cloud Functions, and hosting are live on `tnpl-pwa`. Done: the full pairing engine plus publish/hold/finalize and 15-minute weekly automation; season setup (Season 26-27 created); admin dashboard and pairing-draft/edit screens; roster admin (add/edit players, invites, decline page, join requests); invite email v2 ("install-first," built from the real app icon); the iPhone install gate (Safari vs. the installed Home Screen app); player profile with season sign-up; and a bottom tab bar with a Home "Are you playing?" card. Tom's own self-invite and sign-in have been verified live. Test suite: 115 passing (`npm test` from the repo root). Not yet built: availability form, live scoring/score entry, Lock Week/Elo calc, Rankings/history, change-request admin approve/deny UI, and "Invite all" (deliberately held).
 
 ## Next priorities
-1. Admin draft/publish screen (groups, flags, overflow/unplaced, slot tallies, **unmet preferred slots**; publish = `pairing_draft` → `matches_set`).
-2. Availability form with dinner / golf-sim questions (writes `socialPlans`; also write `weekId`/`playerId` on availability docs).
-3. Weekly dinner / golf-sim section UI (admin + staff + players).
-4. Live scoring UI (per-set lineups) → Lock Week (Elo reads each set's teams from `setLineups`).
-5. `seasonEnrollment` opt-in UI; change-request create + approve/deny UI.
+1. **Roster tab redesign** — "Active" currently shows every never-invited player alongside signed-in players (ISS-014); needs something like Signed in / Invited / Not invited / Requests / Inactive.
+2. Tom's iPhone check of the last two batches (6-tab layout at phone width, the install gate end to end).
+3. Availability: the form itself, Monday-morning email (first one Oct 12), Tuesday reminder, admin response tracker.
+4. Player Matches page (compact style) and score entry.
+5. Lock Week, Elo calc, Rankings/history, Season 25-26 history import from the MASTER sheet.
+6. Push notifications, hide-contact toggles, cancel a week/slot, weather, settings, rules page, admin progress bar on Home, a check that Cloud Scheduler automation actually ran.
+7. "Invite all" — once the weekly loop above works end to end.
 
 ## Key decisions so far
-See DecisionLog.md — TP-001 through TP-026. Notably: full weekly loop is v1 scope (TP-004), scores editable until an admin "Lock Week" (TP-011/012), season enrollment separate from the roster (TP-009), partners rotate every set (TP-017), the 75-pt Elo rule became a review flag (TP-018), and pairings land as an admin-only `pairing_draft` first (TP-020).
+See DecisionLog.md — TP-001 through TP-040. Notably beyond the original engine design (TP-004 through TP-023): mid-season opt-out raises a change request instead of silently dropping the player (TP-027); Season 26-27's dates and per-session choice (TP-029); weekly automation schedule (TP-030); emailed 6-digit code as the primary sign-in method, because iPhone links open Safari, not the installed app (TP-031); email sends through Gmail, not Resend, for now (TP-032); invite email v2 is "install-first" (TP-035); the iPhone install gate (TP-036); the bottom tab bar and Home season card (TP-037); `firstSignInAt` (not `inviteStatus`) is the durable "signed in" marker (TP-038); "Invite all" is deliberately held back (TP-039).
 
 ## Open questions
-- **TP-015 (mid-season opt-out) still open.** The engine only reads `optedIn` at run time; publish and change requests will need the decision.
-- For two-match volunteers, should the engine prefer back-to-back slots or a gap between matches? The seed run produced both (6:00+7:15 and 6:00+8:30). Undecided.
+- **ISS-014 (Roster tab redesign) is priority 1** — see IssuesTracker.md and ProjectRoadmap.md.
 - Whether staff should see more/less than the read-only weekly schedule: working assumption stated in TechnicalArchitecture.md, not yet challenged by Tom.

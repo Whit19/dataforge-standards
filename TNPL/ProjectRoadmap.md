@@ -30,7 +30,7 @@
 - [x] Change-request auto-create on mid-season opt-out from an already-published week (TP-027); admin approve/deny UI for change requests **not built yet**
 - [x] Roster signed-in-status fix: `firstSignInAt` as the source of truth, no-downgrade rule on re-invite (TP-038); one-time backfill run
 - [x] First deploy: rules, functions, hosting — done; Cloud Run public invoker access set for every callable/HTTP function as it was added
-- [ ] **Priority 1 — Roster tab redesign:** "Active" currently includes every never-invited player alongside signed-in players (ISS-014); split into something like Signed in / Invited / Not invited / Requests / Inactive
+- [x] Roster tab redesign: Active / Pending / To Invite / Not Active, replacing the old three-tab version that put every never-invited player in Active (ISS-014, TP-041)
 - [ ] Availability collection UI — existing questions plus dinner / golf-sim questions (writes `socialPlans`); write `weekId`/`playerId` fields on availability docs; Monday-morning email + Tuesday reminder; admin response tracker
 - [ ] Weekly dinner / golf-sim section UI (admin + staff + players)
 - [ ] Player Matches page (compact style) + score entry (`matchGroups.sets`, per-set lineups from `setLineups`; editable until locked)

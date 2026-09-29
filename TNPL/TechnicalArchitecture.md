@@ -221,8 +221,14 @@ Constants: `functions/paths.js` is the single source of collection names and sta
 ## Bottom navigation & Home (TP-037)
 `src/components/BottomNav.jsx` — a fixed bottom tab bar (Home, Matches, Rankings, Players, Profile, plus Admin only when `isAdmin`), shown on every signed-in page. `src/pages/ComingSoon.jsx` is a placeholder for Matches/Rankings/Players until those pages are built, showing the active season's start date. `src/pages/Home.jsx` shows an "Are you playing {season}?" card until the signed-in player (not staff) has a season choice on record — gone for good once one exists, with a same-visit-only green confirmation right after choosing — plus a pre-season card (season name, start date, when week-1 availability opens) while today is before the first week.
 
-## Roster status — `firstSignInAt` is the source of truth (TP-038)
-`src/lib/rosterStatus.js`: `hasSignedIn(player)` is true if `firstSignInAt` is set OR `inviteStatus` is `accepted`; `classify(player)` derives the Admin Roster screen's Active/Invited/Inactive tab from that (Active = active && (signed in, or never invited); Invited = invite sent, no response yet; Inactive = `active: false` or declined). A one-time script, `functions/scripts/backfillSignIns.js` (dry-run by default, `--apply` to write, idempotent), sets `firstSignInAt`/`inviteStatus` for anyone with a `playerLinks` doc who's missing them — needed for accounts linked before this logic existed. **Known gap (ISS-014, priority 1):** "never invited" and "signed in" currently share the Active tab, which shows every never-invited player as if they were active; the tabs need a redesign to separate those two cases.
+## Roster status — `firstSignInAt` is the source of truth (TP-038, TP-041)
+`src/lib/rosterStatus.js`: `hasSignedIn(player)` is true if `firstSignInAt` is set OR `inviteStatus` is `accepted`. `classify(player, choice)` derives the Admin Roster screen's four tabs from that plus the player's `sessionEnrollment` choice for the active season (`choiceByPlayerId` from `useRoster`):
+- **Active** — signed in AND opted into a session (`full`/`session_1`/`session_2`); staff are exempt from the season-choice requirement, since they're never asked.
+- **Pending** — invited with no response yet, or signed in but no season answer yet.
+- **To Invite** — never invited (a brand-new add, or an approved join request).
+- **Not Active** — `active: false` (former roster), declined the invite, or signed in but chose "not this season" — the Roster row text distinguishes that last case ("Signed in · Not playing this season") from an actual decline.
+
+A one-time script, `functions/scripts/backfillSignIns.js` (dry-run by default, `--apply` to write, idempotent), sets `firstSignInAt`/`inviteStatus` for anyone with a `playerLinks` doc who's missing them — needed for accounts linked before this logic existed.
 
 ## Change requests
 Player flags an issue with their assigned group (swap out / time change), or opting out mid-session raises one automatically (TP-027) → `pending` → admin approves/denies. **Not built yet:** the admin approve/deny UI (requests currently just queue up) and per-slot re-run on approval.
@@ -234,7 +240,7 @@ Home · Matches · Rankings · Players · Profile · Admin (dashboard, season se
 Firebase Local Emulator Suite (auth 9099, firestore 8080, functions 5001, UI) under the demo project ID `demo-tnpl`, so nothing can reach real Firebase resources (TP-026). Needs JDK 21+ (firebase-tools 15.x).
 - Start: `firebase emulators:start --only auth,firestore,functions --project demo-tnpl`
 - End-to-end check: `node functions/scripts/seedAndRunPairings.js` (repo root) — resets emulator state, seeds `functions/scripts/fixtures/roster.seed.json` (45 players, names + Season 3 Elos only) with synthetic `@example.test` emails, calls the callable as different users, runs 12 checks.
-- Unit tests: `npm test` from the repo root (Node's built-in test runner, auto-discovers every `*.test.js`) runs both the 105 `functions/` tests and the client-side tests in `src/` (e.g. `src/lib/rosterStatus.test.js`) — 115 total. `npm test` inside `functions/` alone still works and runs just its own 105.
+- Unit tests: `npm test` from the repo root (Node's built-in test runner, auto-discovers every `*.test.js`) runs both the 105 `functions/` tests and the client-side tests in `src/` (e.g. `src/lib/rosterStatus.test.js`) — 116 total. `npm test` inside `functions/` alone still works and runs just its own 105.
 - One-time data scripts (`functions/scripts/`) — `importRoster.js`, `updatePhones.js`, `backfillSignIns.js` — all dry-run by default, `--apply` to write, real project or `--emulator`; see BestMethods.md.
 
 ## Known constraints / preferences

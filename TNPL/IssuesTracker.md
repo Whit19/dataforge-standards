@@ -8,10 +8,6 @@
 **Status:** Open
 **Description:** TNPL isn't in the Active Projects table (Section 2) and prefix `TP` isn't in the DecisionLog prefix table (Section 11) of the root `MASTER_CLAUDE_PROTOCOL.md`. Root file, so left unchanged pending Tom's call (the Notion page link for the Section 2 row is also needed).
 
-### ISS-014 — Roster "Active" tab lists every never-invited player
-**Status:** Open (priority 1 — see ProjectRoadmap.md)
-**Description:** With the current `classify()` rule (TP-038), a brand-new admin-added player who hasn't been sent an invite yet counts as "Active" alongside players who have actually signed in, since "never invited" and "signed in" both land in the same tab. Needs a redesign of the Roster tabs (e.g. Signed in / Invited / Not invited / Requests / Inactive) to separate those two cases.
-
 ## Deferred
 
 ### ISS-005 — `availability` docs lack `weekId`/`playerId` fields
@@ -78,3 +74,8 @@
 **Status:** Resolved (not a bug)
 **Description:** Chrome can occasionally open the Google sign-in popup minimized or off-screen. Testing sign-in in an Incognito window is unreliable because Incognito blocks third-party cookies the popup flow depends on.
 **Resolution:** Not an app defect — a browser/testing-environment quirk. Test sign-in in a normal (non-Incognito) window; if the Google popup seems to do nothing, check for a minimized window before assuming the flow is broken.
+
+### ISS-014 — Roster "Active" tab lists every never-invited player
+**Status:** Resolved (2026-09-28)
+**Description:** With the three-tab `classify()` rule (TP-038), a brand-new admin-added player who hasn't been sent an invite yet counted as "Active" alongside players who have actually signed in, since "never invited" and "signed in" both landed in the same tab.
+**Resolution:** Redesigned to four tabs — Active / Pending / To Invite / Not Active (TP-041). Active now requires both being signed in and having opted into a session; a signed-in player who chose "not this season" lands in Not Active with a note explaining why, distinct from an actual decline.

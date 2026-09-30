@@ -1,6 +1,6 @@
 # TNPL — Project Roadmap
 
-**Last updated:** 2026-09-28
+**Last updated:** 2026-09-29
 
 ## Phase 0 — Kickoff (done)
 - [x] Repo, Notion, docs, .gitignore, pwa-firebase-rules skill
@@ -31,15 +31,18 @@
 - [x] Roster signed-in-status fix: `firstSignInAt` as the source of truth, no-downgrade rule on re-invite (TP-038); one-time backfill run
 - [x] First deploy: rules, functions, hosting — done; Cloud Run public invoker access set for every callable/HTTP function as it was added
 - [x] Roster tab redesign: Active / Pending / To Invite / Not Active, replacing the old three-tab version that put every never-invited player in Active (ISS-014, TP-041)
-- [ ] Availability collection UI — existing questions plus dinner / golf-sim questions (writes `socialPlans`); write `weekId`/`playerId` fields on availability docs; Monday-morning email + Tuesday reminder; admin response tracker
-- [ ] Weekly dinner / golf-sim section UI (admin + staff + players)
-- [ ] Player Matches page (compact style) + score entry (`matchGroups.sets`, per-set lineups from `setLineups`; editable until locked)
-- [ ] Lock Week admin function (Elo calc reading each set's teams from `setLineups` + `players.currentElo` update)
+- [x] Public, admin-editable "Rules & league info" page (`/info`, `leagueInfo/main`) + admin editor (`/admin/info`); Home's initials link replaced with an "ⓘ Info" pill (TP-042)
+- [x] Public "Request to join" page (`/join`), the existing join-request form extracted to a shared component (TP-042)
+- [x] iPhone install steps updated for iOS 26 Safari (••• before Share) across the install gate, install-help sheet, and invite email
+- [x] Availability collection UI — existing questions plus dinner / golf-sim questions (writes `socialPlans`); `weekId`/`playerId` fields on availability docs (ISS-005 resolved); Monday-morning email + Tuesday reminder; one-tap email answers; admin response tracker (TP-044)
+- [x] Weekly dinner / golf-sim section UI (admin + staff + players) — shared `SocialPlanEditor` on both Matches and Home
+- [x] Player Matches page (compact style) + score entry (`matchGroups.sets`, per-set lineups from `setLineups`; any-order set entry; editable until locked) (TP-045)
+- [x] Lock Week admin function (Elo calc reading each set's teams from `setLineups` + `players.currentElo` update), transactional lock/unlock, Tuesday reminder + Wednesday auto-lock, admin "Scores and lock" screen (`/admin/scores`) (TP-046, TP-047, TP-048)
 - [ ] Rankings / season history page
-- [ ] Change-request admin approve/deny UI
+- [ ] Change-request admin approve/deny UI — "Text Tom" links stand in for Week 1 (TP-043)
 - [ ] Per-slot pairing re-run on change-request approval (deferred, not built)
 - [ ] "Invite all" — deliberately held until the weekly loop works end to end (TP-039)
-- [ ] Push notifications, hide-contact toggles, cancel a week/slot, weather, settings, rules page, admin progress bar on Home, a check that Cloud Scheduler automation actually ran
+- [ ] Push notifications, hide-contact toggles, cancel a week/slot, weather, settings, admin progress bar on Home, a check that Cloud Scheduler automation actually ran
 
 ## Phase 3 — Migration
 - [x] `TNPL_MAIN.xlsx` imported as the initial roster + Season 3 starting Elos (45 players); import-only going forward — Firestore is the source of truth after this (TP-040)

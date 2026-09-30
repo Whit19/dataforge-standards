@@ -4,10 +4,6 @@
 
 ## Open
 
-### ISS-002 — TNPL missing from MASTER_CLAUDE_PROTOCOL.md tables
-**Status:** Open
-**Description:** TNPL isn't in the Active Projects table (Section 2) and prefix `TP` isn't in the DecisionLog prefix table (Section 11) of the root `MASTER_CLAUDE_PROTOCOL.md`. Root file, so left unchanged pending Tom's call (the Notion page link for the Section 2 row is also needed).
-
 ## Deferred
 
 ### ISS-006 — Per-slot pairing re-run on change-request approval
@@ -95,3 +91,8 @@
 **Status:** Resolved (2026-09-29)
 **Description:** Home's header still showed a placeholder "Rules — coming soon" line after the Rules & league info page shipped, and an "Availability opens Monday" line kept showing after availability was actually open for the week.
 **Resolution:** Both lines removed/gated correctly as part of the iPhone-walkthrough fixes in the Matches/score-entry batch.
+
+### ISS-002 — TNPL missing from MASTER_CLAUDE_PROTOCOL.md tables
+**Status:** Resolved (2026-09-29)
+**Description:** TNPL wasn't in the Active Projects table (Section 2) and prefix `TP` wasn't in the DecisionLog prefix table (Section 11) of the root `MASTER_CLAUDE_PROTOCOL.md`.
+**Resolution:** Added a TNPL row to both tables (Notion Page column uses the same `[link]` placeholder every other row currently uses).

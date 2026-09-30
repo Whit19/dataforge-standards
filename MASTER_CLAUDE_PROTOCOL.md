@@ -26,6 +26,7 @@ Milwaukee, WI — freelance developer / AI consultant
 | Club Golf | — | React + Vite + Firebase | [link] |
 | AFAS | — | Azure Functions + Python + Azure SQL + Power BI | [link] |
 | Kids HQ | — | Google Apps Script + Claude API + Google Sheets | [link] |
+| TNPL | — | React + Vite + Firebase | [link] |
 
 *(MicroSynergies sub-projects — `ask-the-docs`, `tech-team-wiki`, `knowledge-hub` — are currently inactive. Add rows here individually if/when work resumes, following Section 13a — do not add a single combined "MicroSynergies" row.)*
 
@@ -529,6 +530,7 @@ Every architectural or product decision gets logged. Format:
 | Club Golf | CGAD |
 | AFAS | AFAS |
 | HQ Dashboard | AD / DD / PD |
+| TNPL | TP |
 
 *When a new project starts under an existing client, it gets its own prefix — never reuses another project's prefix, even under the same client. E.g. if MicroSynergies resumes: `ask-the-docs` → ATD, `tech-team-wiki` → TTW, `knowledge-hub` → KH.*
 

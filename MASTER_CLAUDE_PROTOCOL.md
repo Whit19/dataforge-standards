@@ -1,6 +1,6 @@
 # Master Claude Protocol — DataForge
 **Apply this to every Claude Project and every session. No exceptions.**
-Last updated: 2026-09-16 (Section 6a [new — no dollar amounts in dataforge-standards, public repo]; 2026-09-05 restructure — see 3d "Read the Docs" [new explicit command], Section 4 [Path A/B fork for CC prompts vs. direct Claude Code edits, corrected to reflect chat-drafts-code-changes as the common case], Section 14 [consolidated "Update the Docs" procedure, absorbing former 14/16/17, with an explicit Case 1/2 fork mirroring Section 4 and a formal chat→Claude Code→chat handoff loop for the Session Summary])
+Last updated: 2026-09-29 (Section 4b [added a mirror note pointing at the `cc-prompt-structure` Claude.ai skill, rule 4 requiring project rules to be copied into a CC prompt's `Rules:` section verbatim rather than referenced, and precision guidance for writing a CC prompt's `Change:` section]); 2026-09-16 (Section 6a [new — no dollar amounts in dataforge-standards, public repo]; 2026-09-05 restructure — see 3d "Read the Docs" [new explicit command], Section 4 [Path A/B fork for CC prompts vs. direct Claude Code edits, corrected to reflect chat-drafts-code-changes as the common case], Section 14 [consolidated "Update the Docs" procedure, absorbing former 14/16/17, with an explicit Case 1/2 fork mirroring Section 4 and a formal chat→Claude Code→chat handoff loop for the Session Summary])
 
 ---
 
@@ -239,6 +239,8 @@ manufacture a prompt file to hand to yourself. The latter is Path B.
 
 ### 4b. Path B — drafting a CC prompt in chat, for a separate Claude Code session
 
+*Mirrored as Claude.ai skill: `cc-prompt-structure` — update both when this section changes. The skill covers Path B only.*
+
 ### Why (Path B only)
 - Fewer tokens consumed in chat
 - Changes apply directly to the correct files once pasted
@@ -249,6 +251,7 @@ Each prompt must be:
 1. **Self-contained** — includes all context CC needs (file path, what to change, why)
 2. **Single responsibility** — one logical change per prompt
 3. **File-specific** — always names the exact file(s) to modify
+4. **Rules copied in, not referenced** — copy any applicable project rule into the prompt's `Rules:` section verbatim. The Claude Code session reading the prompt may not have the same skills or docs loaded, so a pointer like "see BestMethods" is not enough.
 
 ### CC prompt template
 ```
@@ -263,6 +266,8 @@ Rules:
 - [e.g. "No && chaining in PowerShell"]
 - [e.g. "Always --legacy-peer-deps"]
 ```
+
+Keep `Change:` precise enough that Claude Code can't misread it: name the function, component, or section; say where new code goes; and state the expected behavior after the change. Include a code snippet only when the exact text matters (a config value, a regex, a specific import) — otherwise describe the change and let Claude Code write it.
 
 ### One file per prompt
 Never combine full-file rewrites or edits to multiple files into a single CC

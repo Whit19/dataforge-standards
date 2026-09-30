@@ -1,6 +1,6 @@
 # TNPL — Issues Tracker
 
-**Last updated:** 2026-09-28
+**Last updated:** 2026-09-29
 
 ## Open
 
@@ -9,10 +9,6 @@
 **Description:** TNPL isn't in the Active Projects table (Section 2) and prefix `TP` isn't in the DecisionLog prefix table (Section 11) of the root `MASTER_CLAUDE_PROTOCOL.md`. Root file, so left unchanged pending Tom's call (the Notion page link for the Section 2 row is also needed).
 
 ## Deferred
-
-### ISS-005 — `availability` docs lack `weekId`/`playerId` fields
-**Status:** Deferred
-**Description:** The callable finds a week's availability by document-ID prefix `{weekId}_` — a workaround. Plan: write `weekId` and `playerId` fields when the availability form is built (the seed script already does; both lookups work).
 
 ### ISS-006 — Per-slot pairing re-run on change-request approval
 **Status:** Deferred
@@ -79,3 +75,23 @@
 **Status:** Resolved (2026-09-28)
 **Description:** With the three-tab `classify()` rule (TP-038), a brand-new admin-added player who hasn't been sent an invite yet counted as "Active" alongside players who have actually signed in, since "never invited" and "signed in" both landed in the same tab.
 **Resolution:** Redesigned to four tabs — Active / Pending / To Invite / Not Active (TP-041). Active now requires both being signed in and having opted into a session; a signed-in player who chose "not this season" lands in Not Active with a note explaining why, distinct from an actual decline.
+
+### ISS-005 — `availability` docs lack `weekId`/`playerId` fields
+**Status:** Resolved (2026-09-29)
+**Description:** The pairing callable found a week's availability by document-ID prefix `{weekId}_` — a workaround; the seed script already wrote the fields, but the real availability-writing paths didn't yet.
+**Resolution:** The weekly-availability build writes `weekId` and `playerId` on every `availability` doc (both the in-app form and the one-tap email-answer path go through server-side callables now, per TP-044).
+
+### ISS-016 — "This match no longer exists" shown after a transient score-page read error
+**Status:** Resolved (2026-09-29)
+**Description:** `ScoreEntry.jsx`'s Firestore listener treated its `onSnapshot` error callback the same as "read succeeded, no such document," so any transient read error (including one seen while reseeding the emulator, which wipes auth accounts) permanently showed "This match no longer exists" — even though the match existed and was live for everyone else. Per the Firestore SDK's own docs, once the error callback fires the listener is dead for good; no further callbacks arrive.
+**Resolution:** A separate `groupError` state now shows a distinct "Couldn't load this match" message, checked before the loading/not-found branches, so a real read error is never conflated with a genuinely missing document. Regression test added for `id` preservation through this path.
+
+### ISS-017 — Home and Matches could show different court numbers for the same match
+**Status:** Resolved (2026-09-29)
+**Description:** Court number was computed separately in more than one place; an admin edit that left a gap in a slot's court numbering could make Home and Matches disagree about which court a given match was on.
+**Resolution:** Court number (position within the slot) is now computed once, in `src/lib/matchSchedule.js`, and consumed by both pages through the shared `useWeekMatches` hook.
+
+### ISS-018 — Home showed stale "Rules — coming soon" and "opens Monday" text
+**Status:** Resolved (2026-09-29)
+**Description:** Home's header still showed a placeholder "Rules — coming soon" line after the Rules & league info page shipped, and an "Availability opens Monday" line kept showing after availability was actually open for the week.
+**Resolution:** Both lines removed/gated correctly as part of the iPhone-walkthrough fixes in the Matches/score-entry batch.

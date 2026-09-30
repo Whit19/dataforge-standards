@@ -1,6 +1,6 @@
 # TNPL — Best Methods
 
-**Last updated:** 2026-09-28
+**Last updated:** 2026-09-29
 
 Hard-won lessons for this project. Read before writing any code.
 
@@ -20,6 +20,10 @@ Hard-won lessons for this project. Read before writing any code.
 - **Firestore rules can't hide individual fields.** Data with a different audience needs its own collection (`socialPlans` vs `availability`).
 - **Store per-week docs with explicit `weekId`/`playerId` fields** even when the composite doc ID encodes them. Doc-ID prefix lookups work but are a workaround.
 
+## Firestore client SDK
+- **`serverTimestamp()` isn't allowed inside array elements.** A per-set `savedAt` inside `matchGroups.sets[]` has to use `Timestamp.now()` instead.
+- **Once an `onSnapshot` error callback fires, that listener is dead for good — no further callbacks ever arrive.** Never treat the error callback the same as a completed read that found no document; show a distinct error (ideally with the error code), or a permission hiccup or transient network blip permanently looks like "this doesn't exist" (ISS-016).
+
 ## Planning and data
 - **Simulate a proposed constraint against real data before building on it.** The "max−min Elo ≤ 75" rule would have left players unplaced in about half of weeks.
 - **Verify workbook columns against their source before migration.** MAIN's "S3 ELO" held Season 2 final Elos, not the regressed start values.
@@ -30,13 +34,17 @@ Hard-won lessons for this project. Read before writing any code.
 - **Abort the whole run on any mismatch, don't skip-and-continue.** A script correcting specific records (matched by id + email) stops entirely and writes nothing if even one record doesn't match what's expected, rather than silently applying the rows that do match and skipping the rest.
 - **Log names only, never contact info.** Phone numbers and emails are never printed to the console or written into a commit message, even for a script whose whole job is to fix them.
 - **Private input files are gitignored and deleted after use**, alongside the service-account key used to run the script against the real project.
+- **Running a one-time script against production from PowerShell:** set `$env:GOOGLE_APPLICATION_CREDENTIALS` in the *same* terminal session as the `node` command, and pass `--project tnpl-pwa` explicitly — then delete the key file and revoke the key in Google Cloud once the script has run.
+- **A seed/demo script's own self-check writes can wipe hand-curated demo data.** If a script writes curated states (e.g. one match fully scored, another partially scored) and then runs a self-check that also writes to a match group, point the self-check at a spare, otherwise-untouched record — not one of the curated ones — and restore its shape afterward if the check has to write something.
 
 ## Email
 - **HTML email needs table-based layout and inline styles, not a stylesheet or SVG.** Gmail/Outlook strip `<style>` blocks and block SVG; images must be plain PNGs referenced by absolute hosting URL (`https://.../email/...`), not relative paths or data URIs.
 - **Build an email's "what the icon looks like" picture from the real app icon file, not a redrawn approximation.** A hand-drawn stand-in silently drifts from the actual icon the first time the real one changes.
+- **A one-tap link in an email must never record its answer on page load.** Email security scanners open every link in an inbound email; a link that answers on load (e.g. "Yes, I'm in") would get silently recorded by the scanner, not the player. Land on a page that requires an explicit confirm tap instead.
 
 ## iPhone PWA
 - **Safari and the installed Home Screen app keep completely separate storage and sign-in state.** Signing in while browsing in Safari does not carry over to the app once it's added to the Home Screen — a visitor has to sign in again from the icon. Any first-run flow aimed at iPhone needs to account for this explicitly (see the install gate) rather than assuming a session persists across that boundary.
+- **iOS 26 Safari's default "Compact" layout hides the Share button behind •••.** Only the "Bottom" layout and iOS 18 or earlier show Share directly. Any "add to Home Screen" instructions need to lead with tapping ••• first, with a note for readers on an older layout/iOS version that Share may already be visible.
 
 ## Pairing / cost-model design
 - **Zero isn't a bonus.** A preference that only removes a penalty ties with unused options; give it a real negative cost.
@@ -49,10 +57,16 @@ Hard-won lessons for this project. Read before writing any code.
 - The Firestore emulator needs JDK 21+ (firebase-tools 15.x). After installing Java, set User PATH and `JAVA_HOME` with `[Environment]::SetEnvironmentVariable` (not `setx`) and fully restart VS Code — a new terminal tab inherits VS Code's old environment.
 - `node --test pairing/` (directory argument) fails on Node 24; the bare `node --test` works on Node 20 and 24.
 - **Check a production build isn't still pointing at the emulators after local testing.** `VITE_USE_EMULATORS=true` in `.env.local` is added for a walkthrough and must be removed before `npm run build`/deploy, or the deployed app tries to reach the local emulator ports.
+- **Reseeding the emulator wipes Auth accounts, not just Firestore.** Sign out and back in after any reseed script runs, or reads silently fail against a now-orphaned session.
+- **Testing an automated email a week early:** tapping an admin "send now" action (e.g. "Open availability now") marks that week's send as done, so the real Monday automation then skips it. Use a "send a test to me"-style action instead, which doesn't touch the week's state, or reset the week afterward with a dedicated reset script.
 
 ## Elo/scoring logic
-- Not yet built. When porting the Elo formulas from the existing Excel workbook, watch for the same edge cases that came up in the original VBA macro build: merged cells, subs playing for regulars, duplicate player initials, and per-week (not per-set) Elo basis.
+- **Built (2026-09-29).** Pure engine `functions/elo/elo.js`, ported from the Excel workbook and verified against its worked example (two 1600/1500 players beating two 1450/1400 players 6-3 → about +9.7/-9.7 Elo, within 0.1). Margin multiplier: 0.6 + 0.16 × (|point diff| − 1). A player's Elo is fixed for the whole week (start-of-week basis) — every set they play, across both matches for a two-match player, uses the same start value, and the deltas are summed and applied once at lock (TP-046).
 - Scores are last-write-wins and editable until an explicit "Lock Week" action — Elo must never be computed off `reported`-but-unlocked scores.
+- **A re-read guard before a batch write does not stop a double-apply under real concurrency.** A manual "Lock Week" tap and a scheduled auto-lock can race; both can pass a plain re-read check before either commits. Run the whole read-compute-write sequence inside a Firestore **transaction** instead — its reads double as the write-conflict check, so a losing concurrent attempt is retried from scratch and sees the now-locked state, rather than blindly trusting a value that was fresh when read but stale by the time it wrote (TP-048).
+
+## Process
+- **Check the existing mockup canvas before proposing a new mockup.** Several pages built this session (Rules & league info, Home in-season cards, Settings) had already been mocked up and approved in an earlier session; re-proposing a fresh layout wastes a round trip Tom already spent.
 
 ## Firebase / PWA
 - See `.claude/skills/pwa-firebase-rules/SKILL.md` for the general Firestore/service-worker/Cloud Functions rules (Firestore refs through `firestorePaths.js`, `persistentLocalCache` not `enableIndexedDbPersistence()`, one Firebase project per app, etc.).

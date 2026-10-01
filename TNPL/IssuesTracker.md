@@ -1,6 +1,6 @@
 # TNPL — Issues Tracker
 
-**Last updated:** 2026-09-29
+**Last updated:** 2026-09-30
 
 ## Open
 
@@ -96,3 +96,43 @@
 **Status:** Resolved (2026-09-29)
 **Description:** TNPL wasn't in the Active Projects table (Section 2) and prefix `TP` wasn't in the DecisionLog prefix table (Section 11) of the root `MASTER_CLAUDE_PROTOCOL.md`.
 **Resolution:** Added a TNPL row to both tables (Notion Page column uses the same `[link]` placeholder every other row currently uses).
+
+### ISS-019 — Dinner/golf-sim links built into the wrong component
+**Status:** Resolved (2026-09-30)
+**Description:** A CC prompt misidentified `SocialPlanEditor` (which only opens from "Change my plans") as the place to add the menu/golf-sim links, so they only showed up when a player opened that editor.
+**Resolution:** Extracted a shared `src/components/DinnerGolfLinks.jsx` reading `leagueSettings/main`, used in the actual section link row on Home and Matches; dead reads of `season.menuUrl`/`season.golfSimUrl`/`season.weeklySpecial` (never written anywhere) removed.
+
+### ISS-020 — Matches page hid the dinner/golf-sim card before pairings published
+**Status:** Resolved (2026-09-30)
+**Description:** `Matches.jsx` returned early before pairings were published for the upcoming week, which hid the dinner/golf-sim section along with everything else below it.
+**Resolution:** Added a `DinnerGolfCard` (its own `socialPlans` listener for the upcoming week, no `matchGroups` read) rendered under the "Pairings go out…" notice instead of inside the early-return branch.
+
+### ISS-021 — iOS blocked "View menu" after an awaited `window.open`
+**Status:** Resolved (2026-09-30)
+**Description:** Calling `window.open` after `await getDownloadURL(...)` is blocked by iOS Safari/installed PWAs, since the user-gesture context is lost by the time the awaited call resolves.
+**Resolution:** Fetch the menu's download URL ahead of time and render a real `<a target="_blank">`, so opening it is a direct click on an anchor rather than a script-triggered `window.open` after an async gap (CC_58).
+
+### ISS-022 — Season 25-26 import dry run aborted on a tolerance that was too tight
+**Status:** Resolved (2026-09-30)
+**Description:** The workbook stores Elo before/after values rounded to 1 decimal but set-level changes at 2 decimals, so after−before could differ from the summed delta by up to 0.09 — wider than the import script's original validation tolerance, correctly aborting the dry run rather than importing silently-wrong data.
+**Resolution:** Tolerance widened to ±0.15 to match the source's actual display precision; the stored `delta` field is kept as the exact sum of the set adjustments regardless (TP-052).
+
+### ISS-023 — Starting-Elo lock check wasn't season-scoped
+**Status:** Resolved (2026-09-30)
+**Description:** `hasLockedMatch` in `functions/roster/roster.js` (and its client mirror in `PlayerEditSheet.jsx`) checked for a locked match in ANY season before refusing a starting-Elo edit — found during the pre-import scoping audit, before importing a second season's history. Left as-is, every returning player would have been blocked from a legitimate 26-27 starting-Elo correction once Season 25-26's locked matches existed.
+**Resolution:** Scoped to the active season's weeks only; the client query was replaced by `matchGroupsByWeekIdsQuery`.
+
+### ISS-024 — Dead season fields hid their own replacement
+**Status:** Resolved (2026-09-30)
+**Description:** `season.menuUrl`, `season.golfSimUrl`, and `season.weeklySpecial` were read in several places but never written by anything, left over from an earlier design.
+**Resolution:** Removed; replaced by `leagueSettings.golfSimUrl`/menu-in-Storage (TP-054) and per-week `weeks.dinnerSpecial` (TP-055).
+
+### ISS-025 — Availability email showed "Season Season 26-27"
+**Status:** Resolved (2026-09-30)
+**Description:** The availability email template prepended "Season " to a season name that already started with "Season," producing a doubled label. No other email had the same pattern.
+**Resolution:** Template no longer prepends the word where the season name already includes it.
+
+### ISS-026 — Players page initially exposed every roster person's contact info
+**Status:** Resolved (2026-09-30)
+**Description:** The first version of the Players page read every `players` doc, so a never-invited or inactive person's phone/email was visible to any signed-in member, not just people who had actually joined.
+**Resolution:** Replaced by the `directory`/`listed` model (TP-056) — only active, signed-in, opted-in players (and active staff) are listed with contact info; everyone else is name-only.

@@ -1,16 +1,16 @@
 # TNPL — Technical Architecture
 
-**Last updated:** 2026-09-29
+**Last updated:** 2026-09-30
 
 ## Stack
 - Frontend: React + Vite, PWA (installable Home Screen app on iPhone/Android)
-- Backend / data: Firebase — Firestore (data), Firebase Auth (emailed 6-digit code + Google), Firebase Hosting (deploy), Cloud Functions (24 functions — pairing, season setup, roster/invites, auth, weekly availability, Lock Week/Elo, weekly automation)
+- Backend / data: Firebase — Firestore (data), Firebase Auth (emailed 6-digit code + Google), Firebase Storage (menu PDF), Firebase Hosting (deploy), Cloud Functions (39 functions — pairing, season setup, roster/invites, auth, weekly availability, Lock Week/Elo, weekly automation, change requests, settings, directory sync)
 - Firebase project: `tnpl-pwa` (console: https://console.firebase.google.com/u/1/project/tnpl-pwa/overview), Blaze plan (TP-033)
 - Repo: https://github.com/Whit19/TNPL (private)
 - Local folder: `C:\Dev_Projects\TNPL`
 - Docs: `C:\Dev_Projects\dataforge-standards\TNPL\` (cloned locally)
-- CLI config: `firebase.json` (firestore rules/indexes, `functions` source, hosting rewrites/headers, emulators block), `.firebaserc`, `firestore.indexes.json`
-- **Deployed:** Firestore rules, all 24 Cloud Functions, and Hosting are live. Hosting serves `dist/` (built by Vite) plus a `/email/` folder of PNGs used by the invite email, and rewrites `/decline` to the `decline` HTTP function.
+- CLI config: `firebase.json` (firestore rules/indexes, storage rules, `functions` source, hosting rewrites/headers, emulators block incl. storage on port 9199), `.firebaserc`, `firestore.indexes.json`, `storage.rules`
+- **Deployed:** Firestore rules, Storage rules, all 39 Cloud Functions, and Hosting are live. Hosting serves `dist/` (built by Vite) plus a `/email/` folder of PNGs used by the invite email, and rewrites `/decline` to the `decline` HTTP function.
 
 ## Scope for v1
 Full weekly loop: availability collection → pairing → live scoring → Elo recalculation. (TP-004)
@@ -39,6 +39,24 @@ players/{playerId}
                                          // "has this player signed in" marker (TP-038), independent
                                          // of inviteStatus (which a later re-invite can otherwise touch)
   contactPreference: 'email' | 'push' | 'both'
+  hidePhone, hideEmail: boolean         // self-writable; drives directory.phone/email, not a players-level
+                                         // hide since Firestore rules can't hide individual fields (TP-056)
+
+directory/{playerId}                    // public-safe view of players; one doc per roster person
+  name, sortName, role, active, isAdmin, listed: boolean
+  phone, email                          // present only when listed AND not hidden; otherwise null
+  hidePhone, hideEmail                  // mirrored from players, for the Players page's own UI
+  updatedAt
+  // Server-write only (Cloud Firestore triggers in functions/players/directorySync.js, on BOTH
+  // players writes and sessionEnrollment writes). `listed` = active AND signed in (firstSignInAt)
+  // AND opted into the active season, for player role; staff are listed once active. Everyone else
+  // still gets a name-only entry (listed:false, no phone/email) so Rankings/History/match screens
+  // can show a name (TP-056).
+
+playerRatings/{playerId}                // Elo fields only; players only, never staff (TP-016)
+  currentElo, seasonStartElo, eloIsDefault
+  updatedAt
+  // Server-write only, same triggers as directory above (TP-056).
 
 playerLinks/{authUid}
   playerId
@@ -50,11 +68,15 @@ playerLinks/{authUid}
   // firstSignInAt on the matched player doc. (TP-014)
 
 seasons/{seasonId}                      // e.g. '2026-27'
-  name, startDate, endDate, status: 'active'
+  name, startDate, endDate, status: 'active' | 'complete'   // 'complete' added for history import (TP-052)
+  imported: boolean                     // true for a season written by importSeasonHistory.js, never players
   kFactor, pairingFlagThreshold (TP-018), slotFairnessTolerance (TP-021),
-  newPlayerElo, guestElo, provisionalUnderSets, carryOverFactor, carryOverSetsPivot,
+  newPlayerElo, guestElo, provisionalUnderSets, carryOverFactor, carryOverSetsPivot,  // carryOver* stored,
+                                         // no consuming logic yet — season close isn't built (TP-054)
   dinnerLeadMinutes, automation: { availabilityOpens, reminder, draftBuilt, pairingsSent, finalized }
   defaultTimeSlots
+  // seasons is now server-write only (allow write: if false) — the setupSeason / Settings callables
+  // (Admin SDK) are the only writers; no client write path depended on direct access (TP-054).
 
 sessions/{seasonId}-s{number}           // a season has two sessions (TP-029)
   seasonId, number, name: "Session 1", startDate, endDate
@@ -70,20 +92,26 @@ sessionEnrollment/{sessionId}_{playerId}
 
 weeks/{weekId}                          // weekId is the ISO date, e.g. '2026-10-15'
   seasonId, sessionId, date, weekNumber, sessionWeekNumber
-  status: draft | availability_open | pairing_draft | matches_set | in_progress | complete
+  status: draft | availability_open | pairing_draft | matches_set | in_progress | complete | skipped
   timeSlots: [{ id, label: "6:00 PM", start, courtsAvailable: 2 }, ...]   // slot order = array order
+  customTimes: boolean                  // true once this week's slots were edited away from the season default (TP-053)
   pairingHold: boolean                  // admin can hold the Wednesday auto-send
   pendingNotify: []                     // players to notify after a post-send admin edit
+  dinnerSpecial: string | null          // optional, <=120 chars, shown as "This week's special:" everywhere (TP-055)
+  extraQuestion: { text } | null        // optional per-week yes/no question, <=80 chars (TP-055)
   automation: { availabilityOpensAt, reminderAt, draftBuiltAt, pairingsSentAt, finalizedAt }  // Timestamps
   availabilityEmailSentAt, reminderSentAt          // set by weeklyAutomation, guards a double-send
   lockReminderSentAt                               // Tuesday-reminder guard (TP-047)
-  lockedAt, lockedBy, lockMode: 'manual' | 'auto'  // set by lockWeekInternal; cleared on unlock
+  lockedAt, lockedBy, lockMode: 'manual' | 'auto' | 'import'  // 'import' set by importSeasonHistory.js (TP-052)
   unlockedAt, unlockedBy                           // set by unlockWeekInternal
+  // weeks is now server-write only (allow write: if false), same audit as seasons above (TP-054).
 
 availability/{weekId}_{playerId}
   weekId, playerId                      // ISS-005: written on every doc; the pairing callable can
                                          // still find a week's docs by document-ID prefix "{weekId}_"
   canPlay, canPlayTwo, blockedSlotIds[], preferredSlotIds[], notes
+  extraAnswer: boolean | null           // answer to that week's weeks.extraQuestion, if any (TP-055);
+                                         // only asked of/counted for players who said they're playing
   respondedAt                           // set on the FIRST answer only; edits never move this (TP-044)
   updatedAt                             // changes on every write, including edits
   // Admin-write only in firestore.rules — every write goes through a server
@@ -98,6 +126,13 @@ availabilityTokens/{tokenHash}
   // draftBuiltAt (Wed 9 AM); resolved by getAvailabilityByToken /
   // answerAvailabilityByToken, which never records an answer until the
   // public /answer page's explicit Confirm tap (TP-044).
+
+leagueSettings/main                     // single doc; league-wide values (season-wide, no per-session override)
+  golfSimUrl, golfSimLabel              // golf-sim booking link + its button label
+  contactName, contactPhone             // "League contact" — powers every "Text Tom" link (TP-057);
+                                         // 10-digit phone, same bare-digits convention as players.phone
+  // Menu itself is a PDF in Firebase Storage (league/menu.pdf), not a field here — see Storage below.
+  // All writes go through the updateLeagueSettings callable (Admin SDK) (TP-053).
 
 leagueInfo/main
   sections: [{ id, title, body }]        // body is plain text: blank line = paragraph, "- " = bullet,
@@ -139,12 +174,17 @@ pairingRuns/{weekId}                    // admin-only engine report
 changeRequests/{requestId}
   weekId, matchGroupId, playerId
   type: swap_out | time_change
-  reason, status: pending | approved | denied
+  requestedSlots: []                    // time_change only — every slot id the player said would work (TP-049)
+  fromSlotId                            // the slot they're currently in
+  reason, status: pending | approved | denied | withdrawn   // withdrawn = player cancelled while window open
   requestedAt, resolvedAt, resolvedBy
-  // Created by a player flagging a group issue, OR automatically (type
-  // swap_out) when a player opts out of a session mid-way through a week
-  // that's already matches_set/in_progress (TP-027). Admin approve/deny UI
-  // not built yet — requests currently just queue up.
+  // Created by a player via submitChangeRequest (while the week is matches_set,
+  // i.e. the request window TP-049 defines), OR automatically (type swap_out)
+  // when a player opts out of a session mid-way through a week that's already
+  // matches_set/in_progress (TP-027, kept in sync with this shape). Approval
+  // is recorded only inside the same transaction as the admin's edit
+  // (handleEditPairings) that actually performs the swap/replace (TP-049).
+  // Admin UI: /admin/changes + a dashboard tile (TP-050).
 
 joinRequests/{requestId}
   name, email, phone, note, status: pending | approved | denied
@@ -190,17 +230,20 @@ No locked-partner/couples constraint (TP-008).
 
 | Collection | Read | Write |
 |---|---|---|
-| `players` | any signed-in member | admin only, except a player may edit their own `phone` (TP-016) or `contactPreference`; `authUid`/`inviteStatus`/`firstSignInAt` are Cloud Function only |
+| `players` | **admin + own doc only** (locked down this session, TP-057 — every non-admin screen moved to `directory`/`playerRatings` first) | admin only, except a player may edit their own `phone`, `contactPreference`, `hidePhone`, or `hideEmail` (TP-016, TP-056); `authUid`/`inviteStatus`/`firstSignInAt` are Cloud Function only |
+| `directory` | any signed-in member | never client-writable — `directorySync.js` triggers only, on `players`/`sessionEnrollment` writes (TP-056) |
+| `playerRatings` | admin or player role (not staff, TP-016) | never client-writable — same triggers as `directory` (TP-056) |
 | `playerLinks` | own doc only | never client-writable — Cloud Functions only (`verifySignInCode` / `linkAccount`) |
-| `seasons` | any signed-in member | admin only |
+| `seasons` | any signed-in member | **never client-writable** (`allow write: if false`) — `setupSeason` / Settings callables (Admin SDK) only; no client write path depended on direct access (TP-054) |
 | `sessions` | any signed-in member | admin only |
 | `sessionEnrollment` | admin, or the player themselves (own doc, by `playerId` field) | never client-writable — the `setSeasonSignup` callable only, so every session doc for a player stays consistent |
-| `weeks` | any signed-in member (staff: read-only) | admin only |
+| `weeks` | any signed-in member (staff: read-only) | **never client-writable** (`allow write: if false`) — `setupSeason` / the pairing engine / Settings callables (Admin SDK) only (TP-054) |
+| `leagueSettings` | any signed-in member | never client-writable — the `updateLeagueSettings` callable only (TP-053) |
 | `availability` | the player themselves + admin (not staff) | **admin only** — players write through the `saveAvailability` / `answerAvailabilityByToken` callables (Admin SDK), never a direct client write (TP-044) |
 | `socialPlans` | any signed-in member, staff included | the player themselves or admin, only while the week isn't `complete`; `dinner`/`golfSim` must be none/before/after; delete admin only |
 | `matchGroups` | admin always; everyone else only once the week is `matches_set` / `in_progress` / `complete` (keeps `pairing_draft` groups admin-only). Staff read-only | admin: any field, any status (used to fix a match's scores from the Scores and lock screen); a player: `sets` field only, only while `status` is `in_progress` or `reported` (never `locked`), only for a group they're in; `setLineups` etc. otherwise admin / pairing Cloud Function only |
 | `pairingRuns` | admin only | never client-writable — Cloud Function (Admin SDK) only |
-| `changeRequests` | the requesting player + admin | create: any player, for themselves, while the week is `matches_set`; approve/deny: admin only |
+| `changeRequests` | the requesting player + admin | never client-writable — `submitChangeRequest`/`withdrawChangeRequest`/`denyChangeRequest` callables, and approval written inside the admin edit-save transaction (`handleEditPairings`), all Admin SDK (TP-049, TP-050) |
 | `eloHistory` | any signed-in player (not staff) — everyone sees everyone's history (TP-016) | never client-writable — `lockWeekInternal` / `unlockWeekInternal` (Admin SDK, inside a transaction) only (TP-048) |
 | `joinRequests` | admin only | never client-writable — `submitJoinRequest` / `resolveJoinRequest` (Admin SDK) only |
 | `leagueInfo` | public — signed out too (TP-042) | admin only, with shape validation (`sections` list, `updatedAt`/`updatedBy`/`updatedByName`) |
@@ -272,7 +315,7 @@ Constants: `functions/paths.js` is the single source of collection names and sta
 - Pure score helpers `src/lib/scores.js` (`groupProgress`, `scheduleScoreText`, `teamLabel`, `myMatchResult`, `playerGameRows`, `formatEloDelta`) and shared presentational components `src/components/MatchScores.jsx` (`SetResultList`, `SetTiles`, `GroupScoreTable`) — used by both Matches and Home so a match never renders two different ways.
 - `src/lib/socialTimes.js` computes dinner/golf-sim clock times from the published schedule (TP-024): before = first slot start − `dinnerLeadMinutes` (dinner) or − that slot's length (golf sim); after = last slot start + that slot's length; times rounded down to 15 minutes.
 - `src/pages/Home.jsx` shows one card per match (never combined for a two-match player, TP-045), set tiles once any set is saved, and a dinner/golf-sim card using the shared `src/components/SocialPlanEditor.jsx` (same editor as Matches).
-- "Need a change? Text Tom" (`sms:` the admin phone) stands in for the change-request UI in Week 1 (TP-043).
+- "Request a change" now opens the real change-request flow (see "Change requests" below) while the window is open; outside it, or if no League contact is set, it falls back to a text-the-League-contact link or a plain note (TP-043 superseded by TP-049/TP-057).
 
 ## Season setup — implemented and deployed
 `setupSeason` (admin callable, `functions/season/setupSeason.js`) creates a season, its sessions, and every Thursday week between each session's start/end date (skipping any given skip dates, e.g. Thanksgiving) in one batch. Idempotent — re-running it only touches weeks still in `draft`. Season 26-27 was created this way: Session 1 Oct 15 - Dec 17, Session 2 Jan 7 - Mar 11, Thanksgiving skipped, 19 weeks (TP-029).
@@ -296,7 +339,7 @@ Constants: `functions/paths.js` is the single source of collection names and sta
 `src/lib/platform.js`: `isIOS()`, `isStandalone()` (display-mode / `navigator.standalone`), `iosBrowser()` (distinguishes Safari from Chrome/Firefox/Edge/Google-app/in-app browsers on iOS by user-agent token). `SignIn.jsx` renders a "First, add TNPL to your Home Screen" gate instead of the sign-in form whenever `isIOS() && !isStandalone()`, since Safari and the installed Home Screen app keep separate sign-in state. A visible "I'm on a computer" link bypasses the gate for the current browser session (`sessionStorage`, with a try/catch fallback). Desktop and Android are unaffected.
 
 ## Bottom navigation & Home (TP-037)
-`src/components/BottomNav.jsx` — a fixed bottom tab bar (Home, Matches, Rankings, Players, Profile, plus Admin only when `isAdmin`), shown on every signed-in page. `src/pages/ComingSoon.jsx` is a placeholder, still used for Rankings/Players (Matches is built — see "Player Matches and live score entry"), showing the active season's start date. `src/pages/Home.jsx` shows an "Are you playing {season}?" card until the signed-in player (not staff) has a season choice on record — gone for good once one exists, with a same-visit-only green confirmation right after choosing — plus a pre-season card (season name, start date, when week-1 availability opens) while today is before the first week.
+`src/components/BottomNav.jsx` — a fixed bottom tab bar (Home, Matches, Rankings, Players, Profile, plus Admin only when `isAdmin`), shown on every signed-in page. `src/pages/ComingSoon.jsx` (the former placeholder for Rankings/Players) is no longer routed to anything now that both are built, but hasn't been deleted yet. `src/pages/Home.jsx` shows an "Are you playing {season}?" card until the signed-in player (not staff) has a season choice on record — gone for good once one exists, with a same-visit-only green confirmation right after choosing — plus a pre-season card (season name, start date, when week-1 availability opens) while today is before the first week.
 
 ## Rules & league info, and the public join page (TP-042)
 - `src/pages/Info.jsx` (route `/info`, public — readable signed out, outside the iPhone install gate) renders `leagueInfo/main`'s `sections[]` via `src/lib/infoText.js`, a small parser for plain text with light formatting (blank line = paragraph, `- ` = bullet, `**bold**` = bold) — output is React elements, never raw HTML. Shows "Member? Sign in" and a "Request to join" call-out when signed out.
@@ -313,19 +356,61 @@ Constants: `functions/paths.js` is the single source of collection names and sta
 
 A one-time script, `functions/scripts/backfillSignIns.js` (dry-run by default, `--apply` to write, idempotent), sets `firstSignInAt`/`inviteStatus` for anyone with a `playerLinks` doc who's missing them — needed for accounts linked before this logic existed.
 
-## Change requests
-Player flags an issue with their assigned group (swap out / time change), or opting out mid-session raises one automatically (TP-027) → `pending` → admin approves/denies. **Not built yet:** the admin approve/deny UI (requests currently just queue up) and per-slot re-run on approval. For Week 1, every "Request change" spot in the UI is a "Text Tom" (`sms:`) link instead (TP-043).
+## Change requests — implemented and deployed (TP-006, TP-049, TP-050)
+Player flags an issue with their assigned group (swap out / time change), via `src/pages/RequestChange.jsx` (route `/matches/:matchGroupId/request`), or opting out mid-session raises one automatically (TP-027) → `pending` → admin approves/denies. The request window is open from pairings sent (`matches_set`) until finalize (`in_progress`); outside it, the UI falls back to the League-contact text link (TP-057) instead of the request form.
+- All writes go through callables (`functions/changeRequests/changeRequests.js`): `submitChangeRequest` (player, `type: 'time_change'` with 1+ `requestedSlots`, or `'swap_out'`), `withdrawChangeRequest` (player, only while `pending` and the window is open), `denyChangeRequest` (admin). `changeRequests` rules are `allow write: if false` — no direct client write.
+- **Approval** happens only inside `handleEditPairings`'s own Firestore transaction (`functions/pairing/edit.js`, converted from read-then-batch to a transaction this session) — the change-request doc is read via `tx.get` before any writes, so a request is marked `approved` only if the admin's resulting swap/replace edit actually commits; backing out leaves it `pending` (TP-049).
+- Admin UI: `/admin/changes` (`src/pages/admin/ChangeRequests.jsx`) lists pending/resolved requests, a dashboard tile shows the pending count; approving a request reopens `PairingDraft.jsx`'s existing `PlayerSheet` with it preselected rather than a separate swap screen (TP-050).
+- Card state-selection logic (pending/approved/denied/withdrawn, closed-window fallback) is shared in `src/lib/changeRequestCard.js`, consumed separately by Home's and Matches' own card components.
+- A swapped-out player sees a one-time "You're off this week's schedule" notice on Home for that week. **Not yet built:** per-slot pairing re-run on approval (ISS-006, deferred) — the callable re-runs the whole week only.
+
+## Rankings, History, and Season summary — implemented and deployed (TP-051)
+- Pure, tested module `src/lib/standings.js` (`computeStandings`, `sortStandings`, `computePreseason`, `seasonHighlights`, `playerSeasonTimeline`, `shortName`) computes every number shown on these pages from `eloHistory` on the device — there is no stored standings doc.
+- `src/pages/Rankings.jsx` (route `/rankings`, plain signed-in guard — no longer player-only, since staff get their own message): season picker (newest first, "· Final" for a `complete` season), sort by Elo / Win % / Avg games / Matches, a Provisional badge (`season.provisionalUnderSets`, fallback 12), rows link to History. Before Week 1 locks, shows opted-in players ranked by starting Elo with a "play starts" note (`computePreseason`). Staff see a "Rankings are for players" message (TP-016).
+- `src/pages/History.jsx` (routes `/history`, `/history/:playerId`): Mine / All players tabs, season picker, stat tiles, weeks grouped by session with per-match set detail (`playerSeasonTimeline`).
+- `src/pages/SeasonSummary.jsx` (route `/seasons/:seasonId/summary`): highlights (Top Elo, Most sets won, Most matches, Best win % at 30+ sets via `seasonHighlights`), full standings, session tabs. The approved mockup's "next season starting Elos" link is intentionally not built — there's no season-close record yet to link to.
+- All three read names via the shared `src/hooks/useDirectory.js` hooks (see "Contact privacy" below) rather than reading `players` directly.
+
+## Settings — implemented and deployed (TP-053, TP-054)
+Admin screens `src/pages/admin/Settings.jsx` (season/league values) and `src/pages/admin/Season.jsx` (time slots, skip a week), both reading/writing `functions/settings/settings.js`'s 7 callables: `updateSeasonSetting` (range-validated K-factor, flag threshold, slot fairness, new player Elo, guest Elo, provisional-under-sets, carry-over factor/pivot, dinner lead minutes, back-to-back toggle), `updateDefaultTimeSlots`, `updateWeekTimeSlots`, `resetWeekTimeSlots`, `setWeekSkipped`, `updateLeagueSettings`, `setAdmin`.
+- **Time slots:** a season `defaultTimeSlots` applies to upcoming `draft` weeks that aren't `customTimes`; a per-week edit/reset is allowed only while `draft`/`availability_open` — moved times keep their slot ids and players' existing answers, a removed slot's id is stripped from that week's `availability` docs. Courts are set per slot (the pairing engine already uses each slot's own `courtsAvailable`).
+- **Skip a week:** only while `draft` (new week status `skipped`); later draft weeks renumber (`weekNumber`/`sessionWeekNumber`) via `planWeekRenumber`.
+- **Admins:** added from the signed-in roster via `setAdmin`; an admin can't remove themselves, and the league can never be left with zero admins.
+- **League contact:** `contactName`/`contactPhone` on `leagueSettings/main`, surfaced in a `LeagueContactSheet` — see "Contact privacy" below.
+- **Menu:** an uploaded PDF, not a field — see Firebase Storage below.
+- League name/logo and the automation times are read-only in Settings (baked at build time / fixed elsewhere). `carryOverFactor`/`carryOverSetsPivot` are stored but have no consuming logic yet (season close isn't built). `seasons`/`weeks` are now fully server-write only (see the rules table).
+
+## Firebase Storage — implemented and deployed (TP-054)
+Enabled on `tnpl-pwa` (region matched to Firestore). `storage.rules` mirrors `firestore.rules`' identity helpers via cross-service `firestore.get()`/`firestore.exists()` (storage rules can only check a known Firestore path, never query, same constraint as Firestore rules themselves). Only path in use: `/league/menu.pdf` — signed-in read; admin-only write/delete, content-type restricted to `application/pdf`, size capped at 10 MB. `firebase.json` gained a storage-rules entry and a storage emulator on port 9199; `src/firebase.js` exports a `getStorage` client. "View menu" fetches the download URL ahead of time and renders a real `<a target="_blank">`, since iOS blocks `window.open` called after an `await` (ISS-021).
+
+## Week extras — implemented and deployed (TP-055)
+- **Dinner special:** `weeks.dinnerSpecial` (≤120 chars), set via `setWeekDinnerSpecial`, shown with one consistent "This week's special:" label on the availability form, Matches (both states), Home, and in the availability email if set before sending.
+- **Extra yes/no question:** `weeks.extraQuestion.text` (≤80 chars), set via `setWeekExtraQuestion`; answers in `availability.extraAnswer`. Editable while `draft`/`availability_open`; rewording keeps existing answers, removing the question deletes that week's answers in one transaction. Only players who said they're playing are asked or counted.
+- Players answer on the in-app form, or right after tapping "Yes, I'm in" on the public `/answer` page (never on page load) via the new public callable `answerExtraQuestionByToken` — same no-answer-on-load pattern as the main one-tap tokens (TP-044).
+- The Monday email shows a boxed extras block when a dinner special and/or extra question are set. Admin tracker (`src/lib/extraQuestion.js`) shows Yes / No / No answer counts with names; the Admin dashboard has a "This week" card linking both sheets. "Send a test to me" links are test-only and never record an answer, by design.
+
+## Contact privacy — directory & playerRatings — implemented and deployed (TP-056, TP-057)
+Firestore rules can't hide individual fields, so contact info for other people now comes only from server-maintained collections — see the `directory`/`playerRatings` schema above and the `functions/players/directorySync.js` trigger module (fires on both `players` writes and `sessionEnrollment` writes, via the shared `syncPlayerDirectory(db, playerId)`, since a session opt-in/out can flip `listed` without a `players` write happening).
+- **Listing rule:** a player-role person is listed (visible on the Players page, with contact info) only if `active`, has signed in (`firstSignInAt` set), and has opted into the ACTIVE season (`sessionEnrollment.optedIn === true` for at least one session). Staff are listed as soon as they're `active` — never asked to opt in. Everyone else still gets a name-only `directory` entry (`listed: false`, no phone/email regardless of hide flags) so Rankings/History/match screens can still show a name.
+- `src/pages/Players.jsx`: Players/Staff filter, search, Call/Text/Email links where present, "Contact hidden" otherwise, names link to History.
+- Six non-admin screens read `directory`/`playerRatings`/`leagueSettings` instead of `players`, through shared hooks in `src/hooks/useDirectory.js`: `useDirectory()`, `usePlayerRatings({ enabled })`, `useLeagueContact()` — consumed by `useWeekMatches` (Home/Matches), `ScoreEntry`, `RequestChange`, `Rankings`, `History`, `SeasonSummary`.
+- **League contact** (`leagueSettings.contactName`/`contactPhone`) replaces scanning `players` for `isAdmin` to build "Text Tom" links, independent of anyone's profile privacy; falls back to "Contact the league admin" when unset.
+- `players` reads are now admin + own doc only (see the rules table) — locked down only after an audit confirmed every remaining client reader of `players` was admin-only or own-doc.
+- One-time `functions/scripts/backfillDirectory.js` (dry-run default, `--apply`) populates `directory`/`playerRatings` for the existing roster; must be re-run after a new season is created, since everyone starts unlisted again until they choose for that season. Deploy order: functions → backfill → League contact set in Settings → hosting → verify every moved screen → **then** the `players` rules lock, last (TP-057).
+
+## Season 25-26 history import — done (TP-052)
+One-time script `functions/scripts/importSeasonHistory.js` (dry run default, `--apply`, single Firestore batch, aborts on any mismatch, every set validated against the live `computeWeekElo`) imported `TNPL_Season_25-26_ALL.xlsx`: `seasons/2025-26` (`status: 'complete'`, `imported: true`), 2 closed `sessions`, 17 `complete` weeks (`lockMode: 'import'`), 68 locked `matchGroups`, 251 `eloHistory` docs — `players` was never touched. Validation tolerance is ±0.15 to match the workbook's 1-decimal Elo display vs. its 2-decimal set-change precision; the stored `delta` stays the exact sum of the set adjustments regardless (ISS-022).
 
 ## Pages
-Home · Matches (+ score entry) · Rankings · Players · Profile · Availability · Info (public) · Join (public) · AvailabilityAnswer (public) · Admin (dashboard, season setup, roster, pairing draft/edit screens, availability tracker, Scores and lock, Info editor) · **SignIn** (route-guard redirect target; also renders the iPhone install gate — not a nav item). Bottom tab bar on every signed-in page (TP-037). Rankings/Players still show a Coming Soon placeholder. Staff see the same tabs as a player, minus the season-signup card on Home.
+Home · Matches (+ score entry, request change) · Rankings · History (+ per-player, + Season summary) · Players · Profile · Availability · Info (public) · Join (public) · AvailabilityAnswer (public) · Admin (dashboard, season setup, Season (time slots/skip), Settings, roster, pairing draft/edit screens, availability tracker, Scores and lock, change requests, Info editor) · **SignIn** (route-guard redirect target; also renders the iPhone install gate — not a nav item). Bottom tab bar on every signed-in page (TP-037). Staff see the same tabs as a player, minus the season-signup card on Home and with players-only messages on Rankings/eloHistory-backed pages (TP-016).
 
 ## Local emulator testing
 Firebase Local Emulator Suite (auth 9099, firestore 8080, functions 5001, UI) under the demo project ID `demo-tnpl`, so nothing can reach real Firebase resources (TP-026). Needs JDK 21+ (firebase-tools 15.x).
 - Start: `firebase emulators:start --only auth,firestore,functions --project demo-tnpl`
 - End-to-end pairing check: `node functions/scripts/seedAndRunPairings.js` (repo root) — resets emulator state, seeds `functions/scripts/fixtures/roster.seed.json` (45 players, names + Season 3 Elos only) with synthetic `@example.test` emails, calls the callable as different users, runs 12 checks.
 - Full-league-night demo: `node functions/scripts/seedMatchesDemo.js` — Demo Player/Demo Admin accounts; Week 1 complete and **locked the real way** via `lockWeekInternal` (so it has real `eloHistory`), Week 2 `in_progress` with mixed score states left for Tom to lock/unlock himself, Week 3 `availability_open`. Self-checks include eloHistory doc count, Elo deltas summing to ~0, and `previewWeek` on Week 2.
-- Unit tests: `npm test` from the repo root (Node's built-in test runner, auto-discovers every `*.test.js`) — **223 total** (up from 116 at the start of this session), spanning `functions/` and `src/`. `npm test` inside `functions/` alone still works and runs just its own subset.
-- One-time data scripts (`functions/scripts/`) — `importRoster.js`, `updatePhones.js`, `backfillSignIns.js`, `resetWeekAvailability.js` (refuses if pairings exist for the week; Tom used it against production to reset Week 1 after testing early) — all dry-run by default, `--apply` to write, real project or `--emulator`; see BestMethods.md.
+- Unit tests: `npm test` from the repo root (Node's built-in test runner, auto-discovers every `*.test.js`) — **340 total** (up from 223 at the start of this session), spanning `functions/` and `src/`. `npm test` inside `functions/` alone still works and runs just its own subset.
+- One-time data scripts (`functions/scripts/`) — `importRoster.js`, `updatePhones.js`, `backfillSignIns.js`, `resetWeekAvailability.js` (refuses if pairings exist for the week; Tom used it against production to reset Week 1 after testing early), `importSeasonHistory.js` (Season 25-26 import, TP-052), `backfillDirectory.js` (contact-privacy directory/playerRatings backfill, TP-057) — all dry-run by default, `--apply` to write, real project or `--emulator`; see BestMethods.md.
 
 ## Known constraints / preferences
 - Local dev on Windows 11, VS Code, PowerShell.

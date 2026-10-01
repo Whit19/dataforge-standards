@@ -1,6 +1,6 @@
 # TNPL — Project Roadmap
 
-**Last updated:** 2026-09-29
+**Last updated:** 2026-09-30
 
 ## Phase 0 — Kickoff (done)
 - [x] Repo, Notion, docs, .gitignore, pwa-firebase-rules skill
@@ -38,16 +38,20 @@
 - [x] Weekly dinner / golf-sim section UI (admin + staff + players) — shared `SocialPlanEditor` on both Matches and Home
 - [x] Player Matches page (compact style) + score entry (`matchGroups.sets`, per-set lineups from `setLineups`; any-order set entry; editable until locked) (TP-045)
 - [x] Lock Week admin function (Elo calc reading each set's teams from `setLineups` + `players.currentElo` update), transactional lock/unlock, Tuesday reminder + Wednesday auto-lock, admin "Scores and lock" screen (`/admin/scores`) (TP-046, TP-047, TP-048)
-- [ ] Rankings / season history page
-- [ ] Change-request admin approve/deny UI — "Text Tom" links stand in for Week 1 (TP-043)
-- [ ] Per-slot pairing re-run on change-request approval (deferred, not built)
+- [x] Rankings / History / Season summary pages, computed on-device from `eloHistory` via `src/lib/standings.js` (TP-051)
+- [x] Change-request admin approve/deny UI: player request form, withdraw, `/admin/changes` page + dashboard tile, approval via `PairingDraft.jsx`'s `PlayerSheet` inside the same transaction as the pairing edit (TP-006, TP-049, TP-050) — "Text Tom" links now stand in only outside the request window or when no League contact is set
+- [x] Settings: Elo/pairing values, default + per-week time slots (with per-slot courts), skip a week, admins, golf-sim link, League contact, and an uploaded menu PDF in Firebase Storage (TP-053, TP-054); new admin `Season.jsx` screen
+- [x] Week extras: a per-week dinner special and an optional yes/no question, in the app, the Monday email, and the email answer page, with a tracker summary (TP-055)
+- [x] Players tab + real contact privacy: server-maintained `directory`/`playerRatings` collections, a listing rule (active + signed in + opted in; staff once active), hide-my-phone/email switches, a League contact for "Text Tom," and `players` reads locked to admin + self (TP-056, TP-057)
+- [ ] Per-slot pairing re-run on change-request approval (deferred, not built — ISS-006)
 - [ ] "Invite all" — deliberately held until the weekly loop works end to end (TP-039)
-- [ ] Push notifications, hide-contact toggles, cancel a week/slot, weather, settings, admin progress bar on Home, a check that Cloud Scheduler automation actually ran
+- [ ] Push notifications, cancel a week/slot, weather, admin progress bar on Home, a check that Cloud Scheduler automation actually ran, message wording + custom profile fields (Batch D)
 
 ## Phase 3 — Migration
 - [x] `TNPL_MAIN.xlsx` imported as the initial roster + Season 3 starting Elos (45 players); import-only going forward — Firestore is the source of truth after this (TP-040)
-- [ ] Season 25-26 history import from the MASTER sheet (players no longer on the roster become historical-name-only references)
+- [x] Season 25-26 history import from the MASTER sheet (17 weeks, 68 matches, 251 eloHistory docs; players no longer on the roster are historical-name-only references via `directory`) (TP-052)
 
 ## Phase 4 — Polish / launch [PLACEHOLDER]
 - [ ] Offline support (as in UP Golf PWA)
-- [ ] Editable K-factor / Elo variables (and pairing flag threshold / slot fairness tolerance) in admin UI; admin season-creation screen shows the defaults (100 / 25)
+- [x] Editable K-factor / Elo variables (and pairing flag threshold / slot fairness tolerance) in admin Settings; admin season-creation screen shows the defaults (100 / 25)
+- [ ] Season close: carry-over into next season using the stored (but not yet consumed) `carryOverFactor`/`carryOverSetsPivot`, and the "next season starting Elos" link on Season summary

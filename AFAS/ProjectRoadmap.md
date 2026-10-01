@@ -1,6 +1,6 @@
 # AFAS Project — Roadmap
 **Living document. Update status and tasks as work completes.**
-Last updated: 2026-09-22 (Sessions 14-24 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh; note Session 22 deregistered `timer_sync.py`/`monthly_sync.py` in favor of a manual `http_monthly_ingest_all` route — bullets below still referencing "monthly sync via monthly_sync.py" describe the sync logic, which is unchanged, not the now-inert automatic timer)
+Last updated: 2026-10-01 (Sessions 14-25 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh; note Session 22 deregistered `timer_sync.py`/`monthly_sync.py` in favor of a manual `http_monthly_ingest_all` route — bullets below still referencing "monthly sync via monthly_sync.py" describe the sync logic, which is unchanged, not the now-inert automatic timer; Session 25 rewrote both the HSA and Apple Card CSV importers to insert-only — see BestMethods and DecisionLog 2026-10-01)
 
 ---
 
@@ -137,6 +137,8 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ❌ Liability Summary report page — not needed (Tom, 2026-09-16): only 2 liabilities, already visible on the Net Worth page.
 - ✅ Principal Financial 401k Plaid Investments — connected 2026-08-01. Real account: Baird Profit Sharing and Savings Plan (401k), owner Amy. principal_sync.py created and wired into the pipeline 2026-09-14 (see item 7 below).
 - ✅ HSA (Bank of America) added as a manual CSV-tracked account (Session 13) — Plaid confirmed unsupported for this institution outright ("Connectivity not supported"), not a stale-credential issue. import_hsa_transactions.py + import_hsa_holdings.py built and live: 461 transactions imported (full account history back to 2014), 2 holdings (both mutual funds), $24,163.69 tracked value. Same permanent-CSV-fallback model as Baird. **Enrichment: `enrich_hsa_csv.py` retired 2026-09-08 — `enrich_transactions.py` is now the single enricher for all sources.**
+- ✅ New Baird account **IRA - PE Millennium** (a CAIS-administered private-equity feeder fund) onboarded 2026-10-01 — added to `import_baird_holdings.py`'s canonical account list; its one holding (symbol 3063340) mapped in `security_sectors` (script 132). `baird_holdings.sector` for October's already-imported row is still NULL since the mapping came after that import ran — tracked as ISSUE-048.
+- ✅ **2026-10-01 (Session 25):** both `import_hsa_transactions.py` and `import_apple_csv.py` rewritten to insert-only after discovering their MERGE statements silently reverted manually-reviewed categorization work on routine monthly re-syncs — see BestMethods and DecisionLog 2026-10-01. HSA's last 9 rows on the old raw-text hash scheme re-keyed to the current scheme (script 134); all 466 HSA rows now on one scheme.
 - ⏳ Plaid Investments for Baird (when ISSUE-008 resolves)
 - ⏳ HSA-Baird and other non-canonical Baird accounts — confirmed never included in any monthly CSV import (new finding, 2026-08-01).
 
@@ -157,6 +159,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 11. ✅ Spending pages (Monthly Spend, Cash Flow, Year Over Year, Top Merchants) consolidated onto `vw_transactions_clean` — 2026-09-21
 12. ⏳ FUTURE Power BI page: project future years — cash flow by category with per-year overrides, plus an overall holdings/net worth roll-forward, modeled on Tom's Excel projection workbook. See SessionStarter Pick Up Here for scope and design notes.
 13. ✅ Full page-by-page review of every built Power BI page against live data — 2026-09-22 (Session 24). Found and fixed one real gap (a stale liability snapshot, script 123) along the way; every other page confirmed accurate.
+14. ✅ October monthly close — 2026-10-01 (Session 25). HSA/Apple importers rewritten insert-only after a MERGE-revert data-safety bug was found and fixed (scripts 134-135); IRA - PE Millennium onboarded; pending Plaid transactions no longer stored (plaid_sync.py) and the 40 already stored removed (script 131); Function App deploy data exposure fixed via a move-aside workaround (`scripts/deploy_function_app.ps1`). ISSUE-047 live confirmation (item 8/9 above, now tracked in IssuesTracker) still pending — no Chase/Amex credit has posted since the fix.
 
 ---
 

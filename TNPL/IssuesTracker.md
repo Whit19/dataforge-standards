@@ -1,6 +1,6 @@
 # TNPL — Issues Tracker
 
-**Last updated:** 2026-09-30
+**Last updated:** 2026-10-01
 
 ## Open
 
@@ -136,3 +136,8 @@
 **Status:** Resolved (2026-09-30)
 **Description:** The first version of the Players page read every `players` doc, so a never-invited or inactive person's phone/email was visible to any signed-in member, not just people who had actually joined.
 **Resolution:** Replaced by the `directory`/`listed` model (TP-056) — only active, signed-in, opted-in players (and active staff) are listed with contact info; everyone else is name-only.
+
+### ISS-027 — directorySync crashed on a players doc missing `seasonStartElo`
+**Status:** Resolved (2026-10-01)
+**Description:** Found by the full emulator dress rehearsal (`functions/scripts/runWeeklyLoop.js`, TP-059). `buildDirectoryEntries()` in `functions/players/directorySync.js` passed `players.currentElo`/`seasonStartElo` straight through to `playerRatings` with no guard. A guest player created by the change-request "approve and replace" flow (`pairing/edit.js`'s `REPLACE_PLAYER`) sets `currentElo` but never `seasonStartElo` — writing `undefined` crashed `syncDirectoryOnPlayerWrite`/`syncDirectoryOnEnrollmentWrite` outright ("Cannot use undefined as a Firestore value"). The player's own `players`-doc write still succeeded; only the background trigger died, so `directory`/`playerRatings` silently went stale for that player with nothing but a server log to show it.
+**Resolution:** Both fields now write `null` when missing (TP-058), never a made-up Elo. 3 regression tests added to `functions/players/directorySync.test.js`. A read-only production check found 0 of 67 `role == 'player'` docs missing `seasonStartElo` — no backfill needed, though the check doesn't cover guests (`role == 'guest'`), and change requests only shipped 2026-09-30, so none likely exist yet; re-run `backfillDirectory.js` if one ever does. Deployed: `syncDirectoryOnPlayerWrite`, `syncDirectoryOnEnrollmentWrite`.

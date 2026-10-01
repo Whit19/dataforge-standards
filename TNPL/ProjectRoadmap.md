@@ -1,6 +1,6 @@
 # TNPL — Project Roadmap
 
-**Last updated:** 2026-09-30
+**Last updated:** 2026-10-01
 
 ## Phase 0 — Kickoff (done)
 - [x] Repo, Notion, docs, .gitignore, pwa-firebase-rules skill
@@ -43,9 +43,11 @@
 - [x] Settings: Elo/pairing values, default + per-week time slots (with per-slot courts), skip a week, admins, golf-sim link, League contact, and an uploaded menu PDF in Firebase Storage (TP-053, TP-054); new admin `Season.jsx` screen
 - [x] Week extras: a per-week dinner special and an optional yes/no question, in the app, the Monday email, and the email answer page, with a tracker summary (TP-055)
 - [x] Players tab + real contact privacy: server-maintained `directory`/`playerRatings` collections, a listing rule (active + signed in + opted in; staff once active), hide-my-phone/email switches, a League contact for "Text Tom," and `players` reads locked to admin + self (TP-056, TP-057)
+- [x] Full emulator dress rehearsal of the weekly loop (`functions/scripts/runWeeklyLoop.js`), 74/74 PASS (TP-059); found and fixed a real bug (`directorySync` crashing on a `players` doc missing `seasonStartElo`, ISS-027/TP-058)
+- [x] Batch C — weather: forecast library + tests, a "Weather location" Settings row, the Home weather card (coldest-slot layer badge, wind, rain/snow) (TP-060)
 - [ ] Per-slot pairing re-run on change-request approval (deferred, not built — ISS-006)
 - [ ] "Invite all" — deliberately held until the weekly loop works end to end (TP-039)
-- [ ] Push notifications, cancel a week/slot, weather, admin progress bar on Home, a check that Cloud Scheduler automation actually ran, message wording + custom profile fields (Batch D)
+- [ ] Push notifications, cancel a week/slot, admin progress bar on Home, a check that Cloud Scheduler automation actually ran, message wording + custom profile fields (Batch D)
 
 ## Phase 3 — Migration
 - [x] `TNPL_MAIN.xlsx` imported as the initial roster + Season 3 starting Elos (45 players); import-only going forward — Firestore is the source of truth after this (TP-040)

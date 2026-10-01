@@ -1,6 +1,6 @@
 # TNPL — Best Methods
 
-**Last updated:** 2026-09-30
+**Last updated:** 2026-10-01
 
 Hard-won lessons for this project. Read before writing any code.
 
@@ -24,6 +24,7 @@ Hard-won lessons for this project. Read before writing any code.
 ## Firestore client SDK
 - **`serverTimestamp()` isn't allowed inside array elements.** A per-set `savedAt` inside `matchGroups.sets[]` has to use `Timestamp.now()` instead.
 - **Once an `onSnapshot` error callback fires, that listener is dead for good — no further callbacks ever arrive.** Never treat the error callback the same as a completed read that found no document; show a distinct error (ideally with the error code), or a permission hiccup or transient network blip permanently looks like "this doesn't exist" (ISS-016).
+- **A server trigger that builds one doc from another must never pass a field through unguarded.** Firestore rejects `undefined` outright; a background trigger (`onDocumentWritten`) that throws dies silently after the document that caused it already wrote successfully, leaving only a server log entry and a derived doc that's now stale. Write `null` for "no value" and let the (usually single) reader handle it, rather than assuming every upstream write path always sets every field (ISS-027).
 
 ## Planning and data
 - **Simulate a proposed constraint against real data before building on it.** The "max−min Elo ≤ 75" rule would have left players unplaced in about half of weeks.
@@ -32,6 +33,7 @@ Hard-won lessons for this project. Read before writing any code.
 - **When adding a second season's data, audit every query that touches seasons/weeks/matchGroups/eloHistory for season scoping first.** An "any locked match ever" check (the starting-Elo lock guard) broke silently once a second season's locked matches existed — it would have blocked every returning player from a legitimate correction. Do the scoping audit before the import, not after something breaks (ISS-023).
 - **Derive a status field from a fact, not from the last action taken.** `inviteStatus` alone drifted out of sync with reality because a later action (re-sending an invite) could overwrite it; `firstSignInAt`, set once and never re-set, is the more durable source of truth for "has this player signed in." When a value can legitimately only move forward, prefer deriving state from it over a mutable status string that any code path can overwrite.
 - **A field that's read but never written anywhere hides a bug instead of surfacing one.** `season.menuUrl`/`golfSimUrl`/`weeklySpecial` sat unused for a while before their real replacements arrived; remove dead fields as soon as a real source replaces them rather than leaving them readable (ISS-024).
+- **When checking production for a missing field, filter by every role/path that can create that kind of doc, not just the obvious one.** A `role == 'player'` filter on `players` would miss a guest (`role == 'guest'`, created by the change-request "replace" flow) — the exact role that turned out to be the one actually missing `seasonStartElo` (ISS-027).
 
 ## One-time data scripts
 - **Dry run by default, `--apply` to write.** Every one-time correction/backfill script (phone-number fixes, sign-in backfill) defaults to a dry run that only prints what it would do; a separate flag is required to actually write.
@@ -64,6 +66,7 @@ Hard-won lessons for this project. Read before writing any code.
 - **Check a production build isn't still pointing at the emulators after local testing.** `VITE_USE_EMULATORS=true` in `.env.local` is added for a walkthrough and must be removed before `npm run build`/deploy, or the deployed app tries to reach the local emulator ports.
 - **Reseeding the emulator wipes Auth accounts, not just Firestore.** Sign out and back in after any reseed script runs, or reads silently fail against a now-orphaned session.
 - **Testing an automated email a week early:** tapping an admin "send now" action (e.g. "Open availability now") marks that week's send as done, so the real Monday automation then skips it. Use a "send a test to me"-style action instead, which doesn't touch the week's state, or reset the week afterward with a dedicated reset script.
+- **A dress-rehearsal script that drives scheduled automation needs to respect one clock, not two.** `runWeeklyAutomation(db, now)` takes an injected `now`, but a couple of checks it exercises (`weekAcceptsAnswers`, a token's `expired` check) deliberately use the real wall clock instead — correctly, since a token found in a years-old email must actually be expired. Date the simulated season safely in the real future rather than trying to inject a second clock into code that's right not to have one. Separately: every simulated checkpoint has to be visited in true chronological order — `planDueActions` is a first-match-wins chain per week, so calling a later checkpoint before an earlier one lets its action silently fold into whatever fires next, instead of firing on its own turn (`functions/scripts/runWeeklyLoop.js`, TP-059).
 
 ## Elo/scoring logic
 - **Built (2026-09-29).** Pure engine `functions/elo/elo.js`, ported from the Excel workbook and verified against its worked example (two 1600/1500 players beating two 1450/1400 players 6-3 → about +9.7/-9.7 Elo, within 0.1). Margin multiplier: 0.6 + 0.16 × (|point diff| − 1). A player's Elo is fixed for the whole week (start-of-week basis) — every set they play, across both matches for a two-match player, uses the same start value, and the deltas are summed and applied once at lock (TP-046).

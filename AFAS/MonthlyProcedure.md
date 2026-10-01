@@ -6,9 +6,12 @@ extracted from SessionStarter.md's older per-source procedures and had
 drifted from real practice in a few places); Step 1 updated same day after
 the two monthly timers were deregistered in favor of a single combined
 manual trigger (`http_monthly_ingest_all`); institution hyperlinks and the
-liability/physical-valuation update mechanism added 2026-09-16. See
-DecisionLog.md for the history and rationale behind individual steps; see
-BestMethods.md for the lessons several of these steps encode.
+liability/physical-valuation update mechanism added 2026-09-16. Steps 3
+and 5 updated 2026-10-01: both CSV importers are now insert-only (never
+touch an already-imported row), and Step 4's snapshot-date convention was
+corrected to the 1st of the month. See DecisionLog.md for the history and
+rationale behind individual steps; see BestMethods.md for the lessons
+several of these steps encode.
 
 **To run this interactively:** tell Claude Code "Run Monthly AFAS
 Procedure" — it reads this file and walks through it step by step,
@@ -109,7 +112,15 @@ completed.
 1. Copy the CSV file to `Run_Monthly\imports\AppleCC\`.
 2. Rename it with no spaces — use underscores.
 3. Run `python import_apple_csv.py` (auto-discovers the file regardless of
-   exact name, auto-moves it to `imported\` once processed).
+   exact name, auto-moves it to `imported\` once processed). **Insert-only
+   as of 2026-10-01** — an already-imported row is never updated, so a
+   prior month's manual categorization work is never at risk from this
+   month's overlapping export. Check the console output for an
+   "old-dated, needs review" warning list — a row with a genuinely new
+   `transaction_id` but a date on/before the account's current watermark
+   is deliberately not inserted and needs a manual look (almost always
+   export-formatting drift, not a real backdated transaction). Add
+   `--dry-run` to preview without writing or moving anything.
 
 ---
 
@@ -120,7 +131,10 @@ completed.
    needed (see the canonical-name reference table below only to spot-check
    the export, not to fill anything in by hand).
 2. Rename the file to `holdings_YYYY-MM-DD_ALL`, save as CSV, and add a
-   `Date` column (all rows, month-end date).
+   `Date` column (all rows, **the 1st of the current month** — confirmed
+   2026-10-01 against live `baird_holdings.snapshot_date` values that this
+   is the actual running convention, not month-end as an earlier draft of
+   this file said).
 3. Move the file to `Run_Monthly\imports\baird\`.
 4. Add cash sweep rows: **Holdings → Asset Class → Cash and Cash
    Equivalents → All Cash Sweeps** — add one row per cash sweep (symbol=CASH,
@@ -184,6 +198,11 @@ Portal: [BofA HSA login](https://myhealth.bankofamerica.com/Login.aspx?ReturnUrl
    deterministically at import (4 known non-spending description types
    whitelisted; everything else treated as real spending/income, typed by
    amount sign) — category/subcategory are left NULL for the enricher.
+   **Insert-only as of 2026-10-01** — same reasoning and the same
+   "old-dated, needs review" warning list and `--dry-run` flag as the
+   Apple import above. (A prior MERGE-based version of this script had
+   been silently reverting manually-reviewed HSA rows on every re-sync —
+   see BestMethods and DecisionLog 2026-10-01; this is now fixed.)
 
 **Fund Summary (holdings):**
 4. Export via **Accounts → Investment Summary → Fund Activity Details →
@@ -252,6 +271,12 @@ alone. Work the list with Claude:
 - genuinely ambiguous ones: an option card, best guess + alternatives
 - if a recurring merchant turns up, add a `merchant_patterns` rule in the
   same pass so it doesn't reappear next month
+- **before adding a new merchant_patterns rule off a verbal description,
+  confirm the exact live `merchant_name_raw` text first.** A 2026-10-01
+  instruction to fix "Center" broadly, based on a remembered pattern,
+  turned out to mean "North Shore Center" specifically — applying it
+  broadly would have touched unrelated "Center" transactions. Query the
+  actual string before writing the pattern, not after.
 
 Anything genuinely unclear stays `Uncategorized / General`
 (`category_reviewed = 0`) — never invent a subcategory to fit it

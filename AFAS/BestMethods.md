@@ -519,6 +519,31 @@ risk."
 
 ---
 
+### `.funcignore` is not honored on this app's Flex Consumption deploy path — verify by unzipping the actual deployed package, not by trusting the file
+
+Added `.funcignore` exclusions for CSVs, `scripts/`, `sql/`, `.claude/`,
+etc. after raw financial data turned up in the deployed Function App's
+remote files view. Two full deploy-and-reload cycles, including a bare
+`*.csv` wildcard (the simplest possible pattern), had zero effect —
+confirmed conclusively by downloading the actual deployment package
+(`released-package.zip`, pulled directly from the storage account/
+container this plan uses instead of classic Kudu zipdeploy — a 401 on
+that legacy REST endpoint with valid publish-profile credentials is what
+first revealed this plan doesn't use it) and unzipping it twice. Root
+cause not identified; don't assume `.funcignore` protects anything on
+this specific app until that's resolved. The only proven fix is physical:
+move every non-runtime folder to a location genuinely **outside** the
+repo directory before each VS Code deploy, then restore it after — an
+in-place rename (`Run_Monthly` → `Run_Monthly.hold`, still inside the
+repo) still gets zipped, caught via the deployed package showing the
+`.hold`-suffixed folders. Automated as `scripts/deploy_function_app.ps1`.
+A script that needs to move its own parent folder must copy itself to a
+temp location and re-invoke itself from there first, so the original
+file isn't "in use" when that folder moves.
+*Source: Session 25 (2026-10-01) — Function App deploy data exposure*
+
+---
+
 ## Power BI
 
 ### COALESCE merchant_normalized with merchant_name_raw in all views
@@ -730,7 +755,60 @@ Payments are excluded because they double-count underlying spending.
 When a transaction appears twice (pending + settled), delete the pending row.
 Log every deletion in the DecisionLog with date, merchant, amount, and reason.
 Do not use `UPDATE`to merge — delete is cleaner and auditable.
-*Source: Session 4 — Mariner North Resort + Phish Tickets duplicates*
+**Superseded 2026-10-01 for Plaid sources:** `plaid_sync.py` now skips
+pending transactions at ingest entirely (never stores them), so this
+pending/settled duplicate class should no longer occur going forward for
+Chase/Amex/Associated. This rule still applies as written to any pending
+row found from before that date, or from a source that isn't Plaid-synced.
+*Source: Session 4 — Mariner North Resort + Phish Tickets duplicates; superseded in part Session 25*
+
+---
+
+### A monthly CSV re-importer's `MERGE ... WHEN MATCHED THEN UPDATE` is a standing risk — insert-only is safer when the source always resends overlapping history
+
+Both `import_hsa_transactions.py` and `import_apple_csv.py` re-import a
+CSV export that deliberately overlaps the account's already-imported
+history every month (so nothing is missed at the boundary). A `MERGE`'s
+`WHEN MATCHED` branch treats that overlap as "this row changed, re-apply
+my import-time defaults" — which silently reverts any manual review work
+done on that row since the last import (`merchant_name_raw`, `type`,
+`in_budget`, even `category_source` if the CASE guard protecting it isn't
+airtight). This isn't a one-time risk: it fires again every single month,
+on whichever previously-reviewed rows happen to fall inside that month's
+overlap window — discovered in Session 25 when a routine HSA resync
+reverted multiple sessions' worth of prior fixes at once. **For any
+importer whose source always resends overlapping history, prefer
+insert-only** (a plain `INSERT` guarded by an in-memory existing-ID set;
+an existing `transaction_id` is never touched again, full stop) over a
+MERGE with an update branch, however carefully that branch is guarded.
+The one tradeoff: a CSV row that produces a genuinely new
+`transaction_id` but is dated on/before the source's current watermark
+needs special handling, since an insert-only importer gets no second
+chance to reconcile it — log it for manual review instead of silently
+dropping or silently inserting it (it's almost always export-formatting
+drift defeating the hash, not a real backdated transaction).
+*Source: Session 25 (2026-10-01) — HSA/Apple insert-only rewrite, scripts/commits `b1fd9aa`/`9516e44`/135*
+
+---
+
+### pyodbc's manual-commit default means a T-SQL `BEGIN TRAN...COMMIT TRAN` batch can silently roll back even though verification in the same session shows success
+
+`cursor.execute()` running a `BEGIN TRAN...COMMIT TRAN` script commits
+that *named* transaction at the T-SQL level, but pyodbc's connection
+itself defaults to manual-commit (autocommit = False) — so the outer
+ODBC-level transaction is never finalized unless you also call
+`conn.commit()` (or set `conn.autocommit = True` beforehand). If you skip
+that, the entire batch rolls back silently when the connection closes.
+The trap: a verification query run **within that same still-open
+connection** reads the uncommitted data and falsely reports success — the
+rollback only becomes visible from a fresh connection, by which point the
+script has already finished and reported victory. Caught in Session 25
+(script 128's first run) when Tom noticed nothing had actually changed
+despite a "15 rows updated" confirmation. **Standing practice adopted:**
+set `conn.autocommit = True` before any DB-writing script, and always do
+the final verification from a brand-new connection — never reuse the
+write connection's own session to confirm a write landed.
+*Source: Session 25 (2026-10-01) — script 128 silent rollback*
 
 ---
 

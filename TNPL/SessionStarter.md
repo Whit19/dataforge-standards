@@ -1,33 +1,42 @@
 # TNPL — Session Starter
 
 **Project:** Thursday Night Paddle League (TNPL) PWA
-**Status:** In progress — the full weekly loop (dress-rehearsed end to end in the emulator) and weather are now complete; invites still need to go out by Oct 4
-**Last updated:** 2026-10-01
+**Status:** In progress — the full weekly loop, weather, cancel-a-night/slot, and the automation watchdog are all complete and deployed; a first real tester pass found and fixed several bugs; remaining invites go out **Oct 5**
+**Last updated:** 2026-10-02
 
 ## One-line description
 A PWA for Thursday Night Paddle League: live scoring, member sign-up, Elo rankings, and weekly match creation/viewing — similar to the UP Golf and Club Golf PWAs.
 
 ## Current status
-Deployed and in real use. Firestore rules, Storage rules, all 39 Cloud Functions, and hosting are live on `tnpl-pwa`. The full weekly loop (availability → pairing → live scoring → Elo), change requests, Rankings/History/Season summary, admin Settings, Season 25-26 history import, week extras, and real contact privacy (see 2026-09-30 below) were all complete going into this session. This session: ran a full emulator dress rehearsal of the whole weekly loop end to end (`functions/scripts/runWeeklyLoop.js`, 74/74 PASS — TP-059), which found and fixed a real production bug (`directorySync` crashing on a `players` doc missing `seasonStartElo`, e.g. a change-request "replace with a guest" — TP-058/ISS-027, now writes `null` instead); wrote a plain-language Elo explainer for the `/info` page (content only, pasted in by Tom, no code); and built and deployed Batch C — a Home weather card (Open-Meteo, cached per-phone, shown Monday–Thursday of a play week, a coldest-slot layer badge, wind, rain/snow by forecast snowfall) with a new "Weather location" Settings row (TP-060). Test suite: 356 passing (`npm test` from the repo root), up from 340 at the start of this session. The weather card is built but not yet seen live — nothing shows on Home until Season 26-27's first Monday, **Oct 12**, regardless of when the venue is set.
+Deployed and in real use. Firestore rules, Storage rules, all 42 Cloud Functions, and hosting are live on `tnpl-pwa`. Going into this session: the full weekly loop (dress-rehearsed end to end in the emulator, TP-059), weather (Batch C, TP-060), and real contact privacy were all complete. This session added two full features and then fixed a round of bugs a real tester found on the live app:
+- **Cancel a night or slot** (TP-061, TP-062): admin can cancel one or more slots after pairings are sent, with emails, a Home/Matches banner, Lock Week/Elo correctly skipping anyone who ends up with zero sets played, and pairing history excluding cancelled groups. Whole-week cancel before pairings are sent is reserved (`WEEK_STATUS.CANCELLED`) but not built.
+- **Automation watchdog** (TP-066): an hourly check that emails admins if any weekly-automation step is more than 30 minutes overdue, plus a separate crash alert (with a 1-hour cooldown) if `weeklyAutomation` itself throws. A test caught the cooldown comparing against the real wall clock instead of the function's own injectable clock (ISS-037) — fixed to use `Timestamp.fromMillis(nowMs)` consistently.
+- **Tester-found fixes:** a real player hit `permission-denied` on both Rankings' pre-season view (ISS-028) and History on an all-draft active season (ISS-029) — both were Firestore's list-query provability rule rejecting a query it couldn't statically prove was safe, not an actual access problem; both fixed by querying data already readable by the caller instead of widening any rule. Tracing that also surfaced `useWeekMatches` silently hiding every `permission-denied`, not just the one expected case (ISS-030) — narrowed to just that case. Separately: staff can now see Rankings/History/Season summary (TP-063, reverses TP-016); History opens directly on a clicked player instead of requiring a "Mine" tap first (ISS-033); an installed iPhone PWA wasn't picking up new deploys after being resumed from the background, fixed with a `visibilitychange`-triggered update check plus a visible build-time "Updated" stamp on Home (ISS-032/TP-068); iOS's numeric keypad had no minus sign for entering a longitude (ISS-034); Roster's select mode gained "Invite selected" (ISS-035/TP-069), used for the Oct 5 invite send instead of un-holding "Invite all"; and a batch of wording/UI fixes (invite email mentions Chrome on Android, "partner with each player once," the golf-sim plan bolded like dinner's and both matched by `playerId` instead of display name (ISS-036), "View menu" moved into a header pill component).
+- **Standing process change (TP-067):** Claude Code now commits and works directly on `main` going forward, after a prompt-by-prompt branching habit left a few small fixes briefly unmerged and one deploy going out from the wrong branch.
+
+Test suite: **392 passing** (`npm test` from the repo root), up from 356 at the start of this session.
 
 ## Key dates
-- Invites go out by **Oct 4**, so the first automated Monday availability email (Oct 12) has opted-in players.
-- First automated availability email: **Mon Oct 12, 9 AM**.
+- Remaining invites go out **Oct 5** (via Roster's new "Invite selected," not "Invite all") — a few were already sent earlier; this sends the rest in one combined batch.
+- Follow-up window for anyone who hasn't responded: **Oct 5–11**.
+- First automated availability email: **Mon Oct 12, 9 AM** — also the first day weather shows on Home.
 - First pairings: **Wed Oct 14** (draft 9 AM, sent 5 PM).
+- **Deploy freeze Oct 14–15** around the first live pairing/match cycle — no non-critical deploys while the first real week is in flight.
 - **First league night: Thu Oct 15.**
 - First lock / auto-lock: before **Wed Oct 21, 9 AM**.
 
 ## Next priorities
-1. Set the real Weather location (Tripoli's coordinates) in Settings — the card stays hidden with none set.
-2. Send invites by **Oct 4**, ahead of the first automated Monday availability email (Oct 12).
-3. Optionally add `weatherVenue` tests to `functions/settings/settings.test.js` (no tests there yet for that field).
-4. Message wording + custom profile fields (Batch D).
-5. Season close: carry-over into next season (fields already stored, not yet consumed) and the "next season starting Elos" link on Season summary.
-6. Push notifications.
-7. Re-run `backfillDirectory.js` whenever a new season is created (everyone starts unlisted until they choose for that season) — and if a guest player is ever created before then, confirm its `playerRatings.seasonStartElo` is `null`, not missing (TP-058).
+1. Send the remaining invites **Oct 5** via "Invite selected"; watch for responses through **Oct 11**.
+2. Tom is fixing the live `/info` page's own "partner each player" wording by hand (content edit, not code — `infoText.js`'s `STARTER_SECTIONS` is seed-only and isn't what's rendered there).
+3. Confirm enough players have responded/opted in by **Oct 12** ahead of the first automated availability email.
+4. Respect the **Oct 14–15** deploy freeze around the first live pairing/match/lock cycle.
+5. Push notifications, an admin progress bar on Home, and custom profile fields (rest of Batch D — message wording is already done, ISS-036).
+6. Season close: carry-over into next season (fields already stored, not yet consumed) and the "next season starting Elos" link on Season summary.
+7. Whole-week cancel before pairings are sent — reserved (`WEEK_STATUS.CANCELLED`), not built.
+8. Re-run `backfillDirectory.js` whenever a new season is created (everyone starts unlisted until they choose for that season).
 
 ## Key decisions so far
-See DecisionLog.md — TP-001 through TP-060. Notably beyond the original engine design (TP-004 through TP-023): mid-season opt-out raises a change request instead of silently dropping the player (TP-027); Season 26-27's dates and per-session choice (TP-029); weekly automation schedule (TP-030); emailed 6-digit code as the primary sign-in method (TP-031); email sends through Gmail, not Resend, for now (TP-032); invite email v2 is "install-first" (TP-035); the iPhone install gate (TP-036); the bottom tab bar and Home season card (TP-037); `firstSignInAt` is the durable "signed in" marker (TP-038); "Invite all" is deliberately held back (TP-039); the four-tab Roster redesign (TP-041); the public Rules & league info page (TP-042); change requests deferred for Week 1, then built (TP-043, superseded by TP-049/TP-050); weekly availability's one-tap email tokens (TP-044); any-order score entry (TP-045); Elo's same-week rule (TP-046); Lock Week's Tuesday-reminder/Wednesday-auto-lock/unlock policy (TP-047); lock/unlock run inside a Firestore transaction (TP-048); the change-request transaction/window model (TP-049/TP-050); Rankings/History computed on-device from `eloHistory` (TP-051); the Season 25-26 history import (TP-052); season-wide Settings and per-week time-slot overrides (TP-053); menu-as-PDF in Storage and locking `seasons`/`weeks` to server-write only (TP-054); week extras (TP-055); real contact privacy via `directory`/`playerRatings` (TP-056); the League contact replacing an `isAdmin` scan of `players`, and locking `players` reads to admin + self (TP-057); `directory`/`playerRatings` write `null`, never `undefined`, for a missing Elo field (TP-058); the weekly-loop dress rehearsal's clock/ordering approach (TP-059); Batch C's weather design — Open-Meteo, 60-minute per-phone cache, coldest-slot layer badge, snowfall-based rain/snow, no default venue coordinates (TP-060).
+See DecisionLog.md — TP-001 through TP-069. This session added: per-slot cancel design (TP-061) and its Lock Week/Elo zero-sets-played fix (TP-062); staff can view Rankings/History/Season summary, reversing TP-016 (TP-063); Rankings' pre-season list sourced from `directory` instead of a `sessionEnrollment` query (TP-064); History's `matchGroups` query restricted to complete weeks only (TP-065); the automation watchdog's design — hourly overdue-step check plus a separately-cooldown'd crash alert (TP-066); Claude Code commits directly on `main` going forward (TP-067); PWA update-on-resume plus a visible build stamp (TP-068); "Invite selected" replaces un-holding "Invite all" for the remaining sends (TP-069). See the prior session's entries (TP-001–TP-060) for the original engine design, the weekly loop, contact privacy, and Batch C weather.
 
 ## Open questions
-- Whether staff should see more/less than the read-only weekly schedule: working assumption stated in TechnicalArchitecture.md, not yet challenged by Tom.
+- Whether staff should see more/less than the read-only weekly schedule: largely settled this session (staff now also see Rankings/History/Season summary, TP-063) — still open whether staff need anything beyond read access anywhere else.

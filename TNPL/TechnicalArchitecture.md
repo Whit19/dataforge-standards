@@ -1,16 +1,17 @@
 # TNPL — Technical Architecture
 
-**Last updated:** 2026-10-01
+**Last updated:** 2026-10-02
 
 ## Stack
 - Frontend: React + Vite, PWA (installable Home Screen app on iPhone/Android)
-- Backend / data: Firebase — Firestore (data), Firebase Auth (emailed 6-digit code + Google), Firebase Storage (menu PDF), Firebase Hosting (deploy), Cloud Functions (39 functions — pairing, season setup, roster/invites, auth, weekly availability, Lock Week/Elo, weekly automation, change requests, settings, directory sync)
+- Backend / data: Firebase — Firestore (data), Firebase Auth (emailed 6-digit code + Google), Firebase Storage (menu PDF), Firebase Hosting (deploy), Cloud Functions (42 functions — pairing, season setup, roster/invites, auth, weekly availability, Lock Week/Elo, weekly automation + its watchdog, cancel a night/slot, change requests, settings, directory sync)
 - Firebase project: `tnpl-pwa` (console: https://console.firebase.google.com/u/1/project/tnpl-pwa/overview), Blaze plan (TP-033)
 - Repo: https://github.com/Whit19/TNPL (private)
 - Local folder: `C:\Dev_Projects\TNPL`
 - Docs: `C:\Dev_Projects\dataforge-standards\TNPL\` (cloned locally)
 - CLI config: `firebase.json` (firestore rules/indexes, storage rules, `functions` source, hosting rewrites/headers, emulators block incl. storage on port 9199), `.firebaserc`, `firestore.indexes.json`, `storage.rules`
-- **Deployed:** Firestore rules, Storage rules, all 39 Cloud Functions, and Hosting are live. Hosting serves `dist/` (built by Vite) plus a `/email/` folder of PNGs used by the invite email, and rewrites `/decline` to the `decline` HTTP function.
+- **Deployed:** Firestore rules, Storage rules, all 42 Cloud Functions, and Hosting are live. Hosting serves `dist/` (built by Vite) plus a `/email/` folder of PNGs used by the invite email, and rewrites `/decline` to the `decline` HTTP function.
+- **Standing process rule (TP-067):** Claude Code commits directly on `main`; it does not create a feature branch unless there's a specific, stated reason to.
 
 ## Scope for v1
 Full weekly loop: availability collection → pairing → live scoring → Elo recalculation. (TP-004)
@@ -95,7 +96,10 @@ sessionEnrollment/{sessionId}_{playerId}
 
 weeks/{weekId}                          // weekId is the ISO date, e.g. '2026-10-15'
   seasonId, sessionId, date, weekNumber, sessionWeekNumber
-  status: draft | availability_open | pairing_draft | matches_set | in_progress | complete | skipped
+  status: draft | availability_open | pairing_draft | matches_set | in_progress | complete | skipped | cancelled
+  // 'cancelled' is RESERVED for a future whole-week cancel before pairings are
+  // sent — nothing sets it yet. Per-slot cancel (below) never changes
+  // week.status at all; it's a completely separate mechanism (TP-061).
   timeSlots: [{ id, label: "6:00 PM", start, courtsAvailable: 2 }, ...]   // slot order = array order
   customTimes: boolean                  // true once this week's slots were edited away from the season default (TP-053)
   pairingHold: boolean                  // admin can hold the Wednesday auto-send
@@ -107,6 +111,11 @@ weeks/{weekId}                          // weekId is the ISO date, e.g. '2026-10
   lockReminderSentAt                               // Tuesday-reminder guard (TP-047)
   lockedAt, lockedBy, lockMode: 'manual' | 'auto' | 'import'  // 'import' set by importSeasonHistory.js (TP-052)
   unlockedAt, unlockedBy                           // set by unlockWeekInternal
+  cancelledSlots: { [slotId]: { at, by, reason } } // per-slot cancel after pairings are sent (TP-061);
+                                                    // reason is a trimmed string <=60 chars, or null
+  watchdogAlerts: { [step]: Timestamp }            // automationWatchdog's "already alerted for this
+                                                    // step" markers — availability/reminder/draft/send/
+                                                    // finalize — so an overdue alert never repeats (TP-066)
   // weeks is now server-write only (allow write: if false), same audit as seasons above (TP-054).
 
 availability/{weekId}_{playerId}
@@ -164,12 +173,20 @@ matchGroups/{weekId}_G{groupNumber}
                                                               // setLineups; NOT necessarily saved in
                                                               // order (TP-045)
   eloSpread, flagged
-  status: scheduled | in_progress | reported | locked
+  status: scheduled | in_progress | reported | locked | cancelled
+  cancelledAt, cancelledBy, cancelReason: string | null, statusBeforeCancel  // only when status is
+    // 'cancelled' (TP-061) — a per-slot cancel after pairings are sent (matches_set/in_progress),
+    // until the week locks. statusBeforeCancel is what restoreSlot puts it back to. A cancelled
+    // group's already-SAVED sets still count at lock (TP-062); its unsaved sets are simply dropped
+    // from `emptySets`, not treated as missing. Lock leaves a cancelled group cancelled forever (never
+    // locked), so pairing history keeps excluding it even after the week is complete.
   // Removed vs. the old shape: team1, team2, matchNumber (a group can mix one
   // player's first match with another's second). (TP-017)
   // Any of the group's 4 players may write `sets` only, only while status is
-  // in_progress/reported (never locked); the admin may write any field,
-  // anytime (used to fix a match's scores from the Scores and lock screen).
+  // in_progress/reported (never locked, never cancelled); the admin may write
+  // any field, anytime (used to fix a match's scores from the Scores and lock
+  // screen, or to cancel/restore a slot).
+  // `reported` is never actually written by any code path today — vestigial.
 
 pairingRuns/{weekId}                    // admin-only engine report
   unplaced: [{ playerId, reason: overflow | no_volunteer_fill | no_feasible_slot }]
@@ -217,7 +234,17 @@ eloHistory/{weekId}_{playerId}
   lockedAt
   // Written once, inside the same transaction as the lock (TP-048); deleted
   // (and players.currentElo restored to eloBefore) on unlock. Never
-  // client-writable — see the rules table below.
+  // client-writable — see the rules table below. A player with zero sets
+  // actually played that week gets no eloHistory doc at all, even if they're
+  // listed on a (cancelled or otherwise empty) group (TP-062).
+
+automationHealth/main                   // single doc, automationWatchdog's own health state
+  lastCrashAlertAt                      // Timestamp.fromMillis(nowMs), NOT FieldValue.serverTimestamp() —
+                                         // the cooldown read compares against the same injected clock
+                                         // the write used (TP-066; fixed after a failing test, ISS-037)
+  // Cloud Functions only (Admin SDK). Collection name is still a local
+  // constant (AUTOMATION_HEALTH_COLLECTION) in functions/automation/watchdog.js,
+  // not yet promoted to functions/paths.js — small cleanup candidate.
 ```
 
 No locked-partner/couples constraint (TP-008).
@@ -238,7 +265,7 @@ No locked-partner/couples constraint (TP-008).
 |---|---|---|
 | `players` | **admin + own doc only** (locked down this session, TP-057 — every non-admin screen moved to `directory`/`playerRatings` first) | admin only, except a player may edit their own `phone`, `contactPreference`, `hidePhone`, or `hideEmail` (TP-016, TP-056); `authUid`/`inviteStatus`/`firstSignInAt` are Cloud Function only |
 | `directory` | any signed-in member | never client-writable — `directorySync.js` triggers only, on `players`/`sessionEnrollment` writes (TP-056) |
-| `playerRatings` | admin or player role (not staff, TP-016) | never client-writable — same triggers as `directory` (TP-056) |
+| `playerRatings` | any signed-in member, staff included (reverses TP-016; now `isSignedInPlayer()`, TP-063) | never client-writable — same triggers as `directory` (TP-056) |
 | `playerLinks` | own doc only | never client-writable — Cloud Functions only (`verifySignInCode` / `linkAccount`) |
 | `seasons` | any signed-in member | **never client-writable** (`allow write: if false`) — `setupSeason` / Settings callables (Admin SDK) only; no client write path depended on direct access (TP-054) |
 | `sessions` | any signed-in member | admin only |
@@ -247,10 +274,10 @@ No locked-partner/couples constraint (TP-008).
 | `leagueSettings` | any signed-in member | never client-writable — the `updateLeagueSettings` callable only (TP-053) |
 | `availability` | the player themselves + admin (not staff) | **admin only** — players write through the `saveAvailability` / `answerAvailabilityByToken` callables (Admin SDK), never a direct client write (TP-044) |
 | `socialPlans` | any signed-in member, staff included | the player themselves or admin, only while the week isn't `complete`; `dinner`/`golfSim` must be none/before/after; delete admin only |
-| `matchGroups` | admin always; everyone else only once the week is `matches_set` / `in_progress` / `complete` (keeps `pairing_draft` groups admin-only). Staff read-only | admin: any field, any status (used to fix a match's scores from the Scores and lock screen); a player: `sets` field only, only while `status` is `in_progress` or `reported` (never `locked`), only for a group they're in; `setLineups` etc. otherwise admin / pairing Cloud Function only |
+| `matchGroups` | admin always; everyone else only once the week is `matches_set` / `in_progress` / `complete` (keeps `pairing_draft` groups admin-only). Staff read-only | admin: any field, any status (used to fix a match's scores from the Scores and lock screen, or to cancel/restore a slot); a player: `sets` field only, only while `status` is `in_progress` or `reported` (never `locked`, never `cancelled`), only for a group they're in; `setLineups` etc. otherwise admin / pairing Cloud Function only. No rules change was needed for per-slot cancel — a `cancelled` group was already outside the player-writable status list, and `ScoreEntry.jsx` already treats it read-only (TP-061) |
 | `pairingRuns` | admin only | never client-writable — Cloud Function (Admin SDK) only |
 | `changeRequests` | the requesting player + admin | never client-writable — `submitChangeRequest`/`withdrawChangeRequest`/`denyChangeRequest` callables, and approval written inside the admin edit-save transaction (`handleEditPairings`), all Admin SDK (TP-049, TP-050) |
-| `eloHistory` | any signed-in player (not staff) — everyone sees everyone's history (TP-016) | never client-writable — `lockWeekInternal` / `unlockWeekInternal` (Admin SDK, inside a transaction) only (TP-048) |
+| `eloHistory` | any signed-in member, staff included (reverses TP-016; now `isSignedInPlayer()`, TP-063) | never client-writable — `lockWeekInternal` / `unlockWeekInternal` (Admin SDK, inside a transaction) only (TP-048) |
 | `joinRequests` | admin only | never client-writable — `submitJoinRequest` / `resolveJoinRequest` (Admin SDK) only |
 | `leagueInfo` | public — signed out too (TP-042) | admin only, with shape validation (`sections` list, `updatedAt`/`updatedBy`/`updatedByName`) |
 | `availabilityTokens` | nobody | nobody — Cloud Functions (Admin SDK) only |
@@ -271,11 +298,11 @@ Pure module `functions/elo/elo.js` (CommonJS, no Firestore access — same style
 `functions/elo/lockWeek.js`:
 - **`previewWeek(db, weekId)`** — a plain read: loads the week/season/groups/players' `currentElo`, runs `computeWeekElo`, and returns `{ results, emptySets (with slot label/court/set number for display), groupCount, canLock, reason, kFactor }`. `canLock` requires the week to be `in_progress` with at least one saved set (locking with some sets still empty is allowed — those sets just don't count).
 - **`lockWeekInternal(db, weekId, { by, mode })`** and **`unlockWeekInternal(db, weekId, { by })`** each run inside a single Firestore **transaction**, not a re-read + batch (TP-048): every doc the write depends on (the week, the season, every group, every player's `currentElo`, and — for unlock — every `eloHistory` doc and the season's other weeks) is read via `tx.get()`, so a concurrent lock/unlock attempt that changed any of those between this transaction's read and its commit causes Firestore to abort and retry the whole callback. A write-count guard throws a clear error above 450 writes (a week has at most ~30 players / 6 groups).
-  - Lock writes: one `eloHistory/{weekId}_{playerId}` doc per player (full per-set breakdown), `players.currentElo = eloAfter`, every group's `status` → `locked`, the week's `status` → `complete` plus `lockedAt`/`lockedBy`/`lockMode`.
+  - Lock writes: one `eloHistory/{weekId}_{playerId}` doc per player **who actually played at least one set that week** (full per-set breakdown) — a player with `setsPlayed === 0` (e.g. every group they were in was cancelled or stayed empty) gets no doc and no `currentElo` write at all, rather than a zero-delta no-op (TP-062, fixed a real bug found via the weekly-loop rehearsal, ISS-031); `players.currentElo = eloAfter`, every group's `status` → `locked`, the week's `status` → `complete` plus `lockedAt`/`lockedBy`/`lockMode`.
   - Unlock (`unlockCheck`/`checkUnlock`, TP-047): allowed only for the **most recent** locked week, only while the next week's status is still `draft`/`availability_open`; **aborts the whole unlock, writing nothing,** if any player's live `currentElo` no longer matches what that lock recorded (within 1e-6) — evidence Elo has moved since (e.g. a later week was locked). On success: `eloHistory` docs deleted, `currentElo` restored to `eloBefore`, groups → `in_progress`, week → `in_progress` with `unlockedAt`/`unlockedBy`.
 - Admin callables (`functions/elo/callables.js`, admin-only, need Cloud Run public access): **`previewLockWeek`** (names + sorted-by-delta players; also returns `unlockCheck` once the week is `complete`), **`lockWeek`** (returns `{ updated, biggestGain, biggestDrop }`), **`unlockWeek`**.
 - `weeklyAutomation` gained two steps (`functions/automation/weekly.js`): a **Tuesday 9 AM** reminder email to admins for any `in_progress` week not yet locked (`lockReminderSentAt` guard), and — immediately **before** building week N's Wednesday draft — an auto-lock of the most recent earlier `in_progress` week if every set is saved (mode `'auto'`), else an email listing the empty sets and the draft still builds on the older Elo.
-- Admin screen `src/pages/admin/ScoresLock.jsx` (route `/admin/scores`, tile on the Admin dashboard after Availability): per-match score tables (`GroupScoreTable`, shared with Matches), an "Elo if you lock now" preview (top/bottom 3 + "see all"), inline (non-`window.confirm`) Lock/Unlock confirmations, and an "Elo changes" card reading `eloHistory` once locked. The admin can also fix any match's scores via the normal score page (`ScoreEntry.jsx`, `isAdmin` treated like a group participant while the group is editable), reached from here with router state `{ from: 'admin-scores' }` so its back link returns to this screen.
+- Admin screen `src/pages/admin/ScoresLock.jsx` (route `/admin/scores`, tile on the Admin dashboard after Availability): per-match score tables (`GroupScoreTable`, shared with Matches), an "Elo if you lock now" preview (top/bottom 3 + "see all"), inline (non-`window.confirm`) Lock/Unlock confirmations, and an "Elo changes" card reading `eloHistory` once locked. The admin can also fix any match's scores via the normal score page (`ScoreEntry.jsx`, `isAdmin` treated like a group participant while the group is editable), reached from here with router state `{ from: 'admin-scores' }` so its back link returns to this screen. A cancelled match's heading is struck through and muted on this screen so a cancelled slot reads clearly as cancelled rather than just empty.
 - Locked "Your match" cards on the player Matches page show the week's Elo change once (`eloHistory/{weekId}_{playerId}`) — on the last match card, worded "Week Elo: …" for a two-match player, since their change is one combined number.
 
 ## Scoring & lock flow
@@ -283,6 +310,12 @@ Pure module `functions/elo/elo.js` (CommonJS, no Firestore access — same style
 - Any of the group's 4 players writes `sets` while `in_progress`/`reported` — last write wins (TP-011); the admin can also write any field, anytime, to fix a match from the Scores and lock screen.
 - Sets are **not** required to be saved in order (TP-045) — a per-set Firestore transaction replaces only that array index, so two players saving different sets at the same time can't overwrite each other.
 - **Lock Week** — see "Lock Week and Elo" above. (TP-012)
+
+## Cancel a night or slot — implemented and deployed (TP-061, TP-062)
+- Per-slot cancel, available only after pairings are sent (`matches_set`/`in_progress`), not before: admin callables `cancelSlots`/`restoreSlot` (`functions/cancel/cancel.js`, admin-only, Cloud Run public invoker access set) set/clear `matchGroups.status: 'cancelled'` plus `cancelledAt`/`cancelledBy`/`cancelReason` on every group in the chosen slot(s), each inside its own transaction. A cancelled group is excluded from scoring (rules already block player writes to a `cancelled` group — no rules change needed, see the rules table), from `lockWeekInternal`'s Elo pass (its players, if otherwise unplayed, get no `eloHistory` doc — see "Lock Week and Elo"), and from the pairing engine's prior slot/partner history (`loadPriorHistory` skips `cancelled` groups so a cancelled week never biases future pairing costs).
+- Emails go out to every affected player on cancel and on restore (restore is only offered for a group still `in_progress`, i.e. no scores saved and not locked).
+- UI: `src/components/CancelBanner.jsx` (Home + Matches, shown instead of the normal match card for a cancelled group/slot, with the reason if given) and an admin screen `src/pages/admin/CancelWeek.jsx` (route `/admin/cancel`) to pick slot(s) and an optional reason, or restore.
+- **Whole-week cancel before pairings are sent** is reserved but not built — `WEEK_STATUS.CANCELLED` exists in `src/constants.js`/`functions/paths.js` but nothing writes it yet (deferred; see ProjectRoadmap.md Phase 2).
 
 ## Pairing engine — implemented and deployed
 Pure module `functions/pairing/engine.js` (CommonJS, no Firestore access, deterministic — all tie-breaks by playerId / slot order) plus the admin-only callable `generatePairings({ weekId })` in `functions/pairing/callable.js`, wired in `functions/index.js` (region us-central1, the default). Design: TP-017 through TP-023, TP-028.
@@ -329,7 +362,7 @@ Constants: `functions/paths.js` is the single source of collection names and sta
 ## Roster, invites, and join requests — implemented and deployed
 `functions/roster/roster.js`:
 - `upsertPlayer` (admin) — create or edit a player; starting Elo can't change once they have a locked match.
-- `sendInvites` (admin) — emails the install-first invite (see below) to selected players or every not-yet-invited player; flips `inviteStatus` to `invited` only for players not already signed in (TP-038) — a re-send to a signed-in player still emails them but never touches their status.
+- `sendInvites` (admin) — emails the install-first invite (see below) to selected players or every not-yet-invited player; flips `inviteStatus` to `invited` only for players not already signed in (TP-038) — a re-send to a signed-in player still emails them but never touches their status. The Roster screen's select mode can now call it with just the checked players ("Invite selected"), reusing the existing callable rather than a new one (ISS-035, TP-069) — used for the real Oct 5 invite send instead of un-holding "Invite all" (TP-039, still deliberately held).
 - `decline` (HTTP, rewritten from `/decline`) — a player's one-click "stop inviting me" link from the invite email; always returns the same branded page regardless of whether the token matched, so it never reveals anything to a guesser.
 - `submitJoinRequest` (public, signed-out) — someone not on the roster asks to join; rate-limited per email per day; emails every admin.
 - `resolveJoinRequest` (admin) — approve (creates the player + sends an invite) or deny.
@@ -343,6 +376,9 @@ Constants: `functions/paths.js` is the single source of collection names and sta
 
 ## iPhone install gate (TP-036)
 `src/lib/platform.js`: `isIOS()`, `isStandalone()` (display-mode / `navigator.standalone`), `iosBrowser()` (distinguishes Safari from Chrome/Firefox/Edge/Google-app/in-app browsers on iOS by user-agent token). `SignIn.jsx` renders a "First, add TNPL to your Home Screen" gate instead of the sign-in form whenever `isIOS() && !isStandalone()`, since Safari and the installed Home Screen app keep separate sign-in state. A visible "I'm on a computer" link bypasses the gate for the current browser session (`sessionStorage`, with a try/catch fallback). Desktop and Android are unaffected.
+
+## PWA update-on-resume and build stamp (TP-068, ISS-032)
+A real tester's installed iPhone Home Screen app kept showing stale content, since a suspended-then-resumed PWA often never triggers the browser's normal "check the service worker for an update on navigation" path. Fixed with an explicit `registration.update()` call on the `visibilitychange` event, so resuming the app from the background forces a service-worker update check. `src/pages/Home.jsx` also shows a small "Updated {date} {time}" stamp, baked in at build time via Vite's `define: { 'import.meta.env.VITE_BUILD_DATE': ... }` (`vite.config.js`) — giving Tom and testers a quick, no-guesswork way to confirm a given phone actually picked up the latest deploy. The stamp originally showed only a date; a time component was added the same session so two same-day deploys are distinguishable.
 
 ## Bottom navigation & Home (TP-037)
 `src/components/BottomNav.jsx` — a fixed bottom tab bar (Home, Matches, Rankings, Players, Profile, plus Admin only when `isAdmin`), shown on every signed-in page. `src/pages/ComingSoon.jsx` (the former placeholder for Rankings/Players) is no longer routed to anything now that both are built, but hasn't been deleted yet. `src/pages/Home.jsx` shows an "Are you playing {season}?" card until the signed-in player (not staff) has a season choice on record — gone for good once one exists, with a same-visit-only green confirmation right after choosing — plus a pre-season card (season name, start date, when week-1 availability opens) while today is before the first week.
@@ -372,9 +408,9 @@ Player flags an issue with their assigned group (swap out / time change), via `s
 
 ## Rankings, History, and Season summary — implemented and deployed (TP-051)
 - Pure, tested module `src/lib/standings.js` (`computeStandings`, `sortStandings`, `computePreseason`, `seasonHighlights`, `playerSeasonTimeline`, `shortName`) computes every number shown on these pages from `eloHistory` on the device — there is no stored standings doc.
-- `src/pages/Rankings.jsx` (route `/rankings`, plain signed-in guard — no longer player-only, since staff get their own message): season picker (newest first, "· Final" for a `complete` season), sort by Elo / Win % / Avg games / Matches, a Provisional badge (`season.provisionalUnderSets`, fallback 12), rows link to History. Before Week 1 locks, shows opted-in players ranked by starting Elo with a "play starts" note (`computePreseason`). Staff see a "Rankings are for players" message (TP-016).
-- `src/pages/History.jsx` (routes `/history`, `/history/:playerId`): Mine / All players tabs, season picker, stat tiles, weeks grouped by session with per-match set detail (`playerSeasonTimeline`).
-- `src/pages/SeasonSummary.jsx` (route `/seasons/:seasonId/summary`): highlights (Top Elo, Most sets won, Most matches, Best win % at 30+ sets via `seasonHighlights`), full standings, session tabs. The approved mockup's "next season starting Elos" link is intentionally not built — there's no season-close record yet to link to.
+- `src/pages/Rankings.jsx` (route `/rankings`, plain signed-in guard): season picker (newest first, "· Final" for a `complete` season), sort by Elo / Win % / Avg games / Matches, a Provisional badge (`season.provisionalUnderSets`, fallback 12), rows link to History. Before Week 1 locks, shows players ranked by starting Elo with a "play starts" note (`computePreseason`) — the pre-season list now comes from `directory` (`role === 'player' && listed === true`) rather than a direct `sessionEnrollment` query, since that query wasn't provable under the Firestore rules for a non-admin and threw `permission-denied` (ISS-028, TP-064). **Staff now see the real page**, not a "Rankings are for players" message — the staff-only early return was removed and `usePlayerRatings()` is always enabled, since every row's Elo depends on it, not just a staff viewer's own (TP-063, reverses TP-016).
+- `src/pages/History.jsx` (routes `/history`, `/history/:playerId`): season picker, stat tiles, weeks grouped by session with per-match set detail (`playerSeasonTimeline`). `weekIds` passed to the `matchGroups` query is now filtered to `complete` weeks only (`WEEK_STATUS.COMPLETE`) before the query runs, fixing a second `permission-denied` on an active season still entirely in `draft` (ISS-029, TP-065) — with no complete weeks, the listener isn't opened at all and the page falls through to its existing empty state. At bare `/history`, staff default straight to the "All players" view (no "Mine" tab, since staff have no history of their own); at `/history/:playerId` everyone — including a player arriving from a Rankings-row tap — now lands directly on that player's detail view instead of needing to tap "Mine" first (ISS-033); the "View my history" link is hidden for staff as well as for the viewer's own row.
+- `src/pages/SeasonSummary.jsx` (route `/seasons/:seasonId/summary`): highlights (Top Elo, Most sets won, Most matches, Best win % at 30+ sets via `seasonHighlights`), full standings, session tabs. The approved mockup's "next season starting Elos" link is intentionally not built — there's no season-close record yet to link to. Staff also see the real page now, same TP-063 reversal — the staff-only early return and its now-unused `isStaff`/`ROLES` import were removed.
 - All three read names via the shared `src/hooks/useDirectory.js` hooks (see "Contact privacy" below) rather than reading `players` directly.
 
 ## Settings — implemented and deployed (TP-053, TP-054)
@@ -387,7 +423,7 @@ Admin screens `src/pages/admin/Settings.jsx` (season/league values) and `src/pag
 - League name/logo and the automation times are read-only in Settings (baked at build time / fixed elsewhere). `carryOverFactor`/`carryOverSetsPivot` are stored but have no consuming logic yet (season close isn't built). `seasons`/`weeks` are now fully server-write only (see the rules table).
 
 ## Firebase Storage — implemented and deployed (TP-054)
-Enabled on `tnpl-pwa` (region matched to Firestore). `storage.rules` mirrors `firestore.rules`' identity helpers via cross-service `firestore.get()`/`firestore.exists()` (storage rules can only check a known Firestore path, never query, same constraint as Firestore rules themselves). Only path in use: `/league/menu.pdf` — signed-in read; admin-only write/delete, content-type restricted to `application/pdf`, size capped at 10 MB. `firebase.json` gained a storage-rules entry and a storage emulator on port 9199; `src/firebase.js` exports a `getStorage` client. "View menu" fetches the download URL ahead of time and renders a real `<a target="_blank">`, since iOS blocks `window.open` called after an `await` (ISS-021).
+Enabled on `tnpl-pwa` (region matched to Firestore). `storage.rules` mirrors `firestore.rules`' identity helpers via cross-service `firestore.get()`/`firestore.exists()` (storage rules can only check a known Firestore path, never query, same constraint as Firestore rules themselves). Only path in use: `/league/menu.pdf` — signed-in read; admin-only write/delete, content-type restricted to `application/pdf`, size capped at 10 MB. `firebase.json` gained a storage-rules entry and a storage emulator on port 9199; `src/firebase.js` exports a `getStorage` client. "View menu" fetches the download URL ahead of time and renders a real `<a target="_blank">`, since iOS blocks `window.open` called after an `await` (ISS-021). The link itself is a small reusable `ViewMenuPill` component (exported from `src/components/DinnerGolfLinks.jsx` alongside the default-exported golf-sim-link component, both sharing the new `useLeagueSocialSettings()` hook), placed as a header pill on Home's and Matches' dinner/golf-sim card headers rather than inline text (ISS-036 wording pass).
 
 ## Week extras — implemented and deployed (TP-055)
 - **Dinner special:** `weeks.dinnerSpecial` (≤120 chars), set via `setWeekDinnerSpecial`, shown with one consistent "This week's special:" label on the availability form, Matches (both states), Home, and in the availability email if set before sending.
@@ -408,6 +444,12 @@ Firestore rules can't hide individual fields, so contact info for other people n
 ## Full emulator dress rehearsal — done (TP-059)
 One-time test harness `functions/scripts/runWeeklyLoop.js` (never deployed; emulator-only) drives `runWeeklyAutomation(db, now)` through 2 complete weeks plus a 3rd week's Monday/Wednesday handoff, calling every callable in-process (`handleEditPairings`, `submitChangeRequest`/`withdrawChangeRequest`/`denyChangeRequest`, `saveAvailability`, `answerAvailabilityByToken`, `lockWeekInternal`/`unlockWeekInternal`, etc. — all plain `(db, request)`-style exports, not through the Functions-emulator HTTP layer) as different simulated players. `FUNCTIONS_EMULATOR='true'` is set before `firebase-admin` loads so `mailer.js` routes every send to its `console.log` branch — no real email is reachable, and the script captures and counts every one (181 in the final run). 74/74 checks passed: Monday send/no-double-send, token + in-app answers with a no-answer-on-load check, the Tuesday reminder, the Wednesday draft and its placement constraints, the Wednesday send, change requests (withdraw, approve-in-transaction, deny, refused once the window closes), Thursday finalize, out-of-order scores, the Tuesday lock reminder, auto-lock skipped for one empty set (with the admin email and the next draft building on the pre-lock Elo), a manual lock and the unlock refusal, a fully-scored week's auto-lock, and Elo/`playerRatings`/`computeStandings` cross-checks including one set recomputed by hand against the formula. The simulated season is dated December 2026 so two checks that deliberately use the real wall clock (`weekAcceptsAnswers`, a token's `expired` check) don't trip — needs re-dating after mid-December 2026 to keep working.
 
+## Automation watchdog — implemented and deployed (TP-066)
+- `functions/automation/watchdog.js`: pure `findOverdueSteps(weeks, nowMs, { graceMinutes = 30 })` checks each active season week's automation steps (availability-open email, draft build, publish send, finalize) independently — not mutually exclusive — against that week's stored `automation` timestamps plus a 30-minute grace period, and returns the overdue ones with a short note and the week it belongs to. `runWatchdog(db, nowMs)` loads the active season's weeks, runs the check, and — only if anything is overdue — emails every admin one combined summary (`buildWatchdogEmail`) via the shared `emailAdmins` helper from `functions/pairing/publish.js`.
+- Registered as its own scheduled function, `automationWatchdog` (`every 60 minutes`, `America/Chicago`, in `functions/index.js`), separate from `weeklyAutomation` so a stuck or crashed automation run doesn't also take down its own watchdog. Confirmed via `gcloud scheduler jobs list --project=tnpl-pwa --location=us-central1` that deploying it created a new Cloud Scheduler job automatically, with public invoker access already set the same way as every other scheduled function.
+- **Crash alerting:** `weeklyAutomation`'s handler is now wrapped in try/catch; on a throw, `notifyAutomationCrash(db, error, nowMs)` emails every admin (`buildCrashEmail`) and rethrows, so the function still reports failure to Cloud Functions/Scheduler as before — the alert is additive, not a swallow. A `automationHealth/main` doc's `lastCrashAlertAt` enforces a one-hour cooldown so a repeatedly-crashing function doesn't spam admins every 15 minutes; the cooldown write uses `Timestamp.fromMillis(nowMs)`, not `FieldValue.serverTimestamp()`, so the stored value and the read-side comparison are both in terms of the same injected clock (TP-066's own testsuite caught the original `serverTimestamp()` version always re-emailing, since a test fakeDb never resolves that sentinel to a real time — ISS-037).
+- `watchdog.test.js` (12 tests) was written under an explicit "tests only, don't bend a failing test to make it pass" rule and caught both the `notifyAutomationCrash` clock bug above and, earlier, a self-caught `findOverdueSteps` logic bug (an OR where the intended condition — matching `weekly.js`'s own gate — was AND) before any test ran.
+
 ## Season 25-26 history import — done (TP-052)
 One-time script `functions/scripts/importSeasonHistory.js` (dry run default, `--apply`, single Firestore batch, aborts on any mismatch, every set validated against the live `computeWeekElo`) imported `TNPL_Season_25-26_ALL.xlsx`: `seasons/2025-26` (`status: 'complete'`, `imported: true`), 2 closed `sessions`, 17 `complete` weeks (`lockMode: 'import'`), 68 locked `matchGroups`, 251 `eloHistory` docs — `players` was never touched. Validation tolerance is ±0.15 to match the workbook's 1-decimal Elo display vs. its 2-decimal set-change precision; the stored `delta` stays the exact sum of the set adjustments regardless (ISS-022).
 
@@ -420,14 +462,15 @@ One-time script `functions/scripts/importSeasonHistory.js` (dry run default, `--
 - Not yet seen rendering in a real browser — traced by hand against the mockup and unit-tested, but the card can't show in production before **Mon Oct 12** (Monday of Season 26-27's first week) regardless of when the venue is set, since `showWeatherForWeek` gates on the real date.
 
 ## Pages
-Home · Matches (+ score entry, request change) · Rankings · History (+ per-player, + Season summary) · Players · Profile · Availability · Info (public) · Join (public) · AvailabilityAnswer (public) · Admin (dashboard, season setup, Season (time slots/skip), Settings, roster, pairing draft/edit screens, availability tracker, Scores and lock, change requests, Info editor) · **SignIn** (route-guard redirect target; also renders the iPhone install gate — not a nav item). Bottom tab bar on every signed-in page (TP-037). Staff see the same tabs as a player, minus the season-signup card on Home and with players-only messages on Rankings/eloHistory-backed pages (TP-016).
+Home · Matches (+ score entry, request change) · Rankings · History (+ per-player, + Season summary) · Players · Profile · Availability · Info (public) · Join (public) · AvailabilityAnswer (public) · Admin (dashboard, season setup, Season (time slots/skip), Settings, roster, pairing draft/edit screens, availability tracker, Scores and lock, change requests, Info editor, Cancel) · **SignIn** (route-guard redirect target; also renders the iPhone install gate — not a nav item). Bottom tab bar on every signed-in page (TP-037). Staff see the same tabs as a player, minus the season-signup card on Home — Rankings/History/Season summary are now fully visible to staff too (TP-063, reverses TP-016).
 
 ## Local emulator testing
 Firebase Local Emulator Suite (auth 9099, firestore 8080, functions 5001, UI) under the demo project ID `demo-tnpl`, so nothing can reach real Firebase resources (TP-026). Needs JDK 21+ (firebase-tools 15.x).
 - Start: `firebase emulators:start --only auth,firestore,functions --project demo-tnpl`
 - End-to-end pairing check: `node functions/scripts/seedAndRunPairings.js` (repo root) — resets emulator state, seeds `functions/scripts/fixtures/roster.seed.json` (45 players, names + Season 3 Elos only) with synthetic `@example.test` emails, calls the callable as different users, runs 12 checks.
 - Full-league-night demo: `node functions/scripts/seedMatchesDemo.js` — Demo Player/Demo Admin accounts; Week 1 complete and **locked the real way** via `lockWeekInternal` (so it has real `eloHistory`), Week 2 `in_progress` with mixed score states left for Tom to lock/unlock himself, Week 3 `availability_open`. Self-checks include eloHistory doc count, Elo deltas summing to ~0, and `previewWeek` on Week 2.
-- Unit tests: `npm test` from the repo root (Node's built-in test runner, auto-discovers every `*.test.js`) — **356 total** (up from 340 at the start of 2026-10-01), spanning `functions/` and `src/`. `npm test` inside `functions/` alone still works and runs just its own subset.
+- Unit tests: `npm test` from the repo root (Node's built-in test runner, auto-discovers every `*.test.js`) — **392 total** (up from 340 at the start of 2026-10-01, 356 after Batch C), spanning `functions/` and `src/`. `npm test` inside `functions/` alone still works and runs just its own subset.
+- New files added this session: `functions/cancel/cancel.js` + `cancel.test.js` (per-slot cancel/restore), `functions/automation/watchdog.js` + `watchdog.test.js` (overdue-step + crash-alert watchdog), `src/components/CancelBanner.jsx`, `src/pages/admin/CancelWeek.jsx` (route `/admin/cancel`), `ViewMenuPill` (exported from the rewritten `src/components/DinnerGolfLinks.jsx`), and `src/lib/socialTimes.js`'s `playerIds` addition to each dinner/golf-sim bucket (so Home can match the signed-in player by id instead of display name, ISS-036).
 - Full weekly-loop dress rehearsal: `node functions/scripts/runWeeklyLoop.js` — see "Full emulator dress rehearsal" above. Separate from the unit-test suite; not run by `npm test`.
 - One-time data scripts (`functions/scripts/`) — `importRoster.js`, `updatePhones.js`, `backfillSignIns.js`, `resetWeekAvailability.js` (refuses if pairings exist for the week; Tom used it against production to reset Week 1 after testing early), `importSeasonHistory.js` (Season 25-26 import, TP-052), `backfillDirectory.js` (contact-privacy directory/playerRatings backfill, TP-057) — all dry-run by default, `--apply` to write, real project or `--emulator`; see BestMethods.md.
 

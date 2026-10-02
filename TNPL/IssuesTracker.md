@@ -1,6 +1,6 @@
 # TNPL — Issues Tracker
 
-**Last updated:** 2026-10-01
+**Last updated:** 2026-10-02
 
 ## Open
 
@@ -141,3 +141,53 @@
 **Status:** Resolved (2026-10-01)
 **Description:** Found by the full emulator dress rehearsal (`functions/scripts/runWeeklyLoop.js`, TP-059). `buildDirectoryEntries()` in `functions/players/directorySync.js` passed `players.currentElo`/`seasonStartElo` straight through to `playerRatings` with no guard. A guest player created by the change-request "approve and replace" flow (`pairing/edit.js`'s `REPLACE_PLAYER`) sets `currentElo` but never `seasonStartElo` — writing `undefined` crashed `syncDirectoryOnPlayerWrite`/`syncDirectoryOnEnrollmentWrite` outright ("Cannot use undefined as a Firestore value"). The player's own `players`-doc write still succeeded; only the background trigger died, so `directory`/`playerRatings` silently went stale for that player with nothing but a server log to show it.
 **Resolution:** Both fields now write `null` when missing (TP-058), never a made-up Elo. 3 regression tests added to `functions/players/directorySync.test.js`. A read-only production check found 0 of 67 `role == 'player'` docs missing `seasonStartElo` — no backfill needed, though the check doesn't cover guests (`role == 'guest'`), and change requests only shipped 2026-09-30, so none likely exist yet; re-run `backfillDirectory.js` if one ever does. Deployed: `syncDirectoryOnPlayerWrite`, `syncDirectoryOnEnrollmentWrite`.
+
+### ISS-028 — Players got "permission-denied" on Rankings' pre-season view
+**Status:** Resolved (2026-10-02)
+**Description:** Found by Pat Foley, the first real non-admin tester (invisible to Tom, since `isAdmin()` passes every rule). Rankings' pre-season view (active season, before Week 1 locks) listened to `sessionEnrollment where sessionId == …` to find who'd opted in — every player's enrollment doc — but the rule only lets a non-admin read their OWN enrollment doc (`enrollmentId.split('_')[1] == myPlayerId()`). Firestore refuses a list query it can't prove is restricted to documents the caller can read, even though the query would have included the caller's own doc among the results.
+**Resolution:** Pre-season "opted in" ids now come from `directory` entries with `listed === true` and `role === 'player'` (TP-064) — data already read via `useDirectory()`, no new Firestore read and no rule change. `sessionEnrollment` stays own-doc-only for non-admins. Verified in the emulator as a non-admin player (both the exact denial and the fix), then confirmed fixed on Pat's phone.
+
+### ISS-029 — Players got "permission-denied" on History for the active season
+**Status:** Resolved (2026-10-02)
+**Description:** Found alongside ISS-028. History built `matchGroups where weekId in [every week of the selected season]` to resolve each match's slot/court for display. For the active, still-mostly-`draft` season, that `in` list included unpublished weekIds; the matchGroups rule's `weekStatus(resource.data.weekId)` `get()` can't be proven safe for an `in` filter containing a non-published week, so Firestore refused the WHOLE query — even though it would have matched zero documents (no matchGroups exist for a draft week at all).
+**Resolution:** `weekIds` is now filtered to `complete` weeks only before the query (TP-065); with none, the listener isn't opened at all and the page falls through to its existing "no matches yet" empty state rather than an error. The first emulator diagnosis (seeded with locked weeks) couldn't reproduce this; a second, reproducing production's actual all-draft-season shape, did. Confirmed fixed on Pat's phone; Season summary was not affected by either ISS-028 or ISS-029.
+
+### ISS-030 — `useWeekMatches` hid every `permission-denied`, not just the expected one
+**Status:** Resolved (2026-10-02)
+**Description:** `useWeekMatches`'s shared `friendlyError` converted ANY `permission-denied` into `null` (no visible error) for every one of its listeners (season, weeks, matchGroups, socialPlans, directory). That was meant for exactly one expected case — a non-admin can't read `matchGroups` before a week is published — but the same blanket swallow also hid the ISS-028/ISS-029 bug on Home and Matches, which made "Matches looks fine" false evidence that those reads were actually succeeding.
+**Resolution:** Only the `matchGroups` listener still swallows `permission-denied`; every other listener (season, weeks, socialPlans, directory, and `leagueSettings` via `useLeagueContact`) now surfaces it like any other error, with its code, matching how Rankings/History display errors. Verified in the emulator as a non-admin player that the normal pre-publish state still shows no error (only the one expected, still-swallowed denial).
+
+### ISS-031 — Lock Week wrote a zero-delta `eloHistory` doc for a player with zero sets played
+**Status:** Resolved (2026-10-02)
+**Description:** Pre-existing in `computeWeekElo` (`functions/elo/elo.js`): its `ensure(playerId)` creates an accumulator entry for every player listed on a group, whether or not they have any saved sets, and `lockWeekInternal`'s write loop wrote an `eloHistory` doc (and a no-op `currentElo` update) for every one of those entries unconditionally. Before per-slot cancel this was latent — a group reaching lock with zero saved sets was already an edge case nobody hit — but became a real, reachable bug once a cancelled group with no saved sets became a normal, expected state (see TP-061/TP-062). Caught by the cancel feature's own regression tests, not by inspection.
+**Resolution:** `lockWeekInternal` now filters to `setsPlayed > 0` before writing `eloHistory` or updating `currentElo` (TP-062); `unlockWeekInternal` needed no change, since it already derives everything from the week's actual `eloHistory` docs, never from `matchGroups`/player rosters.
+
+### ISS-032 — Installed PWA never picked up a new deploy on iPhone
+**Status:** Resolved (2026-10-02)
+**Description:** iOS Home Screen apps are usually *resumed* from a suspended state rather than reloaded when tapped open, so the service worker's normal "check for an update on navigation" path often never ran at all. Tom's own phone stayed on a build days old with no way to even tell which version he was looking at.
+**Resolution:** The app now calls `registration.update()` every time it returns to the foreground (`visibilitychange`), on top of the existing autoUpdate/`skipWaiting` config, so a resumed session actively looks for a new service worker instead of waiting on a navigation that may never happen; Home shows a build-time "Updated MM/DD/YYYY h:mm AM/PM" stamp (America/Chicago) so it's visible at a glance which deploy is live on a given phone (TP-068).
+
+### ISS-033 — History required tapping "Mine" to see a player clicked from Rankings
+**Status:** Resolved (2026-10-02)
+**Description:** Tapping a player from Rankings/Players opened `/history/:playerId` landed on "All players" by default rather than that player's own stats view, because a `useEffect` reset the tab to `'mine'`/`'all'` based on route changes in a way that didn't distinguish "just arrived at a specific player's route" from "player toggled tabs."
+**Resolution:** `/history/:playerId` now always opens directly on that player's detail view; the first tab is relabeled with their short name when it isn't you ("Mine" otherwise), with a "View my history" link to get back to your own. Also used as the base for the staff-visibility work (TP-063): staff, who have no "mine," skip the detail tab entirely at a bare `/history` and open straight to "All players," but still see a normal detail view at `/history/:playerId`.
+
+### ISS-034 — iOS numeric keypad had no minus sign for longitude
+**Status:** Resolved (2026-10-02)
+**Description:** Settings' Weather location Latitude/Longitude inputs used `inputMode="decimal"`, whose iOS keypad has no minus key — making a negative longitude (every longitude in North America) impossible to type on an iPhone.
+**Resolution:** Changed to `type="text"`/`inputMode="text"`, which restores the full keyboard (including minus and period) while staying a plain text field; parsing and the existing paste-a-"lat, lng"-pair behavior were left unchanged. Range validation exists only server-side in `updateLeagueSettings`, unaffected by this change.
+
+### ISS-035 — Admin Roster select mode could text selected players but not invite them
+**Status:** Resolved (2026-10-02)
+**Description:** The select-mode action bar on Admin Roster had "Text selected" but no equivalent bulk invite action, even though `sendInvites({playerIds})` already supported it.
+**Resolution:** Added "Invite selected" next to "Text selected," reusing the exact existing `sendInvites` call shape; skips players already signed in, inactive, or who declined, with an inline (non-`window.confirm`) confirmation showing the skip-reason counts before sending. No select-all control exists yet. "Invite all" (TP-039) stays held — see TP-069 for why Tom is using "Invite selected" for the Oct 5 send instead.
+
+### ISS-036 — Home's dinner/golf-sim card matched the signed-in player by display name
+**Status:** Resolved (2026-10-02)
+**Description:** `myDinnerBucket`/`myGolfSimBucket` on Home found "my" time bucket by checking whether the bucket's `names` array included the signed-in player's display name string — two players sharing an identical full name could collide and pick the wrong bucket, or wrongly exclude/include someone from "Also at dinner around …".
+**Resolution:** `src/lib/socialTimes.js`'s buckets now also carry a `playerIds` array alongside `names`; Home matches by `playerId` instead, and `othersAtMyDinnerTime` was fixed the same way. `Matches.jsx`, the only other reader of these buckets, only ever used `time`/`names` and needed no change.
+
+### ISS-037 — `notifyAutomationCrash`'s hourly cooldown compared against the wrong clock
+**Status:** Resolved (2026-10-02)
+**Description:** `notifyAutomationCrash(db, error, nowMs)` takes an explicit `nowMs` specifically so it can be driven deterministically (by `runWatchdog`'s own pattern, and tests), but wrote `lastCrashAlertAt: FieldValue.serverTimestamp()` — the real wall clock — instead of deriving the stored value from `nowMs`. Caught by a tests-only prompt that refused to bend its own test to match the implementation (per the stated rule for that prompt) rather than quietly working around it; in production this mostly self-corrected since callers normally pass `Date.now()`, but it was untestable with simulated time and could drift under retries.
+**Resolution:** Now writes `Timestamp.fromMillis(nowMs)`; the read side needed no change, since it already calls `.toMillis()` on whatever's stored. Redeployed `weeklyAutomation` and `automationWatchdog`.

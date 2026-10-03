@@ -1,6 +1,6 @@
 # TNPL — Project Roadmap
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-03
 
 ## Phase 0 — Kickoff (done)
 - [x] Repo, Notion, docs, .gitignore, pwa-firebase-rules skill
@@ -47,7 +47,8 @@
 - [x] Batch C — weather: forecast library + tests, a "Weather location" Settings row, the Home weather card (coldest-slot layer badge, wind, rain/snow) (TP-060)
 - [x] Cancel a night or slot: per-slot `matchGroups.status: 'cancelled'` after pairings are sent, admin `cancelSlots`/`restoreSlot` callables with emails, Lock/Elo and pairing-history handling, Home/Matches banners and cancelled-card states, admin `/admin/cancel` screen (TP-061, TP-062)
 - [x] Automation watchdog: hourly check that `weeklyAutomation`'s steps actually ran, plus a crash alert on the automation itself (TP-066)
-- [x] Roster "Invite selected" in select mode, reusing `sendInvites` (ISS-035) — used for the Oct 5 invite send instead of un-holding "Invite all" (TP-069)
+- [x] Roster "Invite selected" in select mode, reusing `sendInvites` (ISS-035) — used for the Oct 3 invite send (two days ahead of the planned Oct 5) instead of un-holding "Invite all" (TP-069)
+- [x] Invite-day fixes: decline link no longer records on GET (ISS-038, TP-070); a single-player re-invite can reach a declined player who never signed in (ISS-039, TP-071); "Resend invite" shows its real result inline (ISS-040, TP-072)
 - [x] Found-by-real-tester fixes: players' Rankings/History permission-denied (ISS-028, ISS-029), `useWeekMatches` hiding real errors (ISS-030), History opening on the clicked player (ISS-033), iOS weather-coordinate keyboard (ISS-034), installed PWA not picking up new deploys + a build-time "Updated" stamp (ISS-032)
 - [x] Staff can view Rankings, History and Season summary — reverses TP-016 (TP-063)
 - [x] Part of Batch D message wording: invite email mentions Chrome on Android, "partner with each player once," View menu moved to a header pill, dinner/golf-sim plans bolded consistently and matched by player id (ISS-036)
@@ -55,6 +56,7 @@
 - [ ] Whole-week cancel before pairings are sent (reserved, not built — see TP-061; would use the existing, still-unused `WEEK_STATUS.CANCELLED`)
 - [ ] "Invite all" — deliberately held; "Invite selected" is used instead (TP-039, TP-069)
 - [ ] Push notifications, admin progress bar on Home, custom profile fields (rest of Batch D)
+- [ ] After Oct 15: edit sheet reads a point-in-time player copy (ISS-041); tab bar floating on Admin, if it recurs (ISS-042)
 
 ## Phase 3 — Migration
 - [x] `TNPL_MAIN.xlsx` imported as the initial roster + Season 3 starting Elos (45 players); import-only going forward — Firestore is the source of truth after this (TP-040)

@@ -1,10 +1,22 @@
 # TNPL — Issues Tracker
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-03
 
 ## Open
 
+### ISS-042 — Bottom tab bar floats mid-screen on the Admin dashboard (iPhone installed PWA)
+**Status:** Open — can't reproduce yet (logged 2026-10-03)
+**Description:** Tom saw the tab bar sitting about two-thirds of the way down the screen, over the "Manage" tiles, with page content above and below it, while scrolled on `/admin`. The same bar was pinned correctly on Roster a minute earlier. Code review ruled out a broken fixed-position containing block: nothing in `src/` sets `transform`, `filter`, `perspective`, `will-change`, `contain` or `backdrop-filter`. There is no inner scroll container, and Admin and Roster use the same `.page` layout. `.tabbar` is plain `position: fixed; bottom: 0` with `env(safe-area-inset-bottom)` padding. Leading hypothesis, unconfirmed: the iOS WebKit bug where a fixed element sticks at a stale position after a native overlay closes. Admin's `<select id="week-picker">` is the only native picker on that screen. The app has no `visualViewport` or `focusout` handling.
+**Resolution:** None yet. If it recurs, record the iOS version, whether the week picker was opened first, and whether the phone had been resumed from the background. Any fix must ship before the Oct 14 deploy freeze or wait until after Oct 15.
+
 ## Deferred
+
+### ISS-041 — The edit sheet reads a point-in-time copy of the player (logged 2026-10-03)
+**Status:** Deferred
+**Description:** `Roster.jsx` stores the tapped row in `sheet.player` and passes it to `PlayerEditSheet`, so the open sheet's labels (e.g. "Send invite" vs "Resend invite") read a frozen snapshot rather than the live doc. The Roster list is unaffected because it reads the live array. This doesn't change what gets sent: the invite result comes from the server response.
+**Resolution:** None yet. Post-Oct 15 cleanup candidate: look the player up by id in the live `players` array on each render.
+
+### ISS-006 — Per-slot pairing re-run on change-request approval
 
 ### ISS-006 — Per-slot pairing re-run on change-request approval
 **Status:** Deferred
@@ -191,3 +203,18 @@
 **Status:** Resolved (2026-10-02)
 **Description:** `notifyAutomationCrash(db, error, nowMs)` takes an explicit `nowMs` specifically so it can be driven deterministically (by `runWatchdog`'s own pattern, and tests), but wrote `lastCrashAlertAt: FieldValue.serverTimestamp()` — the real wall clock — instead of deriving the stored value from `nowMs`. Caught by a tests-only prompt that refused to bend its own test to match the implementation (per the stated rule for that prompt) rather than quietly working around it; in production this mostly self-corrected since callers normally pass `Date.now()`, but it was untestable with simulated time and could drift under retries.
 **Resolution:** Now writes `Timestamp.fromMillis(nowMs)`; the read side needed no change, since it already calls `.toMillis()` on whatever's stored. Redeployed `weeklyAutomation` and `automationWatchdog`.
+
+### ISS-038 — Decline link recorded a decline on GET, so email scanners declined players
+**Status:** Resolved (2026-10-03)
+**Description:** Within minutes of the Oct 3 invite send, 9 players showed as Declined under Roster → Not Active: Matt Fahey, Dave Frieder, Sebastien Imbert, Pat McDonough, Ben Pavlik, Jason Pickart, Matt Rinka, Tony Sarnowski and Steve Sewart. All 9 were at work addresses, and one confirmed he never clicked anything. The `decline` HTTP handler wrote `inviteStatus: 'declined'` and `declinedAt` on a plain GET, so corporate link scanners triggered it.
+**Resolution:** A GET (and HEAD/OPTIONS) now only renders a confirm page; only its own POST writes (TP-070). Verified live after deploy: public access carried over, and a GET returns the confirm page without writing. Commit `3afed58`; `functions:decline` deployed. Note: the re-invites under TP-071 cleared `declinedAt` for these 9, so Firestore no longer shows the decline-vs-invite timing for them. Any trace of it may survive only in function logs.
+
+### ISS-039 — "Resend invite" silently did nothing for a declined player
+**Status:** Resolved (2026-10-03)
+**Description:** Tom changed Ben Pavlik's email, saved, and tapped "Resend invite." Ben stayed Declined and no email went out. `resolveInviteTargets` dropped every `declined` player, including an admin's explicit `playerIds` pick.
+**Resolution:** The explicit-`playerIds` path now includes a declined player who has no `firstSignInAt` and isn't `accepted` (TP-071). Ruled out first: `upsertPlayer` never touches `inviteStatus` on an edit, and the button calls `sendInvites({ playerIds })` with no client-side filter. Commit `f197bcc`; `functions:sendInvites` deployed. Tom re-sent to all 9 from their edit sheets, and all 9 moved to Pending immediately.
+
+### ISS-040 — "Resend invite" gave no visible result
+**Status:** Resolved (2026-10-03)
+**Description:** The button showed "Sending…" and then reverted to its label, with no success or failure shown, so Tom couldn't tell whether the invite went out.
+**Resolution:** `PlayerEditSheet.jsx` shows an inline result in the existing `.notice` styles (TP-072): green on success, red on failure or a skipped player, with the reason for a skip. Commit `685e257`; built and hosting deployed. Tom confirmed the new Updated stamp on his phone.

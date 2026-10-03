@@ -1,6 +1,6 @@
 # TNPL — Technical Architecture
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-03
 
 ## Stack
 - Frontend: React + Vite, PWA (installable Home Screen app on iPhone/Android)
@@ -35,7 +35,8 @@ players/{playerId}
   currentElo, seasonStartElo, eloIsDefault  // player role only; missing = pairing defaults to 1500
   authUid                               // set on first sign-in once matched
   inviteStatus: not_invited | invited | accepted | declined
-  invitedAt, declineTokenHash           // set only while inviteStatus is 'invited'
+  invitedAt, declineTokenHash           // set while inviteStatus is 'invited' (fresh on every re-invite, TP-071)
+  declinedAt                            // set only by the POST decline (TP-070), cleared on any re-invite (TP-071)
   firstSignInAt                         // set once, on the first successful sign-in — the durable
                                          // "has this player signed in" marker (TP-038), independent
                                          // of inviteStatus (which a later re-invite can otherwise touch)
@@ -362,8 +363,9 @@ Constants: `functions/paths.js` is the single source of collection names and sta
 ## Roster, invites, and join requests — implemented and deployed
 `functions/roster/roster.js`:
 - `upsertPlayer` (admin) — create or edit a player; starting Elo can't change once they have a locked match.
-- `sendInvites` (admin) — emails the install-first invite (see below) to selected players or every not-yet-invited player; flips `inviteStatus` to `invited` only for players not already signed in (TP-038) — a re-send to a signed-in player still emails them but never touches their status. The Roster screen's select mode can now call it with just the checked players ("Invite selected"), reusing the existing callable rather than a new one (ISS-035, TP-069) — used for the real Oct 5 invite send instead of un-holding "Invite all" (TP-039, still deliberately held).
-- `decline` (HTTP, rewritten from `/decline`) — a player's one-click "stop inviting me" link from the invite email; always returns the same branded page regardless of whether the token matched, so it never reveals anything to a guesser.
+- `sendInvites` (admin) — emails the install-first invite (see below) to selected players or every not-yet-invited player; flips `inviteStatus` to `invited` only for players not already signed in (TP-038) — a re-send to a signed-in player still emails them but never touches their status. The Roster screen's select mode can now call it with just the checked players ("Invite selected"), reusing the existing callable rather than a new one (ISS-035, TP-069) — used for the Oct 3 invite send, two days ahead of the planned Oct 5, instead of un-holding "Invite all" (TP-039, still deliberately held). A single-player re-invite from the edit sheet may also target a declined player who has never signed in (TP-071); the bulk paths still skip decliners.
+- `decline` (HTTP, rewritten from `/decline`) — a player's "stop inviting me" link from the invite email. A GET (and HEAD/OPTIONS) only renders a confirm page and never writes, because email security scanners open every link (ISS-038). Only that page's own POST (`confirmDeclineInvite`) sets `inviteStatus: 'declined'` and `declinedAt` (TP-070). Both responses are the same regardless of whether the token matched, so nothing is revealed to a guesser.
+- The player edit sheet's Resend/Send button shows the real outcome inline (TP-072, ISS-040). `inviteSkipReason` in `src/components/admin/PlayerEditSheet.jsx` re-derives why a player was skipped from the same conditions as `resolveInviteTargets` in `functions/roster/roster.js`, because `sendInvites` returns only `sent`/`failed` counts. If that server filter changes, change this function too.
 - `submitJoinRequest` (public, signed-out) — someone not on the roster asks to join; rate-limited per email per day; emails every admin.
 - `resolveJoinRequest` (admin) — approve (creates the player + sends an invite) or deny.
 - `setSeasonSignup` (the signed-in player, for themselves) — writes the player's `choice` to every session's `sessionEnrollment` doc for the active season in one batch; if opting out drops them from a session whose week is already `matches_set`/`in_progress` and they're in a match, raises a `swap_out` change request instead of silently dropping them (TP-027).

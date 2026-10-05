@@ -1,14 +1,14 @@
 # TNPL — Session Starter
 
 **Project:** Thursday Night Paddle League (TNPL) PWA
-**Status:** Live and in use. Roster cleanup is done: a Pending-tab reminder email shipped, admins can set a player's season choice directly, and duplicate players (from join requests) can be merged. Next hard dates: the Oct 12 availability email and the Oct 14–15 deploy freeze.
+**Status:** Live and in use. Roster cleanup is done: a Pending-tab reminder email shipped, admins can set a player's season choice directly, duplicate players (from join requests) can be merged, and a reminder-send timeout incident the same day is diagnosed and fixed. Next hard dates: the Oct 12 availability email and the Oct 14–15 deploy freeze.
 **Last updated:** 2026-10-05
 
 ## One-line description
 A PWA for Thursday Night Paddle League: live scoring, member sign-up, Elo rankings, and weekly match creation/viewing — similar to the UP Golf and Club Golf PWAs.
 
 ## Current status
-Deployed and in real use. Firestore rules, Storage rules, all 43 Cloud Functions, and hosting are live on `tnpl-pwa`. Test suite: **472 passing** (`npm test` from the repo root); the full weekly-loop rehearsal is still 74/74.
+Deployed and in real use. Firestore rules, Storage rules, all 43 Cloud Functions, and hosting are live on `tnpl-pwa`. Test suite: **483 passing** (`npm test` from the repo root); the full weekly-loop rehearsal is still 74/74.
 
 Going into Oct 5, invites were fully sent, the Oct 3 false-decline scanner problem was fixed, and Roster was otherwise stable (see DecisionLog TP-061 to TP-072 and IssuesTracker ISS-028 to ISS-040).
 
@@ -18,6 +18,7 @@ Spanning Sun Oct 4 evening through Mon Oct 5 midday (~3 hours total):
 - **Admin season-choice override (TP-074).** `setSeasonSignup` takes an optional `playerId`; an admin can record Full/Session 1/Session 2/Not this season for any active player, even one who's never signed in (confirmed: the Monday email and pairing eligibility key only on `optedIn`/`role`/`active`, never `firstSignInAt`). `classify()` now honors a recorded choice for a not-signed-in player too — previously ignored it outright. The edit sheet's new "This season" section is where Tom records a reply like "not this season"; there is still no admin path to mark anyone declined, and docs were corrected after chat initially implied otherwise.
 - **Duplicate players, root cause fixed (ISS-044, TP-075).** Someone signing in with a different email than the roster one hit `not_on_roster`, and approving their join request always created a second player doc. New admin callable `mergeDuplicatePlayer` (refuses on any real game history; one transaction; repoints `playerLinks`, keeps Elo, carries over the season choice) merges a pair into one. `resolveJoinRequest` separately gained `linkToPlayerId` to route a *new* request onto an existing player before a duplicate is ever created. Tom merged the real "Brian Spahn" duplicate after setting Cloud Run access for the new function.
 - **Verified without a browser.** Both features were checked by running the real server code against a Firestore emulator, since this environment has none.
+- **Reminder-send timeout incident, diagnosed then fixed (ISS-045, TP-076).** Mon Oct 5 ~13:56 Central, Tom tapped "Send to 55" and saw a red `internal [0]` banner. A read-only diagnosis first (per Tom's explicit instruction) found `sendInvites` had no `timeoutSeconds`, so it hit the Functions v2 default of 60s; Cloud Run returned a 504 the client SDK couldn't parse, but the container kept running in the background and finished the whole batch — all 55 players got exactly one email, confirmed from `reminderSentAt` stamps, zero failures. Fix shipped in 3 ordered prompts: server `timeoutSeconds: 540` plus a 24h `reminded_recently` duplicate-send guard (server + client, `force` bypass server-only); then Roster's UI — a dedicated client `httpsCallable` with a matching 540000ms timeout, a friendly "may still finish" message instead of the raw error, "Reminded {date}" on Pending rows, and skip-count/button wording changes. Deployed (confirmed the live timeout via `gcloud run services describe`); hosting deployed. Test suite 472 → 483.
 
 ## Key dates
 - **All league invites sent: Sat Oct 3.** Follow-up window through **Oct 11** is ongoing.
@@ -42,10 +43,11 @@ Spanning Sun Oct 4 evening through Mon Oct 5 midday (~3 hours total):
 12. Re-run `backfillDirectory.js` whenever a new season is created.
 
 ## Key decisions so far
-See DecisionLog.md — TP-001 through TP-075. The most recent entries:
+See DecisionLog.md — TP-001 through TP-076. The most recent entries:
 - **TP-073:** Pending-tab reminder email, `sendInvites` `mode: 'reminder'`; fixed same-day to use a reply line instead of a dead decline link.
 - **TP-074:** admin season-choice override; `classify()` fixed to honor a not-signed-in player's recorded choice.
 - **TP-075:** duplicate-player merge (`mergeDuplicatePlayer`) and join-request linking (`linkToPlayerId`).
+- **TP-076:** reminder-send timeout fix — 540s server + client timeout, 24h `reminded_recently` duplicate-send guard, friendly timeout UI.
 
 Earlier entries (TP-001 to TP-072) cover the engine design, the weekly loop, cancel-a-night/slot, the staff visibility reversal, the automation watchdog, the Oct 3 decline-scanner fix, and Resend-invite's inline result.
 

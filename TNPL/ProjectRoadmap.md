@@ -55,6 +55,7 @@
 - [x] Pending-tab reminder email (`sendInvites` `mode: 'reminder'`, two variants, "Send a test to me"), Roster "Select all" (closes the rest of ISS-035) (TP-073)
 - [x] Admin can set a player's season choice for them, including before they've signed in — `setSeasonSignup` admin override, `classify`/`notActiveReason` fixed to honor it, edit sheet "This season" section (TP-074)
 - [x] Duplicate players: `mergeDuplicatePlayer` admin callable, `resolveJoinRequest`'s `linkToPlayerId`, shared `likelySameName` matcher on both the edit sheet and the Requests tab (ISS-044, TP-075)
+- [x] Reminder-send timeout incident fixed: `sendInvites` explicit 540s server + client `httpsCallable` timeout, a 24h `reminded_recently` duplicate-send guard with a server-only `force` bypass, a friendly timeout message, "Reminded {date}" on Pending rows, and skip-count/button wording changes (ISS-045, TP-076)
 - [ ] Per-slot pairing re-run on change-request approval (deferred, not built — ISS-006)
 - [ ] Whole-week cancel before pairings are sent (reserved, not built — see TP-061; would use the existing, still-unused `WEEK_STATUS.CANCELLED`)
 - [ ] "Invite all" — deliberately held; "Invite selected" is used instead (TP-039, TP-069)

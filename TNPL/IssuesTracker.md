@@ -1,6 +1,6 @@
 # TNPL — Issues Tracker
 
-**Last updated:** 2026-10-03
+**Last updated:** 2026-10-05
 
 ## Open
 
@@ -10,6 +10,16 @@
 **Resolution:** None yet. If it recurs, record the iOS version, whether the week picker was opened first, and whether the phone had been resumed from the background. Any fix must ship before the Oct 14 deploy freeze or wait until after Oct 15.
 
 ## Deferred
+
+### ISS-043 — The reminder email ignores an admin-set season choice for a not-signed-in player
+**Status:** Deferred (logged 2026-10-05)
+**Description:** `resolveReminderTargets` (server) and its client mirror `reminderSkipReason` (`src/lib/rosterStatus.js`) both send the `not_signed_in` reminder variant to any invited, not-signed-in player unconditionally — neither checks `choiceByPlayerId` for that branch, only for the signed-in (`no_season_pick`) branch. So a player an admin has already given a playing season choice to (TP-074), but who still hasn't signed in, keeps getting "the app's ready when you are" reminders even though their season intent is already on record.
+**Resolution:** None yet — deliberately left as-is rather than making the client stricter than the server (or vice versa) without changing both together. Low risk in practice: a player set to `none` already moves to Not Active and drops out of the Pending tab entirely, and "Select all" only selects the current tab, so the only players this affects are ones who *should* still be encouraged to install and sign in regardless of their recorded pick. Possible follow-up, not urgent: skip `choice === 'none'` on both `resolveReminderTargets` and `reminderSkipReason` together. Can wait until after the Oct 15 launch.
+
+### ISS-044 — Approving a join request created a duplicate player instead of matching the existing one
+**Status:** Resolved (2026-10-05)
+**Description:** A player who signed in with a different email than the one already on the roster hit `not_on_roster`, submitted a join request, and `resolveJoinRequest`'s approve path always created a brand-new `players` doc with a guessed starting Elo — the original player kept the real Elo/history, the new copy held the sign-in link. Real example: "Brian C Spahn" duplicated the existing "Brian Spahn." A "just delete the new copy" fix would have stranded the player's sign-in; deleting the original would have lost their Elo.
+**Resolution:** New admin callable `mergeDuplicatePlayer` (TP-075) merges the two into one, keeping the original's Elo/history and refusing if either side has any real game history. `resolveJoinRequest` separately gained `linkToPlayerId` so a *new* request can be routed onto an existing player up front, before a duplicate is ever created. Tom merged the Brian Spahn duplicate successfully after Cloud Run "Allow public access" was set for the new function. Cloud Functions count: 42 → 43.
 
 ### ISS-041 — The edit sheet reads a point-in-time copy of the player (logged 2026-10-03)
 **Status:** Deferred

@@ -1,16 +1,16 @@
 # TNPL — Technical Architecture
 
-**Last updated:** 2026-10-03
+**Last updated:** 2026-10-05
 
 ## Stack
 - Frontend: React + Vite, PWA (installable Home Screen app on iPhone/Android)
-- Backend / data: Firebase — Firestore (data), Firebase Auth (emailed 6-digit code + Google), Firebase Storage (menu PDF), Firebase Hosting (deploy), Cloud Functions (42 functions — pairing, season setup, roster/invites, auth, weekly availability, Lock Week/Elo, weekly automation + its watchdog, cancel a night/slot, change requests, settings, directory sync)
+- Backend / data: Firebase — Firestore (data), Firebase Auth (emailed 6-digit code + Google), Firebase Storage (menu PDF), Firebase Hosting (deploy), Cloud Functions (43 functions — pairing, season setup, roster/invites/reminders, duplicate-player merge, auth, weekly availability, Lock Week/Elo, weekly automation + its watchdog, cancel a night/slot, change requests, settings, directory sync)
 - Firebase project: `tnpl-pwa` (console: https://console.firebase.google.com/u/1/project/tnpl-pwa/overview), Blaze plan (TP-033)
 - Repo: https://github.com/Whit19/TNPL (private)
 - Local folder: `C:\Dev_Projects\TNPL`
 - Docs: `C:\Dev_Projects\dataforge-standards\TNPL\` (cloned locally)
 - CLI config: `firebase.json` (firestore rules/indexes, storage rules, `functions` source, hosting rewrites/headers, emulators block incl. storage on port 9199), `.firebaserc`, `firestore.indexes.json`, `storage.rules`
-- **Deployed:** Firestore rules, Storage rules, all 42 Cloud Functions, and Hosting are live. Hosting serves `dist/` (built by Vite) plus a `/email/` folder of PNGs used by the invite email, and rewrites `/decline` to the `decline` HTTP function.
+- **Deployed:** Firestore rules, Storage rules, all 43 Cloud Functions, and Hosting are live. Hosting serves `dist/` (built by Vite) plus a `/email/` folder of PNGs used by the invite email, and rewrites `/decline` to the `decline` HTTP function.
 - **Standing process rule (TP-067):** Claude Code commits directly on `main`; it does not create a feature branch unless there's a specific, stated reason to.
 
 ## Scope for v1
@@ -40,6 +40,9 @@ players/{playerId}
   firstSignInAt                         // set once, on the first successful sign-in — the durable
                                          // "has this player signed in" marker (TP-038), independent
                                          // of inviteStatus (which a later re-invite can otherwise touch)
+  reminderSentAt                        // sendInvites mode: 'reminder' only (TP-073) — distinct from
+                                         // weeks.{availabilityEmailSentAt,reminderSentAt}, which guard
+                                         // the weekly-automation emails, not this one
   contactPreference: 'email' | 'push' | 'both'
   hidePhone, hideEmail: boolean         // self-writable; drives directory.phone/email, not a players-level
                                          // hide since Firestore rules can't hide individual fields (TP-056)
@@ -91,9 +94,13 @@ sessionEnrollment/{sessionId}_{playerId}
   playerId, sessionId, seasonId
   choice: full | session_1 | session_2 | none    // the player's one answer, copied onto every session doc
   optedIn: boolean                               // derived per session from choice + that session's number
+  choiceSetBy: 'player' | 'admin'                // 'player' clears choiceSetByUid; 'admin' sets it (TP-074)
+  choiceSetByUid                                 // the admin's own auth uid — admin path only
   updatedAt
   // Written only by the setSeasonSignup callable, which keeps every session
-  // doc for a player consistent in one batch.
+  // doc for a player consistent in one batch. setSeasonSignup takes an
+  // optional playerId so an admin can record a choice for a player who has
+  // never signed in — classify() honors it either way (TP-074).
 
 weeks/{weekId}                          // weekId is the ISO date, e.g. '2026-10-15'
   seasonId, sessionId, date, weekNumber, sessionWeekNumber
@@ -213,13 +220,17 @@ changeRequests/{requestId}
 joinRequests/{requestId}
   name, email, phone, note, status: pending | approved | denied
   createdAt, resolvedAt, playerId (set on approval)
+  linkedToPlayerId                      // set instead of a new playerId when approved onto an
+                                         // existing player (resolveJoinRequest's linkToPlayerId, TP-075)
+  mergedIntoPlayerId                    // set by mergeDuplicatePlayer if this request's own player
+                                         // later turned out to be a duplicate and got merged away (TP-075)
   // Public, signed-out submission (submitJoinRequest, no auth required) from
   // someone not yet on the roster; returns {status:'on_roster'} instead of
   // creating a request when the email already matches an existing player.
-  // Admin approves (creates the player + sends an invite) or denies
-  // (resolveJoinRequest). Rate-limited per email per day. Reached from the
-  // public /join page (JoinRequestForm) and from Info's "Request to join"
-  // call-outs (TP-042).
+  // Admin approves (creates a new player + sends an invite, OR links onto
+  // an existing one) or denies (resolveJoinRequest). Rate-limited per email
+  // per day. Reached from the public /join page (JoinRequestForm) and from
+  // Info's "Request to join" call-outs (TP-042).
 
 signInCodes/{sha256(email)}
   playerId, codeHash, salt, expiresAt, attempts, sendTimes[]
@@ -362,13 +373,20 @@ Constants: `functions/paths.js` is the single source of collection names and sta
 
 ## Roster, invites, and join requests — implemented and deployed
 `functions/roster/roster.js`:
-- `upsertPlayer` (admin) — create or edit a player; starting Elo can't change once they have a locked match.
-- `sendInvites` (admin) — emails the install-first invite (see below) to selected players or every not-yet-invited player; flips `inviteStatus` to `invited` only for players not already signed in (TP-038) — a re-send to a signed-in player still emails them but never touches their status. The Roster screen's select mode can now call it with just the checked players ("Invite selected"), reusing the existing callable rather than a new one (ISS-035, TP-069) — used for the Oct 3 invite send, two days ahead of the planned Oct 5, instead of un-holding "Invite all" (TP-039, still deliberately held). A single-player re-invite from the edit sheet may also target a declined player who has never signed in (TP-071); the bulk paths still skip decliners.
+- `upsertPlayer` (admin) — create or edit a player; starting Elo can't change once they have a locked match. Already rejected two players sharing an email (`assertEmailAvailable`) before the merge work below needed that guarantee.
+- `sendInvites` (admin) — `mode` missing or `'invite'` (default): emails the install-first invite (see below) to selected players or every not-yet-invited player; flips `inviteStatus` to `invited` only for players not already signed in (TP-038) — a re-send to a signed-in player still emails them but never touches their status. The Roster screen's select mode can now call it with just the checked players ("Invite selected"), reusing the existing callable rather than a new one (ISS-035, TP-069) — used for the Oct 3 invite send, two days ahead of the planned Oct 5, instead of un-holding "Invite all" (TP-039, still deliberately held). A single-player re-invite from the edit sheet may also target a declined player who has never signed in (TP-071); the bulk paths still skip decliners.
+- `sendInvites` `mode: 'reminder'` (TP-073) — a softer nudge for Roster's Pending tab, requires an explicit `playerIds` array. Pure `resolveReminderTargets(players, choiceByPlayerId)` sorts each into a variant or a skip reason: skips `inactive`/`staff`/`declined`/`not_invited`/`has_season_choice` (the last only for a **signed-in** player with a recorded choice — see the known gap below, ISS-043); everyone left is `not_signed_in` or `no_season_pick`. Never touches `inviteStatus`/`invitedAt`/`declinedAt`/the decline token — only a `reminderSentAt` stamp per player on success. `buildReminderEmail({ firstName, variant, appUrl, declineUrl, sessions, email })` builds both variants, reusing `buildInviteEmail`'s own install-steps/sign-in-methods HTML and text (`installAndSignInHtml`/`installAndSignInLines`, extracted into shared helpers so the existing invite-email tests still pass byte-for-byte). The `not_signed_in` variant can't link to the player's actual decline URL — only a salted hash of that token is ever stored, never the plaintext — so it shows a plain "Just reply to this email and let me know" opt-out line instead when no `declineUrl` is given (which is always, on the real send path); `buildReminderEmail` still fully supports rendering a real linked line when one is passed in, for testability. `testToSelf: true` (no `playerIds`) sends both variants to the calling admin's own email, subject prefixed `[TEST] `, no Firestore writes.
 - `decline` (HTTP, rewritten from `/decline`) — a player's "stop inviting me" link from the invite email. A GET (and HEAD/OPTIONS) only renders a confirm page and never writes, because email security scanners open every link (ISS-038). Only that page's own POST (`confirmDeclineInvite`) sets `inviteStatus: 'declined'` and `declinedAt` (TP-070). Both responses are the same regardless of whether the token matched, so nothing is revealed to a guesser.
 - The player edit sheet's Resend/Send button shows the real outcome inline (TP-072, ISS-040). `inviteSkipReason` in `src/components/admin/PlayerEditSheet.jsx` re-derives why a player was skipped from the same conditions as `resolveInviteTargets` in `functions/roster/roster.js`, because `sendInvites` returns only `sent`/`failed` counts. If that server filter changes, change this function too.
 - `submitJoinRequest` (public, signed-out) — someone not on the roster asks to join; rate-limited per email per day; emails every admin.
-- `resolveJoinRequest` (admin) — approve (creates the player + sends an invite) or deny.
-- `setSeasonSignup` (the signed-in player, for themselves) — writes the player's `choice` to every session's `sessionEnrollment` doc for the active season in one batch; if opting out drops them from a session whose week is already `matches_set`/`in_progress` and they're in a match, raises a `swap_out` change request instead of silently dropping them (TP-027).
+- `resolveJoinRequest` (admin) — approve (creates a new player + sends an invite, or **links** onto an existing player — see "Duplicate players" below) or deny.
+- `setSeasonSignup` (the signed-in player, for themselves, or an admin acting for anyone else — TP-074) — writes the player's `choice` to every session's `sessionEnrollment` doc for the active season in one batch; if opting out drops them from a session whose week is already `matches_set`/`in_progress` and they're in a match, raises a `swap_out` change request instead of silently dropping them (TP-027). An admin targeting someone other than themselves must be admin and the target must be an active player (not staff); the target need never have signed in — `getAvailabilityRecipients`/`loadEligiblePlayers` key only on `optedIn`/`role`/`active`, never `firstSignInAt`, so an admin-set "Full season" for a never-signed-in player really does queue them the Monday email and pairing eligibility once they answer the public one-tap link. Both paths share one write core; only an extra target-eligibility check and the `choiceSetBy`/`choiceSetByUid` stamp differ.
+
+## Duplicate players: merge, and linking a join request onto an existing player (TP-075)
+A player who signs in with a different email than the one on the roster hits `not_on_roster` and ends up submitting a join request; approving it the normal way created a **second** `players` doc for the same person, with a guessed starting Elo — the original kept the real Elo/history, the new copy held the sign-in link. ("Brian C Spahn" duplicating "Brian Spahn" was the real example that surfaced this.) Confirmed before building anything: Google sign-in short-circuits on an existing `playerLinks/{uid}` doc before ever re-matching by email, while the emailed-code path always re-resolves through the code's own stored `playerId` (itself set from an email match at send time) — so repointing `playerLinks` plus setting the kept player's email correctly covers both sign-in paths.
+- **`mergeDuplicatePlayer({ keepPlayerId, removePlayerId, emailFrom, preview })`** (admin only, new function). `preview: true` returns the plan — both names, the email that would be kept, how many `playerLinks` move, and the season choice that would survive — without writing anything; any refusal reason surfaces the same way for preview and the real merge. Refuses if the ids match, either doc is missing, either is staff, or the duplicate (`removePlayerId`) has any `eloHistory`, is in any `matchGroups`, has an `availability` doc, or has a `changeRequests` doc — game history is never merged, and pre-season this should never be reachable. The real merge is **one transaction**: repoints every `playerLinks` doc pointing at the duplicate, sets the kept player's `email` per `emailFrom` (default `'remove'` — the email the duplicate actually signs in with), adopts the duplicate's `authUid` if the kept player has none, keeps the earlier of the two `firstSignInAt` values, carries the duplicate's season choice onto the kept player only if the kept player has none, deletes the duplicate's `players`/`directory`/`playerRatings`/`sessionEnrollment`/`socialPlans` docs, and stamps the matching `joinRequests` doc's `mergedIntoPlayerId`. `syncPlayerDirectory(db, keepPlayerId)` runs once more right after commit as a deliberate, idempotent belt-and-suspenders call — the `players`/`sessionEnrollment` writes above already re-trigger `directorySync.js`'s own Firestore triggers on their own. That call has to be a **lazy** `require` inside the function, not a top-level one — `directorySync.js` already imports `activeSeason` from this same file, so a top-level require the other way would be circular.
+- `resolveJoinRequest`'s approve path now accepts `linkToPlayerId`: instead of creating a new player, it sets that existing player's `email` to the request's email (through `upsertPlayer`, so the existing email-uniqueness check still applies) and sends them the normal invite. Refuses a staff or inactive target, or one who has already signed in (`hasSignedIn`) — that's merge territory instead, since changing just the email field wouldn't repoint an existing `playerLinks` doc.
+- UI: a shared pure helper `src/lib/likelySameName.js` (`likelySameName(a, b)`) powers both screens — same last word of the name (ignoring middle initials, punctuation, and a trailing Jr/Sr/II/III/IV) or first/last swapped, case-insensitive. The edit sheet's "Duplicate of another player?" section (collapsed, active non-staff players only) lets Tom pick a likely match or search for one, decides keep vs. remove automatically (whichever of the two came from an approved join request is Remove; otherwise the earlier-created one is Keep, treating a missing `createdAt` as earliest), and previews before merging, with a "Swap" link and an `emailFrom` toggle. Roster's Requests tab shows up to 3 "Already on the roster?" suggestions per request plus an always-available "Link to a different player…" search, and relabels "Approve" to "Approve as new player" once a match exists, so the choice reads as deliberate.
 
 ## Invite email — v2, "install-first" (TP-035)
 `buildInviteEmail` in `functions/roster/roster.js` builds a table-based, inline-styled HTML email (Gmail/Outlook strip `<style>` and block SVG) plus a plain-text part that mirrors every section. Content, in order: a "not in the App Store" note, a Quick-start box (press-and-hold the button → Open in Safari), a picture of the Home Screen row (PNG, built from the real `apple-touch-icon`, served from `/email/` on hosting), 5 numbered iPhone install steps, separate Android steps, both sign-in methods, the current season's dates (pulled live from `sessions`, not hard-coded), and the existing DataForge footer. Sender display name is "Tom Junker" for this email only (every other email shows "TNPL") — `mailer.js`'s `sendMail` takes an optional `fromName` override for this.
@@ -394,9 +412,12 @@ A real tester's installed iPhone Home Screen app kept showing stale content, sin
 ## Roster status — `firstSignInAt` is the source of truth (TP-038, TP-041)
 `src/lib/rosterStatus.js`: `hasSignedIn(player)` is true if `firstSignInAt` is set OR `inviteStatus` is `accepted`. `classify(player, choice)` derives the Admin Roster screen's four tabs from that plus the player's `sessionEnrollment` choice for the active season (`choiceByPlayerId` from `useRoster`):
 - **Active** — signed in AND opted into a session (`full`/`session_1`/`session_2`); staff are exempt from the season-choice requirement, since they're never asked.
-- **Pending** — invited with no response yet, or signed in but no season answer yet.
-- **To Invite** — never invited (a brand-new add, or an approved join request).
-- **Not Active** — `active: false` (former roster), declined the invite, or signed in but chose "not this season" — the Roster row text distinguishes that last case ("Signed in · Not playing this season") from an actual decline.
+- **Pending** — invited with no response yet, signed in but no season answer yet, **or a recorded playing choice while still not signed in** (TP-074) — Active always requires both signed-in and opted-in.
+- **To Invite** — never invited (a brand-new add, or an approved join request) and no choice recorded.
+- **Not Active** — `active: false` (former roster), declined the invite with no recorded choice, or a recorded `none` choice — whether or not they'd ever signed in (TP-074, fixed a gap where `classify` ignored `choice` entirely for a not-signed-in player, so an admin-set "Not this season" for someone who'd never installed the app used to have no effect at all).
+- `pendingReason(player, choice)` (TP-073) and `notActiveReason(player, choice)` (TP-074) give the *why* behind Pending/Not Active, each `null` outside its own tab: `pendingReason` is `not_signed_in` or `no_season_pick`; `notActiveReason` is `inactive`, `declined`, or `not_this_season` (the caller still checks `hasSignedIn` itself to pick between "Signed in · Not playing this season" and the not-signed-in wording, since one reason maps to two labels). `reminderSkipReason(player, choice)` (TP-073) is the client-side mirror of `resolveReminderTargets` and must change with it.
+
+The player edit sheet's "This season" section (TP-074) lets an admin record a choice directly: current status line (reusing the same 4 labels as Home's own "Are you playing?" picker, `HOME_SEASON_CARD.choices` — not retyped), a "· set by admin" marker when `choiceSetBy === 'admin'`, an inline confirm before saving, and no option to clear back to "no pick yet". It reads the target player's live role/active/choice via its own `onSnapshot` listeners rather than the sheet's frozen player prop (ISS-041 — scoped to just this section; the rest of the sheet, e.g. the Resend/Send button's label, still reads the frozen prop and remains deferred).
 
 A one-time script, `functions/scripts/backfillSignIns.js` (dry-run by default, `--apply` to write, idempotent), sets `firstSignInAt`/`inviteStatus` for anyone with a `playerLinks` doc who's missing them — needed for accounts linked before this logic existed.
 
@@ -471,8 +492,8 @@ Firebase Local Emulator Suite (auth 9099, firestore 8080, functions 5001, UI) un
 - Start: `firebase emulators:start --only auth,firestore,functions --project demo-tnpl`
 - End-to-end pairing check: `node functions/scripts/seedAndRunPairings.js` (repo root) — resets emulator state, seeds `functions/scripts/fixtures/roster.seed.json` (45 players, names + Season 3 Elos only) with synthetic `@example.test` emails, calls the callable as different users, runs 12 checks.
 - Full-league-night demo: `node functions/scripts/seedMatchesDemo.js` — Demo Player/Demo Admin accounts; Week 1 complete and **locked the real way** via `lockWeekInternal` (so it has real `eloHistory`), Week 2 `in_progress` with mixed score states left for Tom to lock/unlock himself, Week 3 `availability_open`. Self-checks include eloHistory doc count, Elo deltas summing to ~0, and `previewWeek` on Week 2.
-- Unit tests: `npm test` from the repo root (Node's built-in test runner, auto-discovers every `*.test.js`) — **392 total** (up from 340 at the start of 2026-10-01, 356 after Batch C), spanning `functions/` and `src/`. `npm test` inside `functions/` alone still works and runs just its own subset.
-- New files added this session: `functions/cancel/cancel.js` + `cancel.test.js` (per-slot cancel/restore), `functions/automation/watchdog.js` + `watchdog.test.js` (overdue-step + crash-alert watchdog), `src/components/CancelBanner.jsx`, `src/pages/admin/CancelWeek.jsx` (route `/admin/cancel`), `ViewMenuPill` (exported from the rewritten `src/components/DinnerGolfLinks.jsx`), and `src/lib/socialTimes.js`'s `playerIds` addition to each dinner/golf-sim bucket (so Home can match the signed-in player by id instead of display name, ISS-036).
+- Unit tests: `npm test` from the repo root (Node's built-in test runner, auto-discovers every `*.test.js`) — **472 total** (392 on Oct 2, up from 340 at the start of 2026-10-01), spanning `functions/` and `src/`. `npm test` inside `functions/` alone still works and runs just its own subset. The weekly-loop rehearsal (`node functions/scripts/runWeeklyLoop.js`) was re-run after the season-choice admin override, since it touches an availability input — still 74/74.
+- New files added since Oct 2: `functions/cancel/cancel.js` + `cancel.test.js` (per-slot cancel/restore), `functions/automation/watchdog.js` + `watchdog.test.js` (overdue-step + crash-alert watchdog), `src/components/CancelBanner.jsx`, `src/pages/admin/CancelWeek.jsx` (route `/admin/cancel`), `ViewMenuPill` (exported from the rewritten `src/components/DinnerGolfLinks.jsx`), `src/lib/socialTimes.js`'s `playerIds` addition to each dinner/golf-sim bucket (ISS-036), and `src/lib/likelySameName.js` + its test file (TP-075).
 - Full weekly-loop dress rehearsal: `node functions/scripts/runWeeklyLoop.js` — see "Full emulator dress rehearsal" above. Separate from the unit-test suite; not run by `npm test`.
 - One-time data scripts (`functions/scripts/`) — `importRoster.js`, `updatePhones.js`, `backfillSignIns.js`, `resetWeekAvailability.js` (refuses if pairings exist for the week; Tom used it against production to reset Week 1 after testing early), `importSeasonHistory.js` (Season 25-26 import, TP-052), `backfillDirectory.js` (contact-privacy directory/playerRatings backfill, TP-057) — all dry-run by default, `--apply` to write, real project or `--emulator`; see BestMethods.md.
 

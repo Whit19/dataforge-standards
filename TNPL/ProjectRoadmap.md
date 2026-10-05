@@ -1,6 +1,6 @@
 # TNPL — Project Roadmap
 
-**Last updated:** 2026-10-03
+**Last updated:** 2026-10-05
 
 ## Phase 0 — Kickoff (done)
 - [x] Repo, Notion, docs, .gitignore, pwa-firebase-rules skill
@@ -52,11 +52,14 @@
 - [x] Found-by-real-tester fixes: players' Rankings/History permission-denied (ISS-028, ISS-029), `useWeekMatches` hiding real errors (ISS-030), History opening on the clicked player (ISS-033), iOS weather-coordinate keyboard (ISS-034), installed PWA not picking up new deploys + a build-time "Updated" stamp (ISS-032)
 - [x] Staff can view Rankings, History and Season summary — reverses TP-016 (TP-063)
 - [x] Part of Batch D message wording: invite email mentions Chrome on Android, "partner with each player once," View menu moved to a header pill, dinner/golf-sim plans bolded consistently and matched by player id (ISS-036)
+- [x] Pending-tab reminder email (`sendInvites` `mode: 'reminder'`, two variants, "Send a test to me"), Roster "Select all" (closes the rest of ISS-035) (TP-073)
+- [x] Admin can set a player's season choice for them, including before they've signed in — `setSeasonSignup` admin override, `classify`/`notActiveReason` fixed to honor it, edit sheet "This season" section (TP-074)
+- [x] Duplicate players: `mergeDuplicatePlayer` admin callable, `resolveJoinRequest`'s `linkToPlayerId`, shared `likelySameName` matcher on both the edit sheet and the Requests tab (ISS-044, TP-075)
 - [ ] Per-slot pairing re-run on change-request approval (deferred, not built — ISS-006)
 - [ ] Whole-week cancel before pairings are sent (reserved, not built — see TP-061; would use the existing, still-unused `WEEK_STATUS.CANCELLED`)
 - [ ] "Invite all" — deliberately held; "Invite selected" is used instead (TP-039, TP-069)
 - [ ] Push notifications, admin progress bar on Home, custom profile fields (rest of Batch D)
-- [ ] After Oct 15: edit sheet reads a point-in-time player copy (ISS-041); tab bar floating on Admin, if it recurs (ISS-042)
+- [ ] After Oct 15: edit sheet reads a point-in-time player copy (ISS-041); tab bar floating on Admin, if it recurs (ISS-042); the reminder's choice-blind `not_signed_in` targeting (ISS-043)
 
 ## Phase 3 — Migration
 - [x] `TNPL_MAIN.xlsx` imported as the initial roster + Season 3 starting Elos (45 players); import-only going forward — Firestore is the source of truth after this (TP-040)

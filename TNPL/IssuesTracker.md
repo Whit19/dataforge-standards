@@ -14,7 +14,7 @@
 ### ISS-041 — The edit sheet reads a point-in-time copy of the player (logged 2026-10-03)
 **Status:** Deferred
 **Description:** `Roster.jsx` stores the tapped row in `sheet.player` and passes it to `PlayerEditSheet`, so the open sheet's labels (e.g. "Send invite" vs "Resend invite") read a frozen snapshot rather than the live doc. The Roster list is unaffected because it reads the live array. This doesn't change what gets sent: the invite result comes from the server response.
-**Resolution:** None yet. Post-Oct 15 cleanup candidate: look the player up by id in the live `players` array on each render.
+**Resolution:** None yet for the invite label. Post-Oct 15 cleanup candidate: look the player up by id in the live `players` array on each render. Not inherited by the new "This season" section (TP-074, 2026-10-05) — that section was built with its own live `onSnapshot` subscriptions for role/active/choice from the start, specifically to avoid this bug.
 
 ### ISS-006 — Per-slot pairing re-run on change-request approval
 

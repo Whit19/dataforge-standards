@@ -22,7 +22,7 @@ Each entry includes: ID, title, decision made, rationale, date, and status.
 - **Status:** Final
 
 ### CGAD-003 — Per-Club Subscription Monetization
-- **Decision:** Clubs pay [amount]–150/month. No per-player payment in v1.
+- **Decision:** Clubs pay [amount]/month. No per-player payment in v1.
 - **Rationale:** Simplest billing model. Club pro/admin is the customer.
 - **Status:** Final
 
@@ -162,7 +162,7 @@ Each entry includes: ID, title, decision made, rationale, date, and status.
 - **Status:** Final
 
 ### CGAD-033 — Hybrid Monetization
-- **Decision:** Free tier + Pro subscription ([amount]–75/month) + per-event option ([amount]–25).
+- **Decision:** Free tier + Pro subscription ([amount]/month) + per-event option ([amount]).
 - **Status:** Pending Phase 5
 
 ### CGAD-034 — Guests: Participate, No Account, No History, Not Billed

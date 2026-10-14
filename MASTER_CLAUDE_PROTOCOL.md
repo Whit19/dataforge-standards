@@ -452,22 +452,28 @@ detail does.
 - Row counts, dates, percentages, and other non-currency quantities
   (transaction counts, account counts, script numbers) are fine — this rule
   is about currency figures specifically, not all numbers.
-- **This applies going forward, not retroactively.** It does not require
-  rewriting DecisionLog's historical entries — DecisionLog is append-only
-  and past entries are never edited or deleted (Section 5c) — nor does it
-  require scrubbing dollar figures already committed in past
-  TechnicalArchitecture.md incident write-ups, BestMethods.md lesson
-  sources, or TimeLog.md session summaries, all of which describe what
-  actually happened at the time.
+- **No historical exemption — this applies to append-only records too, not
+  just live-state content.** An earlier version of this rule exempted
+  DecisionLog/BestMethods/TimeLog's historical entries on the theory that
+  they "describe what actually happened at the time" and are append-only
+  (Section 5c). That exemption is retired: a public repo exposes a real
+  figure (net worth, salary, account balance, home value) exactly the same
+  whether it's labeled "historical" or "current" — the append-only
+  property protects against *losing* information, not against *exposing*
+  it. A past session's writeup still gets the fact on record; it just
+  states the fact qualitatively, the same as a live-state table would.
 - A **live-state** table (one that gets rewritten every session to reflect
-  current reality, as opposed to an append-only historical record) should
-  stop carrying dollar figures the next time it's touched — e.g.
-  SessionStarter.md's Net Worth Summary now points at the Power BI report /
-  `vw_net_worth` instead of hardcoding a total (see the companion CC prompt
-  for that specific edit).
-- If a future doc-sync (Section 14) would introduce a new dollar figure into
-  any of these files, rephrase it qualitatively instead, the same as any
-  other content that shouldn't go in a public file.
+  current reality) should stop carrying dollar figures the next time it's
+  touched — e.g. SessionStarter.md's Net Worth Summary now points at the
+  Power BI report / `vw_net_worth` instead of hardcoding a total.
+- Any doc-sync (Section 14) or DecisionLog/BestMethods/TimeLog entry,
+  historical or current, that would introduce a dollar figure must rephrase
+  it qualitatively instead — no exceptions by file or by section.
+- This repo's own history still contains dollar figures committed before
+  this rule tightened (2026-10-14) — see the companion git-history cleanup
+  for closing that gap retroactively. A tightened rule governs what gets
+  committed from here forward; it doesn't by itself erase what's already
+  pushed.
 
 ---
 

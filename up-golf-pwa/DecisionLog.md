@@ -726,8 +726,8 @@ since 2026 is the current active outing).
 
 ### DEC-160 — Full payout breakdown by category added to TournamentResultsPDF
 New "Payout Breakdown" table added to `TournamentResultsPDF.jsx`, placed
-between Final Standings and Top 5 Winners. Ranked highest-paid to $0,
-including $0 players (not filtered out, consistent with the ranking
+between Final Standings and Top 5 Winners. Ranked highest-paid to [amount],
+including [amount] players (not filtered out, consistent with the ranking
 convention established earlier this session). Live mode shows six columns
 (R1 Skins, R2 Skins, R2 Match, R3 Scramble, R4 Skins, R4 Match) built from
 `matches.winner`/`prizePerPlayer`, `skinsByRound[rn].playerSummary`, and

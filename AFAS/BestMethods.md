@@ -1287,7 +1287,7 @@ snapshot_date per holding_id" is trivially always true for every row
 (each `holding_id` only ever has one date), and the filter became a
 silent no-op: every historical snapshot summed together instead of just
 the latest one. Total came out ~13x too high ([amount] vs. an expected
-[amount]–10.8M) before the mismatch was caught. When filtering any table to
+[amount]) before the mismatch was caught. When filtering any table to
 "latest per X," X must be the thing that actually gets a new row on each
 update cycle (here: source + account) — never a key that already has the
 date folded into it, or the filter can't distinguish "this row's date"
@@ -1368,17 +1368,17 @@ sequence non-recursively instead — works inside a view, no recursion
 limit to hit.
 *Source: Session 21 — vw_net_worth_all_time month spine*
 
-### A historical source that simply stops mentioning a closed account (instead of recording a final $0) will make forward-fill carry a stale balance forever
+### A historical source that simply stops mentioning a closed account (instead of recording a final [amount]) will make forward-fill carry a stale balance forever
 
 Two accounts in the CSV backfill (an old 401k that rolled over, an old
 HSA custodian) just stop appearing in the source data once closed,
-rather than showing one last $0 row. Combined with the forward-fill
+rather than showing one last [amount] row. Combined with the forward-fill
 lesson above, this meant their last real balance ([amount] and [amount])
 carried forward into every subsequent month indefinitely — a real
 [amount] discrepancy against the live net worth total, only caught by
 reconciling the combined view's total against the live source of truth
 rather than assuming the merge was correct. Any account known to be
-closed needs an explicit $0 (or otherwise terminal) row before
+closed needs an explicit [amount] (or otherwise terminal) row before
 forward-fill logic runs, or it silently keeps contributing forever.
 *Source: Session 21 — vw_net_worth_all_time, Tom 401K / HSA-GW closure*
 

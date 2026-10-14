@@ -30,11 +30,11 @@
 - [x] Change-request auto-create on mid-season opt-out from an already-published week (TP-027); admin approve/deny UI for change requests **not built yet**
 - [x] Roster signed-in-status fix: `firstSignInAt` as the source of truth, no-downgrade rule on re-invite (TP-038); one-time backfill run
 - [x] First deploy: rules, functions, hosting — done; Cloud Run public invoker access set for every callable/HTTP function as it was added
-- [x] Roster tab redesign: Active / Pending / To Invite / Not Active, replacing the old three-tab version that put every never-invited player in Active (ISS-014, TP-041)
+- [x] Roster tab redesign: Active / Pending / To Invite / Not Active, replacing the old three-tab version that put every never-invited player in Active (TPI-014, TP-041)
 - [x] Public, admin-editable "Rules & league info" page (`/info`, `leagueInfo/main`) + admin editor (`/admin/info`); Home's initials link replaced with an "ⓘ Info" pill (TP-042)
 - [x] Public "Request to join" page (`/join`), the existing join-request form extracted to a shared component (TP-042)
 - [x] iPhone install steps updated for iOS 26 Safari (••• before Share) across the install gate, install-help sheet, and invite email
-- [x] Availability collection UI — existing questions plus dinner / golf-sim questions (writes `socialPlans`); `weekId`/`playerId` fields on availability docs (ISS-005 resolved); Monday-morning email + Tuesday reminder; one-tap email answers; admin response tracker (TP-044)
+- [x] Availability collection UI — existing questions plus dinner / golf-sim questions (writes `socialPlans`); `weekId`/`playerId` fields on availability docs (TPI-005 resolved); Monday-morning email + Tuesday reminder; one-tap email answers; admin response tracker (TP-044)
 - [x] Weekly dinner / golf-sim section UI (admin + staff + players) — shared `SocialPlanEditor` on both Matches and Home
 - [x] Player Matches page (compact style) + score entry (`matchGroups.sets`, per-set lineups from `setLineups`; any-order set entry; editable until locked) (TP-045)
 - [x] Lock Week admin function (Elo calc reading each set's teams from `setLineups` + `players.currentElo` update), transactional lock/unlock, Tuesday reminder + Wednesday auto-lock, admin "Scores and lock" screen (`/admin/scores`) (TP-046, TP-047, TP-048)
@@ -43,24 +43,24 @@
 - [x] Settings: Elo/pairing values, default + per-week time slots (with per-slot courts), skip a week, admins, golf-sim link, League contact, and an uploaded menu PDF in Firebase Storage (TP-053, TP-054); new admin `Season.jsx` screen
 - [x] Week extras: a per-week dinner special and an optional yes/no question, in the app, the Monday email, and the email answer page, with a tracker summary (TP-055)
 - [x] Players tab + real contact privacy: server-maintained `directory`/`playerRatings` collections, a listing rule (active + signed in + opted in; staff once active), hide-my-phone/email switches, a League contact for "Text Tom," and `players` reads locked to admin + self (TP-056, TP-057)
-- [x] Full emulator dress rehearsal of the weekly loop (`functions/scripts/runWeeklyLoop.js`), 74/74 PASS (TP-059); found and fixed a real bug (`directorySync` crashing on a `players` doc missing `seasonStartElo`, ISS-027/TP-058)
+- [x] Full emulator dress rehearsal of the weekly loop (`functions/scripts/runWeeklyLoop.js`), 74/74 PASS (TP-059); found and fixed a real bug (`directorySync` crashing on a `players` doc missing `seasonStartElo`, TPI-027/TP-058)
 - [x] Batch C — weather: forecast library + tests, a "Weather location" Settings row, the Home weather card (coldest-slot layer badge, wind, rain/snow) (TP-060)
 - [x] Cancel a night or slot: per-slot `matchGroups.status: 'cancelled'` after pairings are sent, admin `cancelSlots`/`restoreSlot` callables with emails, Lock/Elo and pairing-history handling, Home/Matches banners and cancelled-card states, admin `/admin/cancel` screen (TP-061, TP-062)
 - [x] Automation watchdog: hourly check that `weeklyAutomation`'s steps actually ran, plus a crash alert on the automation itself (TP-066)
-- [x] Roster "Invite selected" in select mode, reusing `sendInvites` (ISS-035) — used for the Oct 3 invite send (two days ahead of the planned Oct 5) instead of un-holding "Invite all" (TP-069)
-- [x] Invite-day fixes: decline link no longer records on GET (ISS-038, TP-070); a single-player re-invite can reach a declined player who never signed in (ISS-039, TP-071); "Resend invite" shows its real result inline (ISS-040, TP-072)
-- [x] Found-by-real-tester fixes: players' Rankings/History permission-denied (ISS-028, ISS-029), `useWeekMatches` hiding real errors (ISS-030), History opening on the clicked player (ISS-033), iOS weather-coordinate keyboard (ISS-034), installed PWA not picking up new deploys + a build-time "Updated" stamp (ISS-032)
+- [x] Roster "Invite selected" in select mode, reusing `sendInvites` (TPI-035) — used for the Oct 3 invite send (two days ahead of the planned Oct 5) instead of un-holding "Invite all" (TP-069)
+- [x] Invite-day fixes: decline link no longer records on GET (TPI-038, TP-070); a single-player re-invite can reach a declined player who never signed in (TPI-039, TP-071); "Resend invite" shows its real result inline (TPI-040, TP-072)
+- [x] Found-by-real-tester fixes: players' Rankings/History permission-denied (TPI-028, TPI-029), `useWeekMatches` hiding real errors (TPI-030), History opening on the clicked player (TPI-033), iOS weather-coordinate keyboard (TPI-034), installed PWA not picking up new deploys + a build-time "Updated" stamp (TPI-032)
 - [x] Staff can view Rankings, History and Season summary — reverses TP-016 (TP-063)
-- [x] Part of Batch D message wording: invite email mentions Chrome on Android, "partner with each player once," View menu moved to a header pill, dinner/golf-sim plans bolded consistently and matched by player id (ISS-036)
-- [x] Pending-tab reminder email (`sendInvites` `mode: 'reminder'`, two variants, "Send a test to me"), Roster "Select all" (closes the rest of ISS-035) (TP-073)
+- [x] Part of Batch D message wording: invite email mentions Chrome on Android, "partner with each player once," View menu moved to a header pill, dinner/golf-sim plans bolded consistently and matched by player id (TPI-036)
+- [x] Pending-tab reminder email (`sendInvites` `mode: 'reminder'`, two variants, "Send a test to me"), Roster "Select all" (closes the rest of TPI-035) (TP-073)
 - [x] Admin can set a player's season choice for them, including before they've signed in — `setSeasonSignup` admin override, `classify`/`notActiveReason` fixed to honor it, edit sheet "This season" section (TP-074)
-- [x] Duplicate players: `mergeDuplicatePlayer` admin callable, `resolveJoinRequest`'s `linkToPlayerId`, shared `likelySameName` matcher on both the edit sheet and the Requests tab (ISS-044, TP-075)
-- [x] Reminder-send timeout incident fixed: `sendInvites` explicit 540s server + client `httpsCallable` timeout, a 24h `reminded_recently` duplicate-send guard with a server-only `force` bypass, a friendly timeout message, "Reminded {date}" on Pending rows, and skip-count/button wording changes (ISS-045, TP-076)
-- [ ] Per-slot pairing re-run on change-request approval (deferred, not built — ISS-006)
+- [x] Duplicate players: `mergeDuplicatePlayer` admin callable, `resolveJoinRequest`'s `linkToPlayerId`, shared `likelySameName` matcher on both the edit sheet and the Requests tab (TPI-044, TP-075)
+- [x] Reminder-send timeout incident fixed: `sendInvites` explicit 540s server + client `httpsCallable` timeout, a 24h `reminded_recently` duplicate-send guard with a server-only `force` bypass, a friendly timeout message, "Reminded {date}" on Pending rows, and skip-count/button wording changes (TPI-045, TP-076)
+- [ ] Per-slot pairing re-run on change-request approval (deferred, not built — TPI-006)
 - [ ] Whole-week cancel before pairings are sent (reserved, not built — see TP-061; would use the existing, still-unused `WEEK_STATUS.CANCELLED`)
 - [ ] "Invite all" — deliberately held; "Invite selected" is used instead (TP-039, TP-069)
 - [ ] Push notifications, admin progress bar on Home, custom profile fields (rest of Batch D)
-- [ ] After Oct 15: edit sheet reads a point-in-time player copy (ISS-041); tab bar floating on Admin, if it recurs (ISS-042); the reminder's choice-blind `not_signed_in` targeting (ISS-043)
+- [ ] After Oct 15: edit sheet reads a point-in-time player copy (TPI-041); tab bar floating on Admin, if it recurs (TPI-042); the reminder's choice-blind `not_signed_in` targeting (TPI-043)
 
 ## Phase 3 — Migration
 - [x] `TNPL_MAIN.xlsx` imported as the initial roster + Season 3 starting Elos (45 players); import-only going forward — Firestore is the source of truth after this (TP-040)

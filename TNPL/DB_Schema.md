@@ -111,9 +111,14 @@ availability/{weekId}_{playerId}
                                          // only asked of/counted for players who said they're playing
   respondedAt                           // set on the FIRST answer only; edits never move this (TP-044)
   updatedAt                             // changes on every write, including edits
+  setBy: 'player' | 'admin'             // 'admin' sets setByUid too; 'player' clears it (TP-077,
+  setByUid                              // mirrors sessionEnrollment's choiceSetBy/choiceSetByUid, TP-074)
   // Admin-write only in firestore.rules — every write goes through a server
   // callable (saveAvailability / answerAvailabilityByToken), never a direct
   // client write, so respondedAt/the Wednesday lock can't be bypassed (TP-044).
+  // saveAvailability also accepts an optional playerId for an admin setting
+  // it on someone else's behalf, skipping the player's own answer-window
+  // check (TP-077).
 
 availabilityTokens/{tokenHash}
   weekId, playerId, answer: 'yes' | 'no', expiresAt, testOnly

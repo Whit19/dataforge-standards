@@ -28,12 +28,12 @@ Spanning Sun Oct 4 evening through Mon Oct 5 midday (~3 hours total):
 - **All league invites sent: Sat Oct 3.** Follow-up window through Oct 11 is done.
 - **Week 1 is in flight right now** (Chicago time, `weeks/2026-10-15`): availability opened Mon Oct 12; reminder sent Tue Oct 13; draft built Wed Oct 14, 9:00 AM; pairings sent Wed Oct 14, 5:00 PM; finalize is Thu Oct 15, 8:00 AM.
 - **Deploy freeze Oct 14–15** around the first live pairing/match cycle — one exception made same-day for TP-077 at Tom's explicit, urgent request (see Current status above); otherwise still in force through Thu night.
-- **First league night: tonight, Thu Oct 15.**
+- **First league night: Thu Oct 15** (this doc was last updated Wed Oct 14, the day before).
 - First lock / auto-lock: before **Wed Oct 21, 9 AM**.
 - **Merges are only possible before a duplicate has any game history** (`eloHistory`/`matchGroups`/`availability`/`changeRequests`) — the Oct 14 draft has now been built, so any remaining merge needs to happen before that player plays.
 
 ## Next priorities
-1. Get through tonight's first league night — watch for anything unexpected in live scoring/Lock Week, since this is the first real end-to-end run of the whole weekly loop.
+1. Get through Thursday Oct 15's first league night — watch for anything unexpected in live scoring/Lock Week, since this is the first real end-to-end run of the whole weekly loop.
 2. Respect the **Oct 14–15** deploy freeze for anything other than a genuinely urgent, Tom-approved exception (see TP-077).
 3. First lock / auto-lock before **Wed Oct 21, 9 AM** — this is the first time that path runs against real data.
 4. Use "Link to {name}" on new join requests from people already on the roster, not plain Approve.

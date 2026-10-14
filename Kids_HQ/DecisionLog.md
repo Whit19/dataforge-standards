@@ -85,7 +85,7 @@ Each entry has:
 
 **Rationale:** ICS feeds are served from external domains (TeamSnap, LeagueApps, etc.) with no CORS headers. Direct browser fetch fails. Multiple proxies provide resilience when one is rate-limited or down.
 
-**Status:** **Superseded by AD-10.** In practice this became the dashboard's single biggest reliability problem (see ISSUE-002) — kept here for history.
+**Status:** **Superseded by AD-10.** In practice this became the dashboard's single biggest reliability problem (see HQI-002) — kept here for history.
 
 ---
 
@@ -231,7 +231,7 @@ Each entry has:
 
 **Rationale:** Not everything comes via email. Some coaches use only app-native messaging. Manual paste ensures the briefing stays useful even with incomplete email coverage.
 
-**Status:** Active, but see ISSUE-001 — manual updates are still not being passed to Claude's prompt, and the tab's hardcoded 7-app list (TeamSnap/SportsEngine/GameChanger/GroupMe/Playmetrics/League/Carpool Kids) now predates the user-editable Activity/sender model from AD-12, so it no longer necessarily matches what the user has actually configured. Worth reworking both gaps together rather than separately.
+**Status:** Active, but see HQI-001 — manual updates are still not being passed to Claude's prompt, and the tab's hardcoded 7-app list (TeamSnap/SportsEngine/GameChanger/GroupMe/Playmetrics/League/Carpool Kids) now predates the user-editable Activity/sender model from AD-12, so it no longer necessarily matches what the user has actually configured. Worth reworking both gaps together rather than separately.
 
 ---
 
@@ -255,7 +255,7 @@ Each entry has:
 
 **Follow-up (same phase):** the user reported this as "not working" for Summary rather than accepting it as a known limitation — a fair reaction, since a filter pill that visibly does nothing on one whole tab reads as broken. Rather than re-explain the limitation, Claude's requested JSON schema was extended: cards, timeline entries, and actions each now get a `childIds: [...]` field, populated using a `KNOWN CHILDREN (id = name)` legend fed into the prompt. Items with no tag (general/unclear) default to showing under every filter instead of disappearing, so an AI miss degrades gracefully rather than silently hiding content.
 
-**Status:** Active. Because the tagging comes from the model's own output rather than deterministic code, treat it as "monitoring" quality, not guaranteed — see ISSUE-010.
+**Status:** Active. Because the tagging comes from the model's own output rather than deterministic code, treat it as "monitoring" quality, not guaranteed — see HQI-010.
 
 ---
 
@@ -319,11 +319,11 @@ Each entry has:
 
 **Decision:** Both prompt builders (`buildSportsPrompt`, `buildSchoolPrompt`) now receive `todayISO` explicitly and an instruction to never surface a card/timeline/action item whose date has already passed relative to it. Timeline and action items now also carry a `dateISO` field (YYYY-MM-DD), used by the dashboard to (a) drop any item with a past date client-side regardless of what the model returned, and (b) group the 7-Day Schedule by actual day.
 
-**Rationale:** The app intentionally feeds Claude the full rolling email history for context (AD-09/BM-14 — nothing gets missed), which means old emails describing since-passed events are always present. Without an explicit rule and a deterministic backstop, that intentional design surfaced stale information as if current (ISSUE-011) — confirmed directly: a briefing generated Aug 17 included a volunteer signup for an event that happened Aug 15.
+**Rationale:** The app intentionally feeds Claude the full rolling email history for context (AD-09/BM-14 — nothing gets missed), which means old emails describing since-passed events are always present. Without an explicit rule and a deterministic backstop, that intentional design surfaced stale information as if current (HQI-011) — confirmed directly: a briefing generated Aug 17 included a volunteer signup for an event that happened Aug 15.
 
 **Alternatives Considered:**
 - Trim the email history window fed to Claude — rejected, defeats the purpose of AD-09/BM-14 (missing real context is worse than including old context, as long as staleness is handled)
-- Rely on the prompt instruction alone, no client-side backstop — rejected, consistent with this project's established practice (see ISSUE-010/PD-04) of not fully trusting model instruction-following for anything filterable deterministically
+- Rely on the prompt instruction alone, no client-side backstop — rejected, consistent with this project's established practice (see HQI-010/PD-04) of not fully trusting model instruction-following for anything filterable deterministically
 
 **Status:** Active. See also BestMethods BM-20.
 
@@ -333,7 +333,7 @@ Each entry has:
 
 **Decision:** The `?cal=` payload sent from the dashboard to GAS now includes a `di` field (ISO date), sourced directly from the browser's own `Date` object for each loaded calendar event. GAS stores it in a new `DateISO` column on each category's CalendarEvents sheet and surfaces it explicitly in the prompt's CALENDAR EVENTS section as `{dateISO: YYYY-MM-DD}` next to each event. The prompt now instructs Claude to copy that value directly for calendar-sourced items rather than compute it.
 
-**Rationale:** Before this change, calendar events were only described to Claude with a display string like `"Mon, Aug 17"` — no year, no real computed date — requiring Claude to infer the actual calendar date from context. This was unreliable in practice: calendar-derived timeline items (recurring practices, a tee time, a tryout) were landing in an undated "Other" bucket instead of their correct day (ISSUE-013). The fix removes the need for the model to compute something the app already knows for certain.
+**Rationale:** Before this change, calendar events were only described to Claude with a display string like `"Mon, Aug 17"` — no year, no real computed date — requiring Claude to infer the actual calendar date from context. This was unreliable in practice: calendar-derived timeline items (recurring practices, a tee time, a tryout) were landing in an undated "Other" bucket instead of their correct day (HQI-013). The fix removes the need for the model to compute something the app already knows for certain.
 
 **Alternatives Considered:**
 - Ask Claude more forcefully to compute the date correctly (stronger prompt wording only) — rejected as the primary fix; the underlying problem is unnecessary model computation, not insufficient instruction
@@ -357,7 +357,7 @@ Each entry has:
 
 ### AD-19 (operational, not code) — Deployment Must Always Come From `tjunker9@gmail.com`
 
-**Decision/finding:** Apps Script's "Execute as: Me" binds a deployment permanently to whichever Google account was logged in at Deploy time. A deployment made from any account other than `tjunker9@gmail.com` (the Gmail inbox actually being scanned) silently breaks all Gmail operations, with no error until a Gmail-touching action is exercised — see IssuesTracker ISSUE-016 for the full diagnosis, which involved ruling out a stale OAuth token and missing consent before landing on the actual cause.
+**Decision/finding:** Apps Script's "Execute as: Me" binds a deployment permanently to whichever Google account was logged in at Deploy time. A deployment made from any account other than `tjunker9@gmail.com` (the Gmail inbox actually being scanned) silently breaks all Gmail operations, with no error until a Gmail-touching action is exercised — see IssuesTracker HQI-016 for the full diagnosis, which involved ruling out a stale OAuth token and missing consent before landing on the actual cause.
 
 **Rationale for logging this as a decision, not just a bug fix:** there is no code change that prevents this — it's a standing operational rule that needs to survive across sessions and devices, not something a future fix can eliminate.
 
@@ -382,7 +382,7 @@ Each entry has:
 
 **Decision:** `ANTHROPIC_API_KEY`, `GROUPME_ACCESS_TOKEN`, and any future script-level secret are read via `PropertiesService.getScriptProperties().getProperty(...)` at runtime, set manually through the Apps Script editor's Project Settings → Script Properties UI — never as a literal string assigned to a const in `SportsEmailScanner.gs`.
 
-**Rationale:** A live Anthropic API key was committed to this file as a plaintext const and pushed to the repo's remote (see IssuesTracker ISSUE-017). BestMethods BM-15 had assumed "the GAS script isn't stored in GitHub" as the safeguard — that assumption didn't hold in practice, since the file is git-tracked (in a private repo, but see BM-23: private isn't a durable secret boundary). PropertiesService removes the secret from any file that could ever be committed, regardless of repo visibility or tracking status.
+**Rationale:** A live Anthropic API key was committed to this file as a plaintext const and pushed to the repo's remote (see IssuesTracker HQI-017). BestMethods BM-15 had assumed "the GAS script isn't stored in GitHub" as the safeguard — that assumption didn't hold in practice, since the file is git-tracked (in a private repo, but see BM-23: private isn't a durable secret boundary). PropertiesService removes the secret from any file that could ever be committed, regardless of repo visibility or tracking status.
 
 **Alternatives Considered:**
 - Relying on repo privacy alone — rejected; private repos aren't a durable secret boundary (collaborators, an accidental visibility change, or a compromised GitHub account all bypass it)
@@ -415,7 +415,7 @@ Each entry has:
 **Alternatives Considered:**
 - Derive Activity from the card's existing `source` string (e.g. "Coach Emmett") — rejected; sources don't map 1:1 to Activities, and email rows already carry a deterministic `activityId` upstream that the prompt can just pass through instead of asking the model to re-derive it.
 
-**Status:** Active. Same graceful-degradation rule as `childIds` (PD-04): an item with no/unresolved `activityId` shows under every Activity filter rather than disappearing. Treat as "monitoring" quality, not guaranteed, for the same reason as ISSUE-010 — see BestMethods BM-25.
+**Status:** Active. Same graceful-degradation rule as `childIds` (PD-04): an item with no/unresolved `activityId` shows under every Activity filter rather than disappearing. Treat as "monitoring" quality, not guaranteed, for the same reason as HQI-010 — see BestMethods BM-25.
 
 ---
 
@@ -499,7 +499,7 @@ in Google Calendar's own UI only changes his personal display of a
 calendar he doesn't own — `CalendarApp` still reads the calendar's real
 underlying name ("U17/U18 Girls Blue"), which has no substring
 relationship to the display name he wants on cards and in the dashboard.
-The same root cause already explained the WNS Lax case in ISSUE-020.
+The same root cause already explained the WNS Lax case in HQI-020.
 Splitting the two purposes into separate fields removes the forced
 trade-off between a meaningful display name and a working calendar match.
 
@@ -607,9 +607,9 @@ under the ceiling.
 **Rationale:** Single source of truth for calendar data; matches the "read from last scan" pattern Email History already uses; removes a redundant data path that had no relationship to the Daily Briefing's own calendar scan and could show a different picture of "what's on the calendar" than Summary did.
 
 **Alternatives Considered:**
-- Keep the two pipelines separate — rejected; this is exactly the disconnect that produced ISSUE-020/025-class confusion, and having two independently-sourced calendar views was never a deliberate design choice.
+- Keep the two pipelines separate — rejected; this is exactly the disconnect that produced HQI-020/025-class confusion, and having two independently-sourced calendar views was never a deliberate design choice.
 
-**Status:** Active. The `.ics` subscription pipeline (`fetchIcsServerSide`, `action=ics`) and its Settings UI were removed from the frontend (see PD-12), but the backend handler itself and the `cals` config field were deliberately left in place as unused/dead code rather than deleted, to avoid risk during rollout — see IssuesTracker ISSUE-030 for the future cleanup item.
+**Status:** Active. The `.ics` subscription pipeline (`fetchIcsServerSide`, `action=ics`) and its Settings UI were removed from the frontend (see PD-12), but the backend handler itself and the `cals` config field were deliberately left in place as unused/dead code rather than deleted, to avoid risk during rollout — see IssuesTracker HQI-030 for the future cleanup item.
 
 ---
 
@@ -656,7 +656,7 @@ under the ceiling.
 **Alternatives Considered:**
 - Auto-expand urgent-tagged cards by default — rejected; all cards collapse by default regardless of tag/urgency, a deliberate choice for consistency over surfacing urgent items pre-expanded.
 
-**Status:** Active. See IssuesTracker ISSUE-023/024 for two same-session bugs this exposed in the 7-Day Schedule/Action Items sections, which hadn't originally been designed to also default-collapsed.
+**Status:** Active. See IssuesTracker HQI-023/024 for two same-session bugs this exposed in the 7-Day Schedule/Action Items sections, which hadn't originally been designed to also default-collapsed.
 
 ---
 
@@ -666,7 +666,7 @@ under the ceiling.
 
 **Rationale:** Dead UI for a data path the Calendars tab no longer uses — leaving it in Settings would let a user configure something with no effect.
 
-**Status:** Active. The backend's `cals` config field and `action=ics` handler were left in place, unused, rather than removed in the same pass — see IssuesTracker ISSUE-030.
+**Status:** Active. The backend's `cals` config field and `action=ics` handler were left in place, unused, rather than removed in the same pass — see IssuesTracker HQI-030.
 
 ---
 
@@ -705,12 +705,12 @@ under the ceiling.
 
 ### PD-16 — Manual Updates Tab Removed Entirely
 
-**Decision:** The Manual Updates tab and its seven hardcoded per-app textareas are removed from both nav bars and the DOM entirely, rather than finally wired into the Claude prompt as ISSUE-001 had proposed. Settings' placement was evaluated against moving into the freed bottom-nav slot and deliberately left in the header gear icon. In the same pass, mobile bottom-nav icons were switched from the Tabler icon-font glyphs to plain emoji (matching what desktop's tab-nav already used — Tom preferred that look), and the now-unused Tabler filled-icon override rules (`ti-bolt`, `ti-calendar`, `ti-mail`, `ti-check`, `ti-edit`) were deleted; `ti-settings` (still used by the header gear) and the shared `.ti-solid` base rule/`@font-face` were kept, since they're still needed.
+**Decision:** The Manual Updates tab and its seven hardcoded per-app textareas are removed from both nav bars and the DOM entirely, rather than finally wired into the Claude prompt as HQI-001 had proposed. Settings' placement was evaluated against moving into the freed bottom-nav slot and deliberately left in the header gear icon. In the same pass, mobile bottom-nav icons were switched from the Tabler icon-font glyphs to plain emoji (matching what desktop's tab-nav already used — Tom preferred that look), and the now-unused Tabler filled-icon override rules (`ti-bolt`, `ti-calendar`, `ti-mail`, `ti-check`, `ti-edit`) were deleted; `ti-settings` (still used by the header gear) and the shared `.ti-solid` base rule/`@font-face` were kept, since they're still needed.
 
-**Rationale:** Confirmed dead UI — the textarea values were never read anywhere in the file, on either the Gmail-scan or prompt-building path. Closing ISSUE-001 by removal reflects that the underlying senders/Activity model (AD-12) has fully superseded what Manual Updates was trying to work around; keeping Settings in the header reaffirms PD-09's mobile-ergonomics rationale rather than reversing it now that a nav slot is free. The icon swap piggybacked on the same nav-bar edit rather than being separately motivated.
+**Rationale:** Confirmed dead UI — the textarea values were never read anywhere in the file, on either the Gmail-scan or prompt-building path. Closing HQI-001 by removal reflects that the underlying senders/Activity model (AD-12) has fully superseded what Manual Updates was trying to work around; keeping Settings in the header reaffirms PD-09's mobile-ergonomics rationale rather than reversing it now that a nav slot is free. The icon swap piggybacked on the same nav-bar edit rather than being separately motivated.
 
 **Alternatives Considered:**
-- Rebuild it to generate one textarea per configured Activity and actually wire it into the prompt, per ISSUE-001's original recommendation — rejected; with senders/GroupMe/Google Calendar all already covering live data ingestion, a manual-paste fallback no longer earns its UI footprint.
+- Rebuild it to generate one textarea per configured Activity and actually wire it into the prompt, per HQI-001's original recommendation — rejected; with senders/GroupMe/Google Calendar all already covering live data ingestion, a manual-paste fallback no longer earns its UI footprint.
 - Move Settings into the bottom-nav slot Manual Updates leaves behind — evaluated and rejected, staying in the header.
 
 **Status:** Active.
@@ -751,10 +751,10 @@ under the ceiling.
 > Add entries when decisions are made, revisited, or reversed.
 
 - **Session 1 (Mar 2026):** Log initialized. Decisions AD-01 through AD-09, DD-01 through DD-03, PD-01 through PD-02 documented from MVP state.
-- **Session — 2026-08-17:** School HQ delivered as a Unified dashboard (PD-03, superseding PD-01). Settings rebuilt around a Child → Activity linking model (AD-12) with cloud sync (AD-11, superseding AD-06). ICS fetching moved server-side through GAS (AD-10, superseding AD-05), which also fixed ISSUE-002. Added a global Child filter (PD-04), later extended to the Summary tab via structured `childIds` tagging in Claude's output. Two real bugs found and fixed with root-caused, test-verified diagnoses: a `document`-shadowing bug blocking Add/Edit/Delete Child (AD-13), and a stale-tag bug in the rolling email history merge (AD-14). See IssuesTracker.md for the corresponding closed issues.
-- **Session — 2026-08-17 (later session):** Unified the previously-separate per-sender/per-calendar-name filters into one Category→Child→Activity cascade (PD-05). Moved scan window to a global setting (AD-15). Fixed the briefing surfacing already-passed content, with both a prompt rule and a deterministic client-side backstop (AD-16). Removed the need for Claude to infer calendar dates by passing real computed ISO dates through instead (AD-17), fixing a real bug (ISSUE-013) this exposed. Added a persistent, local-only To-Do list (AD-18). Root-caused and resolved a "Gmail operation not allowed" failure to a wrong-account deployment — logged as a standing operational rule, not a code fix (AD-19). See IssuesTracker.md ISSUE-011 through ISSUE-016 for the corresponding closed issues.
-- **Session — 2026-08-18:** Began GroupMe integration (AD-20) and PWA installability plumbing (AD-22). Mid-session, discovered and fully remediated a leaked Anthropic API key: rotated, migrated to Script Properties along with the new GroupMe token (AD-21), and scrubbed from git history. See IssuesTracker ISSUE-017 for the full incident record.
-- **Session — 2026-08-19:** Extended the Activity filter to Summary via `activityId` tagging, mirroring PD-04's `childIds` pattern (PD-06); added a "Child — Sport — Source" briefing card header (PD-07). Fixed Email History's display (Activity name shown per row, found-count reflects active filters) — see IssuesTracker ISSUE-018. Fixed GroupMe rows always showing the literal label "GroupMe" instead of the configured group name, plus a Settings source-count gap that omitted GroupMe groups — see IssuesTracker ISSUE-019. Synced the To-Do list to GAS, closing out AD-18 (AD-24). Replaced the entire `.ics` calendar pipeline feeding the briefing with a direct, server-side Google Calendar scan using hybrid calendar-name + title/description matching (AD-23) — a user-requested architecture change, not a bug fix. Backfilled BestMethods BM-22 through BM-24, which had been referenced by AD-21/ISSUE-017 since 2026-08-18 but never actually written.
+- **Session — 2026-08-17:** School HQ delivered as a Unified dashboard (PD-03, superseding PD-01). Settings rebuilt around a Child → Activity linking model (AD-12) with cloud sync (AD-11, superseding AD-06). ICS fetching moved server-side through GAS (AD-10, superseding AD-05), which also fixed HQI-002. Added a global Child filter (PD-04), later extended to the Summary tab via structured `childIds` tagging in Claude's output. Two real bugs found and fixed with root-caused, test-verified diagnoses: a `document`-shadowing bug blocking Add/Edit/Delete Child (AD-13), and a stale-tag bug in the rolling email history merge (AD-14). See IssuesTracker.md for the corresponding closed issues.
+- **Session — 2026-08-17 (later session):** Unified the previously-separate per-sender/per-calendar-name filters into one Category→Child→Activity cascade (PD-05). Moved scan window to a global setting (AD-15). Fixed the briefing surfacing already-passed content, with both a prompt rule and a deterministic client-side backstop (AD-16). Removed the need for Claude to infer calendar dates by passing real computed ISO dates through instead (AD-17), fixing a real bug (HQI-013) this exposed. Added a persistent, local-only To-Do list (AD-18). Root-caused and resolved a "Gmail operation not allowed" failure to a wrong-account deployment — logged as a standing operational rule, not a code fix (AD-19). See IssuesTracker.md HQI-011 through HQI-016 for the corresponding closed issues.
+- **Session — 2026-08-18:** Began GroupMe integration (AD-20) and PWA installability plumbing (AD-22). Mid-session, discovered and fully remediated a leaked Anthropic API key: rotated, migrated to Script Properties along with the new GroupMe token (AD-21), and scrubbed from git history. See IssuesTracker HQI-017 for the full incident record.
+- **Session — 2026-08-19:** Extended the Activity filter to Summary via `activityId` tagging, mirroring PD-04's `childIds` pattern (PD-06); added a "Child — Sport — Source" briefing card header (PD-07). Fixed Email History's display (Activity name shown per row, found-count reflects active filters) — see IssuesTracker HQI-018. Fixed GroupMe rows always showing the literal label "GroupMe" instead of the configured group name, plus a Settings source-count gap that omitted GroupMe groups — see IssuesTracker HQI-019. Synced the To-Do list to GAS, closing out AD-18 (AD-24). Replaced the entire `.ics` calendar pipeline feeding the briefing with a direct, server-side Google Calendar scan using hybrid calendar-name + title/description matching (AD-23) — a user-requested architecture change, not a bug fix. Backfilled BestMethods BM-22 through BM-24, which had been referenced by AD-21/HQI-017 since 2026-08-18 but never actually written.
 - **Session — 2026-08-21:** Confirmed the AD-23 Google Calendar scan
   working end-to-end; root-caused the one real failure (a subscribed
   calendar's display rename doesn't change what `CalendarApp` reads) and
@@ -764,19 +764,19 @@ under the ceiling.
   entirely (AD-28). Relabeled "Children" to "Family members" in the UI,
   label-only (PD-08). All four decisions are designed and prompted via 8
   CC prompts generated this session — none deployed yet as of this entry.
-- **Session — 2026-08-26:** Full UI/PWA polish pass on Summary and Calendars, all deployed and confirmed working. Summary: filter/nav layout overhaul (PD-09), Category pulled into its own swipeable/pill control (PD-10), briefing cards collapsed-by-default (PD-11). Project-wide typography swap to Quicksand/Nunito Sans, superseding DD-01 (DD-04). Calendars: migrated off the `.ics` subscription pipeline onto scanned Google Calendar data via a new `action=calendarEvents` endpoint (AD-29), with Calendar Subscriptions removed from Settings (PD-12). Six bugs found and fixed along the way — see IssuesTracker ISSUE-023 through ISSUE-028.
+- **Session — 2026-08-26:** Full UI/PWA polish pass on Summary and Calendars, all deployed and confirmed working. Summary: filter/nav layout overhaul (PD-09), Category pulled into its own swipeable/pill control (PD-10), briefing cards collapsed-by-default (PD-11). Project-wide typography swap to Quicksand/Nunito Sans, superseding DD-01 (DD-04). Calendars: migrated off the `.ics` subscription pipeline onto scanned Google Calendar data via a new `action=calendarEvents` endpoint (AD-29), with Calendar Subscriptions removed from Settings (PD-12). Six bugs found and fixed along the way — see IssuesTracker HQI-023 through HQI-028.
 - **Session — 2026-08-27:** Full visual/functional pass across Summary,
   Calendars, Email History, and To-Do, all deployed and confirmed working.
   Sports/School accent color system (PD-13), Email History redesigned
   around family-member color (PD-14), To-Do redesigned with due dates/
   grouping/inline editing and deliberately excluded from the accent system
   in favor of a fixed green (PD-15), Manual Updates removed entirely,
-  closing ISSUE-001 by removal (PD-16). Daily Briefing refresh split into
+  closing HQI-001 by removal (PD-16). Daily Briefing refresh split into
   4 independently-retryable steps with a real progress bar, replacing an
   earlier poll-based patch (AD-30). Sender-attribution bug fixed in two
   passes — specificity-based matching, then widened to search Subject as
   well as From (AD-31). Several smaller bugs found and fixed along the
-  way — see IssuesTracker ISSUE-031 through ISSUE-034. Doc-audit finding
+  way — see IssuesTracker HQI-031 through HQI-034. Doc-audit finding
   (not new work): AD-25/26/27/28, all previously logged "not yet
   deployed," were confirmed already live — corrected in this pass rather
   than left inaccurate.

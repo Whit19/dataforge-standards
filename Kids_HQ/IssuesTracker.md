@@ -21,7 +21,7 @@
 
 ---
 
-### ISSUE-005 — Google Calendar Embed URL Conversion Fragile
+### HQI-005 — Google Calendar Embed URL Conversion Fragile
 **Severity:** 🟡 Medium  
 **Status:** Open  
 **Filed:** Session 1 (Mar 2026)
@@ -37,7 +37,7 @@ Add better error messaging when a Google Calendar URL fails to convert. Show use
 
 ---
 
-### ISSUE-006 — Email History Not Refreshed After Generate
+### HQI-006 — Email History Not Refreshed After Generate
 **Severity:** 🟢 Low  
 **Status:** Open  
 **Filed:** Session 1 (Mar 2026)
@@ -54,7 +54,7 @@ In `generate()`, after successful completion: `historyLoaded = false;`
 
 ---
 
-### ISSUE-007 — Long Email Bodies Truncated at 800 Chars in GAS
+### HQI-007 — Long Email Bodies Truncated at 800 Chars in GAS
 **Severity:** 🟢 Low  
 **Status:** Open / Won't Fix (Intentional)  
 **Filed:** Session 1 (Mar 2026)
@@ -69,7 +69,7 @@ This is intentional to control prompt length and Claude API cost. However, 800 c
 
 ---
 
-### ISSUE-010 — Briefing Child Tagging Depends on the AI Following Instructions Correctly
+### HQI-010 — Briefing Child Tagging Depends on the AI Following Instructions Correctly
 **Severity:** 🟡 Medium  
 **Status:** Monitoring  
 **Filed:** 2026-08-17
@@ -84,7 +84,7 @@ Untagged items (`childIds` missing or empty) are treated as "general" and shown 
 
 ---
 
-### ISSUE-020 — Google Calendar Matching Depends on Calendar/Event Naming Conventions
+### HQI-020 — Google Calendar Matching Depends on Calendar/Event Naming Conventions
 **Severity:** 🟡 Medium  
 **Status:** Monitoring  
 **Filed:** 2026-08-19
@@ -113,7 +113,7 @@ not yet deployed.
 
 ---
 
-### ISSUE-021 — Relative Date Language Resolved Against Today Instead of the Source Message's Own Date
+### HQI-021 — Relative Date Language Resolved Against Today Instead of the Source Message's Own Date
 **Severity:** 🟡 Medium
 **Status:** In Progress — fix prompted, not yet deployed
 **Filed:** 2026-08-21
@@ -139,7 +139,7 @@ same thread. See CC_02_RelativeDateFix.md.
 
 ---
 
-### ISSUE-022 — Stale `scanSportsEmails` Trigger Failing Daily
+### HQI-022 — Stale `scanSportsEmails` Trigger Failing Daily
 **Severity:** 🟢 Low
 **Status:** Fixed (2026-08-21) — confirmed, Tom deleted the trigger directly
 **Filed:** 2026-08-21
@@ -158,7 +158,7 @@ Confirmed by Tom.
 
 ---
 
-### ISSUE-029 — Activity `color` Field Has No Settings UI, and (as of PD-13) No Reader Left Either
+### HQI-029 — Activity `color` Field Has No Settings UI, and (as of PD-13) No Reader Left Either
 **Severity:** 🟢 Low  
 **Status:** Open — Deferred to the Settings redesign session  
 **Filed:** 2026-08-26
@@ -172,7 +172,7 @@ Each Activity's `color` field, auto-assigned from a rotating palette at Activity
 
 ---
 
-### ISSUE-030 — `fetchIcsServerSide()`/`action=ics` Backend Handler and the `cals` Config Field Are Dead Code
+### HQI-030 — `fetchIcsServerSide()`/`action=ics` Backend Handler and the `cals` Config Field Are Dead Code
 **Severity:** 🟢 Low  
 **Status:** Open  
 **Filed:** 2026-08-26
@@ -189,7 +189,7 @@ Safe to remove in a future cleanup pass once the new `action=calendarEvents` pat
 
 ---
 
-### ISSUE-002 — allorigins.win Proxy Returns Stale Cached ICS Data
+### HQI-002 — allorigins.win Proxy Returns Stale Cached ICS Data
 **Severity:** Was 🟡 Medium  
 **Status:** Fixed (2026-08-17)  
 **Filed:** Session 1 (Mar 2026)
@@ -202,7 +202,7 @@ Calendar `.ics` fetching moved server-side through GAS (`UrlFetchApp`, no CORS r
 
 ---
 
-### ISSUE-003 — LeagueApps ICS Feed UTC Offset
+### HQI-003 — LeagueApps ICS Feed UTC Offset
 **Severity:** Was 🟡 Medium  
 **Status:** Fixed (Session 1)  
 **Filed:** Session 1 (Mar 2026)
@@ -217,7 +217,7 @@ Updated `parseICS()` to detect `Z` suffix and use proper UTC parsing. JavaScript
 
 ---
 
-### ISSUE-008 — `children`/`removeChild` Globals Silently Shadowed by `document` Built-ins
+### HQI-008 — `children`/`removeChild` Globals Silently Shadowed by `document` Built-ins
 **Severity:** Was 🔴 Critical  
 **Status:** Fixed (2026-08-17)  
 **Filed:** 2026-08-17
@@ -234,7 +234,7 @@ Renamed the global array to `kids` and the delete function to `deleteChild()` th
 
 ---
 
-### ISSUE-009 — Rolling Email History Never Re-Tagged Existing Rows After a Settings Reorg
+### HQI-009 — Rolling Email History Never Re-Tagged Existing Rows After a Settings Reorg
 **Severity:** Was 🟠 High  
 **Status:** Fixed (2026-08-17)  
 **Filed:** 2026-08-17
@@ -249,7 +249,7 @@ Merge now keys by `date|subject` and lets the current scan's row win on collisio
 
 ---
 
-### ISSUE-011 — Briefing Surfaced Stale/Past-Dated Content From Historical Emails
+### HQI-011 — Briefing Surfaced Stale/Past-Dated Content From Historical Emails
 **Severity:** Was 🟠 High  
 **Status:** Fixed (2026-08-17)  
 **Filed:** 2026-08-17
@@ -262,13 +262,13 @@ Because the app intentionally feeds Claude the full rolling email history for co
 **Fix Applied:**  
 - Both prompt builders now receive `todayISO` and an explicit "no stale content" rule: never surface a card/timeline/action item whose date has already fully passed relative to today, with one exception (a past event whose email still carries forward-relevant info, e.g. a confirmation).
 - Timeline and action items now carry a `dateISO` field.
-- Added a deterministic client-side filter (`isPastISO()`) that drops any item with a past `dateISO` regardless of what Claude returned — the same don't-fully-trust-the-model pattern established by ISSUE-010.
+- Added a deterministic client-side filter (`isPastISO()`) that drops any item with a past `dateISO` regardless of what Claude returned — the same don't-fully-trust-the-model pattern established by HQI-010.
 
 **See:** Decision Log AD-16.
 
 ---
 
-### ISSUE-012 — 7-Day Schedule Was a Flat, Undifferentiated List
+### HQI-012 — 7-Day Schedule Was a Flat, Undifferentiated List
 **Severity:** Was 🟢 Low (UX)  
 **Status:** Fixed (2026-08-17)  
 **Filed:** 2026-08-17
@@ -281,10 +281,10 @@ Rewrote as a day-grouped view: one section per day (today + next 6), each showin
 
 ---
 
-### ISSUE-013 — Calendar-Derived Timeline Items All Grouped Under "Other" Instead of the Correct Day
+### HQI-013 — Calendar-Derived Timeline Items All Grouped Under "Other" Instead of the Correct Day
 **Severity:** Was 🟠 High  
 **Status:** Fixed (2026-08-17)  
-**Filed:** 2026-08-17 (introduced by the ISSUE-012 fix, caught same session)
+**Filed:** 2026-08-17 (introduced by the HQI-012 fix, caught same session)
 
 **Description:**  
 After the day-grouped 7-Day Schedule shipped (buckets items by `dateISO`), calendar-derived events — recurring soccer practices, a golf tee time, a lacrosse tryout — all landed in the undated "Other" bucket instead of their correct day.
@@ -301,7 +301,7 @@ After the day-grouped 7-Day Schedule shipped (buckets items by `dateISO`), calen
 
 ---
 
-### ISSUE-014 — Adding a To-Do From an Action Item Didn't Appear Until Page Reload
+### HQI-014 — Adding a To-Do From an Action Item Didn't Appear Until Page Reload
 **Severity:** Was 🟡 Medium  
 **Status:** Fixed (2026-08-17)  
 **Filed:** 2026-08-17 (introduced by the same session's To-Do feature, caught next follow-up)
@@ -314,7 +314,7 @@ The "+ To-Do" button on Action Items saved the new item to `localStorage` correc
 
 ---
 
-### ISSUE-015 — Phantom Vertical Scrollbar on Tab Nav
+### HQI-015 — Phantom Vertical Scrollbar on Tab Nav
 **Severity:** Was 🟢 Low  
 **Status:** Fixed (2026-08-17) — pending visual confirmation  
 **Filed:** 2026-08-17
@@ -331,7 +331,7 @@ Added `overflow-y:hidden` explicitly.
 
 ---
 
-### ISSUE-016 — "Gmail Operation Not Allowed" on Refresh Briefing (Process Issue, Not a Code Bug)
+### HQI-016 — "Gmail Operation Not Allowed" on Refresh Briefing (Process Issue, Not a Code Bug)
 **Severity:** Was 🔴 Critical (blocked the core Refresh Briefing feature entirely)  
 **Status:** Fixed (2026-08-17)  
 **Filed:** 2026-08-17
@@ -352,7 +352,7 @@ This is a standing operational trap, not a one-time fix — deploying from any o
 
 ---
 
-### ISSUE-017 — Anthropic API Key Hardcoded in SportsEmailScanner.gs and Pushed to Remote
+### HQI-017 — Anthropic API Key Hardcoded in SportsEmailScanner.gs and Pushed to Remote
 **Severity:** Was 🔴 Critical  
 **Status:** Fixed (2026-08-18)  
 **Filed:** 2026-08-18
@@ -371,7 +371,7 @@ History scrubbing was treated as hygiene, not the primary fix — rotation is wh
 
 ---
 
-### ISSUE-018 — Email History Gave No Visual Indication of Which Activity a Row Belonged To, and Its Found-Count Ignored Active Filters
+### HQI-018 — Email History Gave No Visual Indication of Which Activity a Row Belonged To, and Its Found-Count Ignored Active Filters
 **Severity:** Was 🟡 Medium  
 **Status:** Fixed (2026-08-19) — confirmed via screenshot showing correct Activity badges and a filtered count ("18 of 122 email(s) shown")  
 **Filed:** 2026-08-19
@@ -387,7 +387,7 @@ User reported Email History rows (especially GroupMe messages) as unclear which 
 
 ---
 
-### ISSUE-019 — GroupMe Email History Rows Always Labeled Literal "GroupMe" Instead of the Configured Group Label
+### HQI-019 — GroupMe Email History Rows Always Labeled Literal "GroupMe" Instead of the Configured Group Label
 **Severity:** Was 🟢 Low  
 **Status:** Fixed (2026-08-19) — confirmed deployed  
 **Filed:** 2026-08-19
@@ -401,7 +401,7 @@ Email History showed every GroupMe-sourced row with the badge "GROUPME" regardle
 
 ---
 
-### ISSUE-023 — 7-Day Schedule and Action Items Sections Loaded Expanded by Default
+### HQI-023 — 7-Day Schedule and Action Items Sections Loaded Expanded by Default
 **Severity:** Was 🟢 Low (UX)  
 **Status:** Fixed (2026-08-26)  
 **Filed:** 2026-08-26
@@ -414,7 +414,7 @@ Default state changed to closed on page load, matching PD-11's card pattern.
 
 ---
 
-### ISSUE-024 — Action Items Section Retained a Highlighted/Active Background After Being Collapsed
+### HQI-024 — Action Items Section Retained a Highlighted/Active Background After Being Collapsed
 **Severity:** Was 🟢 Low (UX)  
 **Status:** Fixed (2026-08-26)  
 **Filed:** 2026-08-26
@@ -423,11 +423,11 @@ Default state changed to closed on page load, matching PD-11's card pattern.
 After collapsing, the Action Items section kept a highlighted/active background. Root cause: a leftover active/focus style wasn't being cleared on collapse.
 
 **Fix Applied:**  
-Fixed in the same pass as ISSUE-023.
+Fixed in the same pass as HQI-023.
 
 ---
 
-### ISSUE-025 — Calendars Tab Loaded 10 Events Successfully but Displayed None
+### HQI-025 — Calendars Tab Loaded 10 Events Successfully but Displayed None
 **Severity:** Was 🟠 High  
 **Status:** Fixed (2026-08-26)  
 **Filed:** 2026-08-26
@@ -444,7 +444,7 @@ The endpoint now detects `Date`-typed cells and reformats them to the exact expe
 
 ---
 
-### ISSUE-026 — Calendars Week-Range Label Wrapped Awkwardly on Mobile
+### HQI-026 — Calendars Week-Range Label Wrapped Awkwardly on Mobile
 **Severity:** Was 🟢 Low  
 **Status:** Fixed (2026-08-26)  
 **Filed:** 2026-08-26
@@ -457,7 +457,7 @@ Responsive font-size/letter-spacing and flexible sizing.
 
 ---
 
-### ISSUE-027 — "Today" Row Misaligned in the Calendars Week View
+### HQI-027 — "Today" Row Misaligned in the Calendars Week View
 **Severity:** Was 🟢 Low  
 **Status:** Fixed (2026-08-26)  
 **Filed:** 2026-08-26
@@ -470,7 +470,7 @@ Gave the badge `order:1` so it moves to the end of the row independently, withou
 
 ---
 
-### ISSUE-028 — Calendars Day-Name Text Rendered Smaller Than the Date Text Next to It
+### HQI-028 — Calendars Day-Name Text Rendered Smaller Than the Date Text Next to It
 **Severity:** Was 🟢 Low  
 **Status:** Fixed (2026-08-26)  
 **Filed:** 2026-08-26
@@ -483,7 +483,7 @@ Matched the sizes.
 
 ---
 
-### ISSUE-001 — Manual Updates Not Passed to Claude Prompt
+### HQI-001 — Manual Updates Not Passed to Claude Prompt
 **Severity:** Was 🟠 High  
 **Status:** Fixed (2026-08-27) — closed by removal, not by wiring it up  
 **Filed:** Session 1 (Mar 2026)
@@ -498,7 +498,7 @@ Confirmed dead UI (the textarea values were never read anywhere in the file, on 
 
 ---
 
-### ISSUE-004 — GAS Generate Call Timeout on Slow Networks
+### HQI-004 — GAS Generate Call Timeout on Slow Networks
 **Severity:** Was 🟡 Medium  
 **Status:** Fixed (2026-08-27)  
 **Filed:** Session 1 (Mar 2026)
@@ -515,7 +515,7 @@ Not the originally-proposed polling pattern (implemented as an interim patch mid
 
 ---
 
-### ISSUE-031 — Daily Briefing Cards Showed the Activity Name Twice
+### HQI-031 — Daily Briefing Cards Showed the Activity Name Twice
 **Severity:** Was 🟢 Low  
 **Status:** Fixed (2026-08-27)  
 **Filed:** 2026-08-27
@@ -528,7 +528,7 @@ Dropped `c.source` from the kicker; rebuilt it to match Calendars/Email History'
 
 ---
 
-### ISSUE-032 — Calendars Events Showed the Activity Name Twice
+### HQI-032 — Calendars Events Showed the Activity Name Twice
 **Severity:** Was 🟢 Low  
 **Status:** Fixed (2026-08-27)  
 **Filed:** 2026-08-27
@@ -541,7 +541,7 @@ Use `act.name` alone, falling back to `ev.team` only when `act` itself isn't fou
 
 ---
 
-### ISSUE-033 — Filter-Dropdown Default-Option Text Fix Only Applied to Static HTML, Not the JS That Immediately Overwrites It
+### HQI-033 — Filter-Dropdown Default-Option Text Fix Only Applied to Static HTML, Not the JS That Immediately Overwrites It
 **Severity:** Was 🟢 Low  
 **Status:** Fixed (2026-08-27)  
 **Filed:** 2026-08-27
@@ -556,7 +556,7 @@ Applied the same text change to both the static HTML defaults and the two JS ren
 
 ---
 
-### ISSUE-034 — "Load Settings from Cloud" Never Also Pulled To-Dos
+### HQI-034 — "Load Settings from Cloud" Never Also Pulled To-Dos
 **Severity:** Was 🟡 Medium  
 **Status:** Fixed (2026-08-27)  
 **Filed:** 2026-08-27
@@ -569,7 +569,7 @@ On a fresh device/browser, clicking "☁ Load Settings from Cloud" correctly pul
 
 ---
 
-### ISSUE-035 — Emails Misattributed to Wrong Family Member/Activity via Shared Platform Domain
+### HQI-035 — Emails Misattributed to Wrong Family Member/Activity via Shared Platform Domain
 **Severity:** Was 🟠 High  
 **Status:** Fixed (2026-08-27)  
 **Filed:** 2026-08-27
@@ -588,7 +588,7 @@ Two-part fix, see DecisionLog AD-31 and BestMethods BM-37 — (1) match resoluti
 
 ---
 
-### ISSUE-C01 — POST from Browser to GAS CORS-Blocked
+### HQI-C01 — POST from Browser to GAS CORS-Blocked
 **Severity:** Was 🔴 Critical  
 **Status:** Won't Fix (by design — see AD-02)  
 **Filed:** Session 1 (Mar 2026)
@@ -605,7 +605,7 @@ Switched to GET with `?cal=` parameter encoding. POST endpoint (`doPost()`) rema
 
 Run these checks periodically or after any GAS / dashboard update:
 
-- [ ] **Deploy only from `tjunker9@gmail.com`** — deploying from any other Google account silently breaks Gmail access (see ISSUE-016) with no error until Refresh Briefing is clicked
+- [ ] **Deploy only from `tjunker9@gmail.com`** — deploying from any other Google account silently breaks Gmail access (see HQI-016) with no error until Refresh Briefing is clicked
 - [ ] Load Calendars → all teams appear with correct event counts
 - [ ] Events show at correct local time (test with a known event)
 - [ ] Refresh Briefing completes within 90 seconds
@@ -616,7 +616,7 @@ Run these checks periodically or after any GAS / dashboard update:
 - [ ] Settings tab: test connection shows ✓ Connected
 - [ ] "Load Settings from Cloud" round-trips correctly in a fresh/incognito browser
 - [ ] All .ics URLs still valid (LeagueApps, TeamSnap, Playmetrics tokens don't expire silently) — note: this now only affects the Calendars tab's own week view, not the briefing (see AD-23)
-- [ ] Google Calendar scan: GAS Executions log shows "Google Calendar: matched X event(s)..." with X > 0 after a Refresh Briefing (see ISSUE-020, and SessionStarter.md's testing checklist for the full verification steps)
+- [ ] Google Calendar scan: GAS Executions log shows "Google Calendar: matched X event(s)..." with X > 0 after a Refresh Briefing (see HQI-020, and SessionStarter.md's testing checklist for the full verification steps)
 - [ ] A To-Do added on one device appears on another after a page reload, confirming AD-24's cross-device sync
 
 ---
@@ -625,41 +625,41 @@ Run these checks periodically or after any GAS / dashboard update:
 
 > Add notes when issues are opened, updated, or closed.
 
-- **Session 1 (Mar 2026):** Tracker initialized. ISSUE-003 already fixed. ISSUE-001 is the highest priority open item.
-- **Session — 2026-08-17:** ISSUE-002 fixed (GAS-side ICS fetch, see AD-10). Two new critical/high bugs found, root-caused, fixed, and verified with automated tests: ISSUE-008 (child add/delete silently broken by a DOM-shadowing collision) and ISSUE-009 (email history never re-tagged after Settings reorg). Added ISSUE-010 to track the new AI-dependent child-tagging feature as a monitoring item, not a guaranteed-correct one. ISSUE-001 remains the top open item and now has an added dimension (its hardcoded app list is stale against the Activity/sender model).
-- **Session — 2026-08-17 (later session):** Major filter/navigation UX rework (Category→Child→Activity cascade, Settings accordion, global scan window) shipped no new bugs on its own. Separately found and fixed ISSUE-011 (stale briefing content) and, as a direct side effect of that fix, ISSUE-012/ISSUE-013 (7-Day Schedule day-grouping and the calendar dateISO bug it exposed) — both root-caused by tracing the actual data flow, not guessed. Added the persistent To-Do feature, then caught and fixed ISSUE-014 (add-to-do not rendering) in the very next follow-up. Fixed ISSUE-015 (tab-nav phantom scrollbar), a real CSS spec quirk. Root-caused and resolved ISSUE-016 ("Gmail operation not allowed") to a wrong-account deployment via elimination (manual editor run reproduced it with no re-auth prompt; fresh consent didn't fix it) rather than guessed. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched — ISSUE-006 in particular was explicitly confirmed NOT incidentally fixed by the Email History rewrite.
-- **Session — 2026-08-18:** Found and fully closed ISSUE-017 (leaked Anthropic API key) end-to-end: rotate → migrate to Script Properties (Decision Log AD-21) → git history scrub → prevention recommendation logged. GroupMe backend integration applied to `SportsEmailScanner.gs`. PWA manifest/service worker/dashboard UI changes drafted, currently uncommitted. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched.
-- **Session — 2026-08-19:** Closed ISSUE-018 (Email History Activity display + stale found-count) and ISSUE-019 (GroupMe label/color/source-count), both confirmed. Added ISSUE-020 (Monitoring) for the new Google Calendar matching heuristic introduced by DecisionLog AD-23, which fully replaced the `.ics` pipeline feeding the briefing this session. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-007 remain open/deferred, untouched.
+- **Session 1 (Mar 2026):** Tracker initialized. HQI-003 already fixed. HQI-001 is the highest priority open item.
+- **Session — 2026-08-17:** HQI-002 fixed (GAS-side ICS fetch, see AD-10). Two new critical/high bugs found, root-caused, fixed, and verified with automated tests: HQI-008 (child add/delete silently broken by a DOM-shadowing collision) and HQI-009 (email history never re-tagged after Settings reorg). Added HQI-010 to track the new AI-dependent child-tagging feature as a monitoring item, not a guaranteed-correct one. HQI-001 remains the top open item and now has an added dimension (its hardcoded app list is stale against the Activity/sender model).
+- **Session — 2026-08-17 (later session):** Major filter/navigation UX rework (Category→Child→Activity cascade, Settings accordion, global scan window) shipped no new bugs on its own. Separately found and fixed HQI-011 (stale briefing content) and, as a direct side effect of that fix, HQI-012/HQI-013 (7-Day Schedule day-grouping and the calendar dateISO bug it exposed) — both root-caused by tracing the actual data flow, not guessed. Added the persistent To-Do feature, then caught and fixed HQI-014 (add-to-do not rendering) in the very next follow-up. Fixed HQI-015 (tab-nav phantom scrollbar), a real CSS spec quirk. Root-caused and resolved HQI-016 ("Gmail operation not allowed") to a wrong-account deployment via elimination (manual editor run reproduced it with no re-auth prompt; fresh consent didn't fix it) rather than guessed. HQI-001, HQI-004, HQI-005, HQI-006, HQI-007 remain open/deferred, untouched — HQI-006 in particular was explicitly confirmed NOT incidentally fixed by the Email History rewrite.
+- **Session — 2026-08-18:** Found and fully closed HQI-017 (leaked Anthropic API key) end-to-end: rotate → migrate to Script Properties (Decision Log AD-21) → git history scrub → prevention recommendation logged. GroupMe backend integration applied to `SportsEmailScanner.gs`. PWA manifest/service worker/dashboard UI changes drafted, currently uncommitted. HQI-001, HQI-004, HQI-005, HQI-006, HQI-007 remain open/deferred, untouched.
+- **Session — 2026-08-19:** Closed HQI-018 (Email History Activity display + stale found-count) and HQI-019 (GroupMe label/color/source-count), both confirmed. Added HQI-020 (Monitoring) for the new Google Calendar matching heuristic introduced by DecisionLog AD-23, which fully replaced the `.ics` pipeline feeding the briefing this session. HQI-001, HQI-004, HQI-005, HQI-006, HQI-007 remain open/deferred, untouched.
 - **Session — 2026-08-21:** Ran the full Google Calendar scan testing
   checklist from the prior session to completion — confirmed working, one
-  real issue found and root-caused (ISSUE-020 addendum). Found and closed
-  ISSUE-022 (stale failing trigger, deleted directly, no code change).
-  Opened ISSUE-021 (relative-date resolution bug), fix prompted, not yet
-  deployed. ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006 remain open/
+  real issue found and root-caused (HQI-020 addendum). Found and closed
+  HQI-022 (stale failing trigger, deleted directly, no code change).
+  Opened HQI-021 (relative-date resolution bug), fix prompted, not yet
+  deployed. HQI-001, HQI-004, HQI-005, HQI-006 remain open/
   deferred, untouched.
-- **Session — 2026-08-26:** Full UI/PWA polish pass on Summary and Calendars. Fixed ISSUE-023/024 (7-Day Schedule and Action Items not matching the new collapsed-by-default card behavior, and a stuck highlight style). Fixed ISSUE-025 (Calendars tab loading events but displaying none — Sheets auto-coercing date/time strings to `Date` objects) and three small Calendars visual bugs (ISSUE-026/027/028). Logged ISSUE-029 (Activity color picker, deferred to the Settings redesign) and ISSUE-030 (dead `.ics` backend code, safe to remove later). ISSUE-001, ISSUE-004, ISSUE-005, ISSUE-006, ISSUE-021 remain open/deferred, untouched.
+- **Session — 2026-08-26:** Full UI/PWA polish pass on Summary and Calendars. Fixed HQI-023/024 (7-Day Schedule and Action Items not matching the new collapsed-by-default card behavior, and a stuck highlight style). Fixed HQI-025 (Calendars tab loading events but displaying none — Sheets auto-coercing date/time strings to `Date` objects) and three small Calendars visual bugs (HQI-026/027/028). Logged HQI-029 (Activity color picker, deferred to the Settings redesign) and HQI-030 (dead `.ics` backend code, safe to remove later). HQI-001, HQI-004, HQI-005, HQI-006, HQI-021 remain open/deferred, untouched.
 - **Session — 2026-08-27:** Full visual/functional pass across Summary,
-  Calendars, Email History, and To-Do. Closed ISSUE-001 (Manual Updates
+  Calendars, Email History, and To-Do. Closed HQI-001 (Manual Updates
   never wired to the prompt) by removing the tab entirely, not by
   building the wiring — a long-standing top-priority open item. Closed
-  ISSUE-004 (GAS generate-call timeout on slow networks) via a proper
+  HQI-004 (GAS generate-call timeout on slow networks) via a proper
   architectural fix (4 independently-retryable steps, DecisionLog AD-30)
   after it recurred in an amplified, directly-confirmed form (Executions
   log showing "Completed" while the client showed a network error).
-  Found and fixed five smaller same-session bugs: ISSUE-031/032
+  Found and fixed five smaller same-session bugs: HQI-031/032
   (duplicated activity name in Daily Briefing cards and Calendars
-  events), ISSUE-033 (a filter-dropdown text fix that only touched
+  events), HQI-033 (a filter-dropdown text fix that only touched
   static HTML, missing the JS render function that immediately
-  overwrites it), ISSUE-034 (To-Do cross-device sync gap on "Load
-  Settings from Cloud"), and ISSUE-035 (emails misattributed to the
+  overwrites it), HQI-034 (To-Do cross-device sync gap on "Load
+  Settings from Cloud"), and HQI-035 (emails misattributed to the
   wrong family member/activity via a shared platform domain — DecisionLog
-  AD-31, two-part fix). Updated ISSUE-029's description — its one actual
+  AD-31, two-part fix). Updated HQI-029's description — its one actual
   reader (Calendars' event color bar) was removed by this session's own
-  PD-13, so the open question is no longer just "needs a picker." ISSUE-005,
-  ISSUE-006, ISSUE-021, ISSUE-030 remain open/deferred, untouched.
+  PD-13, so the open question is no longer just "needs a picker." HQI-005,
+  HQI-006, HQI-021, HQI-030 remain open/deferred, untouched.
   (Reconciled same-day against a separately-drafted set of doc-update
-  prompts that had independently assigned ISSUE-031/032 to this same
+  prompts that had independently assigned HQI-031/032 to this same
   sender-misattribution bug and the mobile-refresh bug already covered
-  above as ISSUE-004's closure — renumbered the genuinely-new one to
-  ISSUE-035 to avoid colliding with the duplicate-kicker/sync-gap bugs
+  above as HQI-004's closure — renumbered the genuinely-new one to
+  HQI-035 to avoid colliding with the duplicate-kicker/sync-gap bugs
   already filed under 031-034.)

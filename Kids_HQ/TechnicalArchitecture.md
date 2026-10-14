@@ -17,7 +17,7 @@
 │  │ Fetches   │ │ Reads last│ │ GET ?action│ │ (dead  │ │ Children →│ │
 │  │ stored    │ │ Google Cal│ │ =history   │ │ input, │ │ Activities│ │
 │  │ JSON, or  │ │ scan via  │ │ &cat=      │ │ see    │ │ → senders │ │
-│  │ ?action=  │ │ ?action=  │ │            │ │ISSUE-  │ │ / Calendars│ │
+│  │ ?action=  │ │ ?action=  │ │            │ │HQI-  │ │ / Calendars│ │
 │  │ generate  │ │ calendar- │ │            │ │  001)  │ │           │ │
 │  │ (no cal   │ │ Events    │ │            │ │        │ │           │ │
 │  │ data sent │ │ (AD-29,   │ │            │ │        │ │           │ │
@@ -117,7 +117,7 @@ const ANTHROPIC_API_KEY = PropertiesService.getScriptProperties().getProperty('A
 const GROUPME_ACCESS_TOKEN = PropertiesService.getScriptProperties().getProperty('GROUPME_ACCESS_TOKEN');
 ```
 
-Both values are set manually via the Apps Script editor's **Project Settings (gear icon) → Script Properties** — never through code, never through the dashboard's Settings sync. This is a hard rule, not a preference: an earlier version of this script had `ANTHROPIC_API_KEY` as a hardcoded const, which was committed to git and leaked (see IssuesTracker ISSUE-017). Script Properties keeps the secret out of any file that could ever be committed, regardless of the repo's visibility.
+Both values are set manually via the Apps Script editor's **Project Settings (gear icon) → Script Properties** — never through code, never through the dashboard's Settings sync. This is a hard rule, not a preference: an earlier version of this script had `ANTHROPIC_API_KEY` as a hardcoded const, which was committed to git and leaked (see IssuesTracker HQI-017). Script Properties keeps the secret out of any file that could ever be committed, regardless of the repo's visibility.
 
 Children, Activities (sport/school, which kid(s), days back/forward), email senders, GroupMe groups, and calendars are all configured from the dashboard's Settings tab — there is no `SPORTS_SENDERS` array or `DAYS_BACK`/`DAYS_FORWARD` constant to hand-edit anymore.
 
@@ -226,7 +226,7 @@ User clicks Refresh Briefing (desktop button or mobile pull-to-refresh) → gene
 action=generate&cat=` handler (running all 4 steps in one GAS execution) is
 still present server-side, but no longer called by the dashboard — see API
 Contracts below and DecisionLog AD-30 for why (a single ~60-140s connection
-was too exposed to a phone's screen locking mid-request, ISSUE-004).
+was too exposed to a phone's screen locking mid-request, HQI-004).
 
 ### 2b. Google Calendar Scanning (AD-23)
 ```
@@ -257,7 +257,7 @@ User opens Calendars tab
       join generateSummaryWithClaude() already performs
     → detects Date-typed cells (Sheets auto-coerces date/time-shaped strings
       to real Date objects on write — see BestMethods) and reformats them to
-      plain yyyy-MM-dd / h:mm a strings before returning (ISSUE-025)
+      plain yyyy-MM-dd / h:mm a strings before returning (HQI-025)
   → returns { summary, team, childLabel, activityId, date, time, location,
     dateISO } per event
   → renderActivitySwitch() → renderCalendar(), which applies category +
@@ -265,7 +265,7 @@ User opens Calendars tab
     PD-05 — replaces the old per-calendar-name team filter)
 ```
 
-**Retired (superseded by AD-29, 2026-08-26):** Calendars previously ran a fully separate pipeline — live-fetching and client-side-parsing `.ics` subscription URLs configured in Settings via `normalizeIcsUrl()` → `fetchIcsViaGas()` (`GET /exec?action=ics&url=...`, server-side fetch per AD-10) → `parseICS()` (split by VEVENT, parse DTSTART/SUMMARY/LOCATION). This was disconnected from the Daily Briefing's own `scanGoogleCalendar()` scan and could show a different picture of "what's on the calendar" than Summary did. The frontend calls and the Calendar Subscriptions Settings UI were removed (PD-12); the backend `fetchIcsServerSide()`/`action=ics` handler and the `cals` config field were deliberately left in place, unused, rather than deleted — see IssuesTracker ISSUE-030 for the future cleanup item.
+**Retired (superseded by AD-29, 2026-08-26):** Calendars previously ran a fully separate pipeline — live-fetching and client-side-parsing `.ics` subscription URLs configured in Settings via `normalizeIcsUrl()` → `fetchIcsViaGas()` (`GET /exec?action=ics&url=...`, server-side fetch per AD-10) → `parseICS()` (split by VEVENT, parse DTSTART/SUMMARY/LOCATION). This was disconnected from the Daily Briefing's own `scanGoogleCalendar()` scan and could show a different picture of "what's on the calendar" than Summary did. The frontend calls and the Calendar Subscriptions Settings UI were removed (PD-12); the backend `fetchIcsServerSide()`/`action=ics` handler and the `cals` config field were deliberately left in place, unused, rather than deleted — see IssuesTracker HQI-030 for the future cleanup item.
 
 ### 3b. GroupMe Message Scanning (AD-20)
 ```
@@ -292,7 +292,7 @@ User opens Email History tab
   → GAS reads {Cat}EmailHistory sheet → returns JSON array (each row incl. activityId)
   → renderHistory() → filters by the active Child (resolving activityId → Activity →
     childIds) AND the active Activity (direct activityId match) — PD-05, replaces the
-    old per-sender/per-app filter row entirely (ISSUE-006 note: this changed WHAT
+    old per-sender/per-app filter row entirely (HQI-006 note: this changed WHAT
     Email History filters by, not WHEN it refetches — that gap is still open)
 ```
 
@@ -305,12 +305,12 @@ Local edit (add/edit/remove Child, Activity, sender, or Calendar)
 
 Fresh browser, GAS URL already known, no local settings
   → auto-triggers pullSettingsFromGas(silent) AND pullTodosFromGas(silent) once
-    on load (ISSUE-034, 2026-08-27 — previously only settings were pulled here,
+    on load (HQI-034, 2026-08-27 — previously only settings were pulled here,
     leaving a fresh device's To-Do list empty until something else happened to
     trigger a todos pull)
 
 Manual "☁ Load Settings from Cloud" button
-  → pullSettingsFromGas(false) AND pullTodosFromGas(false) — same ISSUE-034 fix,
+  → pullSettingsFromGas(false) AND pullTodosFromGas(false) — same HQI-034 fix,
     applied to the manual path too
 ```
 
@@ -338,7 +338,7 @@ Action Item "+ To-Do" button (Summary tab)
   → addTodoFromAction(idx) → dedupes by exact text match against existing todos,
     carries the action's own dateISO through as the new to-do's dueDate (PD-15
     — no free-text date parsing), then calls saveTodos() (which now also syncs
-    to GAS) + renderTodos() (a same-session bug, ISSUE-014, was fixed here —
+    to GAS) + renderTodos() (a same-session bug, HQI-014, was fixed here —
     renderTodos() was originally missing after saveTodos())
 ```
 
@@ -362,7 +362,7 @@ Action Item "+ To-Do" button (Summary tab)
 ```
 Note: `actions` were plain strings before the child-tagging change; the dashboard's `renderBriefingFiltered()` accepts both shapes so old cached briefings still render. `dateISO` (AD-16) is likewise absent on any briefing cached before this session's change — the dashboard's `isPastISO()`/`renderTimelineGrouped()` treat a missing `dateISO` as "leave alone" (shown under an "Other" bucket, never dropped), not as an error.
 
-**GET /exec?action=generate&cat=** — Regenerates that category's briefing in one GAS execution (scan Calendar → scan Email → scan GroupMe → call Claude, all sequential), returns same shape as the default endpoint above. **Retired from frontend use (AD-30, 2026-08-27)** — no longer called by the dashboard, kept server-side for compatibility. Superseded by the 4 endpoints below, split out so the client gets real per-step progress and each connection is short enough to survive a phone backgrounding mid-request (ISSUE-004).
+**GET /exec?action=generate&cat=** — Regenerates that category's briefing in one GAS execution (scan Calendar → scan Email → scan GroupMe → call Claude, all sequential), returns same shape as the default endpoint above. **Retired from frontend use (AD-30, 2026-08-27)** — no longer called by the dashboard, kept server-side for compatibility. Superseded by the 4 endpoints below, split out so the client gets real per-step progress and each connection is short enough to survive a phone backgrounding mid-request (HQI-004).
 
 **GET /exec?action=scanCalendar&cat=** → `scanGoogleCalendar(category)`, returns `{ ok: true }`
 **GET /exec?action=scanEmail&cat=** → `scanEmails(category)`, returns `{ ok: true }`. Sender attribution (`detectApp()`, called once per message) is longest-match-wins across `From + ' ' + Subject` combined as of AD-31 — previously first-array-match across `From` only, which let a broad shared-platform domain entry (e.g. `sportsengine.com`) silently claim emails that actually belonged to a different Activity on the same platform, either because a more specific entry lost on array order or because the identifying org name only appeared in the Subject line, never in From.
@@ -376,7 +376,7 @@ All 4 (AD-30) run the exact same 4 functions `action=generate` always called, in
 { "emails": [{ "date": "ISO", "from": "", "app": "", "subject": "", "body": "", "activityId": "" }] }
 ```
 
-**GET /exec?action=ics&url=...** — Fetches one `.ics` feed server-side, category-agnostic. **Retired (AD-29, 2026-08-26)** — no longer called by the frontend; left in place unused, see IssuesTracker ISSUE-030.
+**GET /exec?action=ics&url=...** — Fetches one `.ics` feed server-side, category-agnostic. **Retired (AD-29, 2026-08-26)** — no longer called by the frontend; left in place unused, see IssuesTracker HQI-030.
 ```json
 { "ok": true, "text": "raw ICS content" }
 ```
@@ -385,7 +385,7 @@ All 4 (AD-30) run the exact same 4 functions `action=generate` always called, in
 ```json
 { "events": [{ "summary": "", "team": "", "childLabel": "", "activityId": "", "date": "Thu, Aug 20", "time": "3:30 PM", "location": "", "dateISO": "2026-08-20" }] }
 ```
-`childLabel` is resolved server-side via the same `activityLabel()`/`childNames()` join `generateSummaryWithClaude()` already uses. Date/time-shaped cell values are explicitly reformatted from any Sheets-coerced `Date` object back to plain strings before returning — see ISSUE-025.
+`childLabel` is resolved server-side via the same `activityLabel()`/`childNames()` join `generateSummaryWithClaude()` already uses. Date/time-shaped cell values are explicitly reformatted from any Sheets-coerced `Date` object back to plain strings before returning — see HQI-025.
 
 **GET /exec?action=getSettings** — Returns the Settings sheet's JSON (never includes the Anthropic key)
 
@@ -423,7 +423,7 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
 | GAS GET URL length limit ~8kb | Applied to calendar data sent from the browser before AD-23; calendar data is now built entirely server-side (`scanGoogleCalendar()`) and never sent as a GET param, so this constraint no longer applies to calendar events specifically — still relevant for any other data that might be sent this way | Historical: capped events at 60, short keys, 4000 char limit. `scanGoogleCalendar()` still caps at 60, now for Claude prompt-size reasons, not URL-length |
 | GAS execution timeout 6 min | Long Claude calls can fail | 90s client timeout on `action=generate` |
 | ICS feeds may be behind CORS | Raw .ics fetch fails from browser | Fetched server-side via GAS `UrlFetchApp` — no CORS restriction (AD-10) |
-| ICS UTC vs local time | Events appear 4-6 hrs off | Detect `Z` suffix, parse as UTC, JS converts to local (ISSUE-003, fixed) |
+| ICS UTC vs local time | Events appear 4-6 hrs off | Detect `Z` suffix, parse as UTC, JS converts to local (HQI-003, fixed) |
 | Settings sheet is world-readable | Anthropic key must never land there | `saveSettings()` deletes any key field before writing (AD-11) |
 | Inline `on*=""` handlers run in a `with(document)` scope | Bare identifiers matching DOM built-ins (`children`, `removeChild`, etc.) silently resolve to the wrong object | Avoid those names for globals referenced inline; see AD-13 |
 | Rolling history sheet merge | Stale tags can persist if merge favors old rows | Fresh scan data always wins on a `date|subject` key collision (AD-14) |
@@ -451,7 +451,7 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
 - **Session 1 (Mar 2026):** Architecture documented from working Sports HQ MVP.
 - **Session — 2026-08-17:** Rewritten to reflect the Unified dashboard (PD-03), Child→Activity Settings model (AD-12), GAS-side settings sync (AD-11) and ICS fetch (AD-10), and childIds tagging in the Claude schema (PD-04). Retired the old three-proxy ICS waterfall and separate School HQ sections since neither reflects the live system anymore.
 - **Session — 2026-08-17 (later session):** Filter architecture updated to the Category→Child→Activity cascade (PD-05), replacing the old per-calendar-name/per-sender filtering described here previously. Settings Data Model updated for global daysBack/daysForward (AD-15). Calendar Events Compact Format and the Claude Prompt Schema both updated to add dateISO (AD-16, AD-17). Added a new To-Do data flow section (AD-18), entirely separate from the briefing's own regenerated `actions` array.
-- **Session — 2026-08-18:** GAS Configuration section rewritten for Script Properties, not hardcoded consts (AD-21), following a leaked API key (ISSUE-017). Added GroupMe as a new data source (AD-20): a new 3b data flow, a `groupmeGroups` line in the Settings Data Model, and two new File Inventory rows for the drafted-but-uncommitted PWA files (`manifest.json`, `sw.js`, AD-22).
+- **Session — 2026-08-18:** GAS Configuration section rewritten for Script Properties, not hardcoded consts (AD-21), following a leaked API key (HQI-017). Added GroupMe as a new data source (AD-20): a new 3b data flow, a `groupmeGroups` line in the Settings Data Model, and two new File Inventory rows for the drafted-but-uncommitted PWA files (`manifest.json`, `sw.js`, AD-22).
 - **Session — 2026-08-19:** Major rewrite of the calendar data flow — replaced the `.ics`-sourced `?cal=` GET param pipeline (Data Flow #2) with a new server-side Google Calendar scan (Data Flow #2b, AD-23), and marked Data Flow #3 (Calendar Loading) as now feeding only the Calendars tab's own week view, decoupled from the briefing. Updated the Claude Prompt Schema and system diagram to add `activityId` (PD-06), extending the Category→Child→Activity filter cascade to fully cover Summary for the first time. Updated the Calendar Events API contract section to reflect it's now a server-side-only data shape, not a GET param.
 - **Session — 2026-08-21:** Confirmed the AD-23 Google Calendar scan
   working end-to-end via the full testing checklist; found and
@@ -462,7 +462,7 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
   archiving in place of deletion (AD-26), a per-deployment family name
   field (AD-27), and closing the gap where the 6 AM trigger skipped
   the calendar scan entirely (AD-28).
-- **Session — 2026-08-26:** Migrated the Calendars tab off the `.ics` subscription pipeline onto scanned Google Calendar data via a new `action=calendarEvents` endpoint (AD-29), rewriting Data Flow #3 to match Email History's load-once/cache-client-side pattern and marking the old `.ics` flow and its `action=ics` endpoint as retired-but-left-in-place dead code. Documented the Sheets Date-object auto-coercion gotcha (ISSUE-025) inline on the new endpoint. Typography and responsive-nav changes from this session (Quicksand/Nunito Sans, DD-04; mobile bottom nav, PD-09) are UI-only and not reflected here, since this file's scope is backend/data-flow architecture, not visual design.
+- **Session — 2026-08-26:** Migrated the Calendars tab off the `.ics` subscription pipeline onto scanned Google Calendar data via a new `action=calendarEvents` endpoint (AD-29), rewriting Data Flow #3 to match Email History's load-once/cache-client-side pattern and marking the old `.ics` flow and its `action=ics` endpoint as retired-but-left-in-place dead code. Documented the Sheets Date-object auto-coercion gotcha (HQI-025) inline on the new endpoint. Typography and responsive-nav changes from this session (Quicksand/Nunito Sans, DD-04; mobile bottom nav, PD-09) are UI-only and not reflected here, since this file's scope is backend/data-flow architecture, not visual design.
 - **Session — 2026-08-27:** Split `action=generate` into 4 separately-
   callable, independently-retryable steps (AD-30) — rewrote Data Flow #2
   and the API Contracts section accordingly, marked the original combined
@@ -475,7 +475,7 @@ Tag values (sports): `urgent` | `today` | `soon` | `info`. Tag values (school): 
   correction, see that file. Updated Data Flow #5 (Settings Sync) and #6
   (To-Do List) for two PD-15 changes: To-Do items gained a `dueDate` field
   (opaque to the backend, no schema change) and "Load Settings from
-  Cloud"/the auto-pull-on-load path now also pull To-Dos (ISSUE-034).
+  Cloud"/the auto-pull-on-load path now also pull To-Dos (HQI-034).
   Noted AD-31's `detectApp()` change (longest-match across From+Subject,
   not first-match across From only) on the `action=scanEmail` endpoint.
   Visual-only changes from this session (accent color system PD-13, Email

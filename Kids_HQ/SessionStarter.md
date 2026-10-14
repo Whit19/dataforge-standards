@@ -3,17 +3,17 @@
 Repo: github.com/Whit19/dataforge-standards
 
 ## ⚠ Deployment Account — Read This First
-Always deploy the Web App from `tjunker9@gmail.com` — that's the account whose Gmail inbox the script actually scans. Deploying from any other Google account silently binds the deployment to that account instead (Apps Script's "Execute as: Me" locks to whoever was logged in at Deploy time), with no error until Refresh Briefing is clicked later. See IssuesTracker ISSUE-016 / DecisionLog AD-19 for the full diagnosis.
+Always deploy the Web App from `tjunker9@gmail.com` — that's the account whose Gmail inbox the script actually scans. Deploying from any other Google account silently binds the deployment to that account instead (Apps Script's "Execute as: Me" locks to whoever was logged in at Deploy time), with no error until Refresh Briefing is clicked later. See IssuesTracker HQI-016 / DecisionLog AD-19 for the full diagnosis.
 
 ## Current Status (as of 2026-08-27 session)
 
 Full visual/functional pass across Summary, Calendars, Email History, and
 To-Do — all deployed and confirmed working by Tom via live testing. Shipped:
 Sports/School accent color system (PD-13), Email History redesign (PD-14),
-To-Do redesign (PD-15), Manual Updates tab removed (PD-16, closes ISSUE-001),
-Daily Briefing refresh hardening/progress bar (AD-30, closes ISSUE-004), and
-a two-part sender-attribution fix (AD-31, closes ISSUE-035). Several smaller
-bugs also found and fixed (ISSUE-031 through ISSUE-034). Doc-audit side
+To-Do redesign (PD-15), Manual Updates tab removed (PD-16, closes HQI-001),
+Daily Briefing refresh hardening/progress bar (AD-30, closes HQI-004), and
+a two-part sender-attribution fix (AD-31, closes HQI-035). Several smaller
+bugs also found and fixed (HQI-031 through HQI-034). Doc-audit side
 finding: AD-25/26/27/28, previously logged as "designed, not yet deployed,"
 confirmed already live — corrected in DecisionLog.
 
@@ -24,7 +24,7 @@ and DecisionLog.md for each decision ID's rationale.
 
 1. **Settings UI redesign** — Tom's stated next focus. Full mockup-and-review
    pass, same process as every other page this session and last. Known
-   scope so far: add a color-picker to the Activity card (ISSUE-029),
+   scope so far: add a color-picker to the Activity card (HQI-029),
    general layout modernization to match the current typography/design/
    accent system (Settings hasn't been touched since before the Aug 26
    session, so it's visually inconsistent with the rest of the app now).
@@ -33,8 +33,8 @@ and DecisionLog.md for each decision ID's rationale.
    — bars follow the accent instead), is that field still worth keeping in
    the Activity card UI at all?
 2. Carried over from before, still open/deferred, none touched this
-   session: relative-date resolution bug (ISSUE-021), dead `.ics`/
-   `action=ics` backend code cleanup (ISSUE-030). (`calMatchName` (AD-25)
+   session: relative-date resolution bug (HQI-021), dead `.ics`/
+   `action=ics` backend code cleanup (HQI-030). (`calMatchName` (AD-25)
    and daily briefing calendar-scan parity (AD-28), both previously listed
    here as open, are confirmed already deployed — see Current Status
    above and DecisionLog.)
@@ -121,7 +121,7 @@ The GAS script creates/uses a Google Sheet named **"Game Day HQ"** with these ta
 
 ## GAS Configuration
 
-Secrets (`ANTHROPIC_API_KEY`, `GROUPME_ACCESS_TOKEN`) are read from Apps Script's Script Properties at runtime — never hardcoded as consts. See TechnicalArchitecture.md's "GAS Configuration" section and Decision Log AD-21 for the full pattern and rationale (a hardcoded version of this leaked once — see IssuesTracker ISSUE-017 — don't reintroduce it).
+Secrets (`ANTHROPIC_API_KEY`, `GROUPME_ACCESS_TOKEN`) are read from Apps Script's Script Properties at runtime — never hardcoded as consts. See TechnicalArchitecture.md's "GAS Configuration" section and Decision Log AD-21 for the full pattern and rationale (a hardcoded version of this leaked once — see IssuesTracker HQI-017 — don't reintroduce it).
 
 Children, Activities (sport/school, which kid(s), days back/forward), email senders, GroupMe groups, and calendars are all configured from the dashboard's Settings tab — there is no `SPORTS_SENDERS` array or `DAYS_BACK`/`DAYS_FORWARD` constant to hand-edit.
 
@@ -166,12 +166,12 @@ Existing pre-Child-model settings auto-migrate into an `(unsorted)` default Acti
 - **Category → Child → Activity filter cascade** replaces the old separate per-sender/per-calendar-name filters. (PD-05)
 - **Global scan/briefing window**, migrated automatically from old per-activity values. (AD-15)
 - **Briefing staleness prevention** — explicit `todayISO` + prompt rule, plus a `dateISO` field and client-side backstop filter. (AD-16)
-- **Calendar events carry a real computed ISO date**, so Claude copies it instead of inferring one — fixed a real bug (ISSUE-013) this had been causing. (AD-17)
-- **Model-output reliability pattern**, established and reused multiple times (ISSUE-010, ISSUE-011, ISSUE-013, and now ISSUE-020's `activityId`): whenever a prompt asks Claude to compute or tag something, pair it with a deterministic client-side check that doesn't fully trust the model's compliance. (BestMethods BM-20, BM-25)
+- **Calendar events carry a real computed ISO date**, so Claude copies it instead of inferring one — fixed a real bug (HQI-013) this had been causing. (AD-17)
+- **Model-output reliability pattern**, established and reused multiple times (HQI-010, HQI-011, HQI-013, and now HQI-020's `activityId`): whenever a prompt asks Claude to compute or tag something, pair it with a deterministic client-side check that doesn't fully trust the model's compliance. (BestMethods BM-20, BM-25)
 - **Google Calendar scanned directly, replacing `.ics` for the briefing** — two-pass matching (named-calendar match, then title/description match on the default calendar) via GAS's native `CalendarApp`, no CORS/proxy dependency at all for this data path. (AD-23, BM-26)
 - **To-Do list synced to GAS**, closing out the earlier local-only trade-off, using the same pattern as Settings sync. (AD-24)
-- **Daily Briefing refresh split into 4 independently-retryable steps**, replacing a single ~60-140s combined call — fixes a real mobile bug where a phone's screen locking mid-request could kill the client connection while the backend kept running and succeeded anyway, showing a false error. (AD-30, closes ISSUE-004)
-- **Sender matching now prefers the most specific match, across From + Subject** — `detectApp()` previously returned the first array match on the From header only, which meant activities sharing a broad platform domain (e.g. multiple orgs all on `*.sportsengine.com`) could silently steal each other's emails depending on activity order, and some notification templates with a generic From display name (real org name only in the Subject) couldn't be matched at all. Now resolves to the longest matching string found in From+Subject combined, independent of activity order. (AD-31, closes ISSUE-035)
+- **Daily Briefing refresh split into 4 independently-retryable steps**, replacing a single ~60-140s combined call — fixes a real mobile bug where a phone's screen locking mid-request could kill the client connection while the backend kept running and succeeded anyway, showing a false error. (AD-30, closes HQI-004)
+- **Sender matching now prefers the most specific match, across From + Subject** — `detectApp()` previously returned the first array match on the From header only, which meant activities sharing a broad platform domain (e.g. multiple orgs all on `*.sportsengine.com`) could silently steal each other's emails depending on activity order, and some notification templates with a generic From display name (real org name only in the Subject) couldn't be matched at all. Now resolves to the longest matching string found in From+Subject combined, independent of activity order. (AD-31, closes HQI-035)
 
 ---
 
@@ -203,8 +203,8 @@ Existing pre-Child-model settings auto-migrate into an `(unsorted)` default Acti
 
 ## Possible Next Features
 - ~~Rework Manual Updates to be Activity-driven and actually wire it into the prompt~~ — moot as of 2026-08-27; the tab was removed entirely instead (PD-16), not reworked.
-- ~~Refresh Briefing timeout/wait-time handling~~ — resolved 2026-08-27 via a different fix than the originally-planned polling pattern: split into 4 independently-retryable steps with a real progress bar (AD-30, closes ISSUE-004).
-- Email History not refetching after Refresh Briefing (ISSUE-006) — still open, not incidentally fixed by the filter-cascade rework
+- ~~Refresh Briefing timeout/wait-time handling~~ — resolved 2026-08-27 via a different fix than the originally-planned polling pattern: split into 4 independently-retryable steps with a real progress bar (AD-30, closes HQI-004).
+- Email History not refetching after Refresh Briefing (HQI-006) — still open, not incidentally fixed by the filter-cascade rework
 - Extend the Calendars tab to show more than 7 days out, filterable by kid/sport/school — likely by reusing the Google-Calendar-scanned data from AD-23 (decision deferred, see ProjectRoadmap backlog)
 - PWA manifest + service worker (installable) — drafted, dashboard wiring + icons still pending
 - GroupMe API integration (direct message pull, no email delay) — backend drafted, blocked on OAuth app registration

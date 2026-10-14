@@ -1,6 +1,6 @@
 # Master Claude Protocol — DataForge
 **Apply this to every Claude Project and every session. No exceptions.**
-Last updated: 2026-09-29 (Section 4b [added a mirror note pointing at the `cc-prompt-structure` Claude.ai skill, rule 4 requiring project rules to be copied into a CC prompt's `Rules:` section verbatim rather than referenced, and precision guidance for writing a CC prompt's `Change:` section]); 2026-09-16 (Section 6a [new — no dollar amounts in dataforge-standards, public repo]; 2026-09-05 restructure — see 3d "Read the Docs" [new explicit command], Section 4 [Path A/B fork for CC prompts vs. direct Claude Code edits, corrected to reflect chat-drafts-code-changes as the common case], Section 14 [consolidated "Update the Docs" procedure, absorbing former 14/16/17, with an explicit Case 1/2 fork mirroring Section 4 and a formal chat→Claude Code→chat handoff loop for the Session Summary])
+Last updated: 2026-10-14 (post-audit protocol additions — Section 2a [new, Project Lifecycle States + Status column], Section 5c [dated-header standard], Section 9a/9b [new, Google Apps Script and Azure Functions + SQL rule sets], Section 11 [prefix registry widened to cover Issue Prefix and BestMethods Numbering, uniqueness rule added after fixing a real AFAS/HQ Dashboard ISSUE- collision], Section 12 [optional Type/Priority fields, pointer to Section 11's registry instead of a second table]); 2026-09-29 (Section 4b [added a mirror note pointing at the `cc-prompt-structure` Claude.ai skill, rule 4 requiring project rules to be copied into a CC prompt's `Rules:` section verbatim rather than referenced, and precision guidance for writing a CC prompt's `Change:` section]); 2026-09-16 (Section 6a [new — no dollar amounts in dataforge-standards, public repo]; 2026-09-05 restructure — see 3d "Read the Docs" [new explicit command], Section 4 [Path A/B fork for CC prompts vs. direct Claude Code edits, corrected to reflect chat-drafts-code-changes as the common case], Section 14 [consolidated "Update the Docs" procedure, absorbing former 14/16/17, with an explicit Case 1/2 fork mirroring Section 4 and a formal chat→Claude Code→chat handoff loop for the Session Summary])
 
 ---
 
@@ -20,15 +20,27 @@ Milwaukee, WI — freelance developer / AI consultant
 
 **One repo = one docs folder = one DecisionLog prefix, always.** Client relationships are tracked only in Notion (a Client field/relation on the Projects database) — never encoded in repo names, `dataforge-standards` subfolder names, or DecisionLog prefixes. A single client can have multiple, unrelated projects; each still gets its own row here and its own row in Notion. See Section 13a for what to do when a new project starts under an existing client.
 
-| Project | Client (if applicable) | Stack | Notion Page |
-|---------|------------------------|-------|-------------|
-| UP Golf PWA | — | React + Vite + Firebase | [link] |
-| Club Golf | — | React + Vite + Firebase | [link] |
-| AFAS | — | Azure Functions + Python + Azure SQL + Power BI | [link] |
-| Kids HQ | — | Google Apps Script + Claude API + Google Sheets | [link] |
-| TNPL | — | React + Vite + Firebase | [link] |
+| Project | Client (if applicable) | Stack | Status | Notion Page |
+|---------|------------------------|-------|--------|-------------|
+| UP Golf PWA | — | React + Vite + Firebase | Active | [link] |
+| Club Golf | — | React + Vite + Firebase | Active | [link] |
+| AFAS | — | Azure Functions + Python + Azure SQL + Power BI | Active | [link] |
+| Kids HQ | — | Google Apps Script + Claude API + Google Sheets | Active | [link] |
+| TNPL | — | React + Vite + Firebase | Active | [link] |
 
 *(MicroSynergies sub-projects — `ask-the-docs`, `tech-team-wiki`, `knowledge-hub` — are currently inactive. Add rows here individually if/when work resumes, following Section 13a — do not add a single combined "MicroSynergies" row.)*
+
+### 2a. Project Lifecycle States
+
+Every project above carries a **Status**, one of:
+
+- **Active** — regularly worked on. Staleness in its docs is a real problem worth flagging in a docs audit.
+- **Paused** — no near-term work planned, but not abandoned. Mark it here *and* in the project's own SessionStarter header (e.g. `**Status:** Paused as of 2026-07-23 — no active work planned; see ProjectRoadmap for what's left`). A Paused project's stale docs are expected, not a bug — a docs audit should check that the Paused marker itself is present and accurate, not flag the staleness underneath it.
+- **Archived** — fully wound down. The code repo may itself be archived or deleted; the docs folder stays in `dataforge-standards` as the historical record regardless.
+
+**Don't infer Paused or Archived from staleness alone.** A project that simply hasn't had "Update the docs" run in a while is still Active with overdue docs — that's a real gap to fix, not a status to relabel. Only mark Paused/Archived on an explicit statement that work has actually stopped.
+
+**Keep this table and Section 3a's folder tree in sync** — every folder under `dataforge-standards` has a row here, and every row here has a folder. Section 3b's existing self-check (comparing the live fetch table against the Instructions-field bootstrap) is the natural place to also catch a folder/table mismatch, the same class of gap that let TNPL sit outside Section 3a's tree for a while after its row was added here.
 
 ---
 
@@ -371,6 +383,7 @@ No manual re-upload to Claude Project needed either way. GitHub commit = live fo
 - **No screenshots for critical info** — tokens, API keys, emails, IDs must be copy/pasted as text, never captured in images.
 - **Keep SessionStarter lean** — it is loaded every session and consumes tokens. Link to other docs for detail.
 - **DecisionLog is append-only** — never edit or delete past entries; mark superseded decisions as `Superseded by [ID]`.
+- **Every doc carries a dated header near the top** — `Last updated: YYYY-MM-DD` (a short session note, e.g. `(Session N)`, is encouraged but not required). ISO date, not a prose month or a slash-formatted date. SessionStarter.md additionally carries the `**Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.` / `Repo: github.com/Whit19/dataforge-standards` lines right under its title — every project's SessionStarter must have both; a new project's kickoff should include them from the start rather than discovering the gap later.
 
 ### 5d. Git Branch Discipline — all repos
 
@@ -501,6 +514,31 @@ These apply to every project. No exceptions.
 
 ---
 
+## 9a. Google Apps Script Rules
+
+These apply to any project built on Google Apps Script (currently: Kids HQ / HQ Dashboard). Sections 7–9 are React/Firebase-specific and don't cover this stack.
+
+| Rule | Detail |
+|------|--------|
+| Deployment account must match the account the script actually accesses | Apps Script's "Execute as: Me" silently binds to whoever is logged into the browser at Deploy time — there's no error until the first run that needs that account's Gmail/Calendar/Sheets access and it fails. Always confirm the correct Google account is logged in before deploying. |
+| Secrets live in Script Properties, never hardcoded in the `.gs` file or written to the Sheet | Apps Script's equivalent of `.env`/`local.settings.json`. A secret pasted into a cell or a code literal is visible to anyone who can open the Sheet or view the script. |
+| A secret must never round-trip through a settings UI back into the Sheet | If a settings page reads a key to display or confirm it, scrub it before writing anything back — a round-trip can silently re-persist it somewhere less protected than Script Properties. |
+
+---
+
+## 9b. Azure Functions + SQL Rules
+
+These apply to any project built on Azure Functions + Azure SQL (currently: AFAS). Sections 7–9 are React/Firebase-specific and don't cover this stack.
+
+| Rule | Detail |
+|------|--------|
+| Insert-only, not MERGE, for monthly re-import of manually-reviewed data | A `MERGE ... WHEN MATCHED THEN UPDATE` silently reverts any manual categorization or correction on every re-sync that happens to re-match an already-fixed row. If a row's non-key fields can be hand-edited after import, re-importing that source must insert new rows only and never touch an existing one. |
+| `local.settings.json` (local) and the deployed Function App's Settings (cloud) must be kept in parity | A value present only locally works in dev and silently fails — or runs on stale config — once deployed, with no error marking the divergence. |
+| "Succeeded" at the function level does not prove the internal work succeeded | Check Application Insights traces (or equivalent per-step logging) for the actual outcome — a function can log overall success while an internal step silently wrote zero rows. |
+| Azure SQL serverless auto-pause can collide with a scheduled timer trigger | A paused database causes a connection timeout that can present as a normal failure, or even as a reported "Succeeded," depending on where the pause lands in the call chain. Either build in a resume-and-wait step before scheduled work runs, or adopt a manual resume-then-trigger procedure as deliberate, documented policy — not an unexplained flaky failure. |
+
+---
+
 ## 10. Debugging Protocol
 
 **Do not jump to conclusions. Look for the most obvious solution first.**
@@ -525,14 +563,17 @@ Every architectural or product decision gets logged. Format:
 **Status:** Active | Superseded by [ID]
 ```
 
-**Prefixes by project (not by client — see Section 13a):**
-| Project | Prefix |
-|---------|--------|
-| UP Golf | DEC |
-| Club Golf | CGAD |
-| AFAS | AFAS |
-| HQ Dashboard | AD / DD / PD |
-| TNPL | TP |
+**Prefix registry — covers DecisionLog, IssuesTracker, and BestMethods for every project (not by client — see Section 13a). Section 12's issue prefixes live here too, not in a second table.**
+
+| Project | Decision Prefix | Issue Prefix | BestMethods Numbering |
+|---------|-----------------|--------------|------------------------|
+| UP Golf | DEC | ISS | unnumbered (prose titles) |
+| Club Golf | CGAD | CGI | unnumbered |
+| AFAS | AFAS | ISSUE | unnumbered |
+| HQ Dashboard | AD / DD / PD | HQI | BM-NNN |
+| TNPL | TP | TPI | unnumbered |
+
+**Every prefix in this table must be unique across the whole registry — a Decision Prefix never collides with another project's Decision Prefix, and likewise for Issue Prefix, even though the two columns don't need to match each other within a project.** This was violated twice in practice before this rule existed: UP Golf and TNPL both used `ISS` (TNPL renamed to `TPI`), and AFAS and HQ Dashboard both used `ISSUE` (HQ Dashboard renamed to `HQI`). **Before assigning a new project's prefixes (Section 13's kickoff), check this table first** — don't pick a prefix that merely looks distinct; grep the whole repo for it.
 
 *When a new project starts under an existing client, it gets its own prefix — never reuses another project's prefix, even under the same client. E.g. if MicroSynergies resumes: `ask-the-docs` → ATD, `tech-team-wiki` → TTW, `knowledge-hub` → KH.*
 
@@ -557,7 +598,11 @@ Every bug or deferred item gets logged. Format:
 
 **Never silently fix an issue without logging it — even small ones that affect behavior.**
 
+**Issue prefixes for every project live in Section 11's prefix registry, not a separate table here** — check there before assigning a new one.
+
 **This is the default format for a new project or a project that already uses it.** A project may use a richer format instead — e.g. Club Golf's table-based `CGI-NNN` tracker with explicit Type and Priority columns, split into Open/Deferred/Resolved sections — as long as every entry is still identifiable by ID and status. When a project has an established convention that differs from this section, match that project's own convention rather than forcing this template onto it retroactively (same hedge as Section 11).
+
+**Type and Priority are optional standard fields, not just a Club Golf quirk.** A project may add `**Type:** Bug | Decision Needed | Feature Gap | Deferred | Architecture` and/or `**Priority:** P1 (blocking) | P2 (important, non-blocking) | P3 (nice to have)` to the default block format, or as extra table columns — adopt either, both, or neither per project; they're genuinely useful but not required.
 
 ---
 

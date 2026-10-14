@@ -188,7 +188,7 @@ async function generate() {
 }
 ```
 
-**Status:** Still open as of 2026-08-17 — reconfirmed by reading the current `generate()` function; the reset is still not present. This is IssuesTracker ISSUE-006, a known one-line fix not yet applied.
+**Status:** Still open as of 2026-08-17 — reconfirmed by reading the current `generate()` function; the reset is still not present. This is IssuesTracker HQI-006, a known one-line fix not yet applied.
 
 ---
 
@@ -210,7 +210,7 @@ async function generate() {
 
 **Rule:** If the Manual Updates tab is used, its textarea values must be read in `generate()`, encoded, and included in the GAS prompt as a dedicated `=== MANUAL UPDATES ===` section.
 
-**Why:** Claude only knows what's in the prompt. Textarea content sitting in the browser is invisible to GAS. This is currently broken (ISSUE-001 — highest priority open bug).
+**Why:** Claude only knows what's in the prompt. Textarea content sitting in the browser is invisible to GAS. This is currently broken (HQI-001 — highest priority open bug).
 
 **Proposed implementation:**
 ```javascript
@@ -251,7 +251,7 @@ This is already implemented — keep it. Do not "simplify" by removing the histo
 
 If you need to reference the key location in docs: write `[see GAS script top-of-file constant ANTHROPIC_API_KEY]`.
 
-**Correction (2026-08-18):** The assumption above — "the GAS script is not stored in GitHub" — turned out to be false in practice for this project: `SportsEmailScanner.gs` was in fact git-tracked alongside `sports-dashboard.html` in a private repo, and a live `ANTHROPIC_API_KEY` was committed and pushed as a plaintext const (see IssuesTracker ISSUE-017). The durable fix is BM-22 below — never hardcode the value at all, regardless of where the file lives or how private the repo is believed to be.
+**Correction (2026-08-18):** The assumption above — "the GAS script is not stored in GitHub" — turned out to be false in practice for this project: `SportsEmailScanner.gs` was in fact git-tracked alongside `sports-dashboard.html` in a private repo, and a live `ANTHROPIC_API_KEY` was committed and pushed as a plaintext const (see IssuesTracker HQI-017). The durable fix is BM-22 below — never hardcode the value at all, regardless of where the file lives or how private the repo is believed to be.
 
 **See also BM-18** for a related, newer risk: the key leaking through a *runtime data store* (a Settings sheet) rather than a *committed file*.
 
@@ -261,7 +261,7 @@ If you need to reference the key location in docs: write `[see GAS script top-of
 
 **Rule:** Any script-level secret (`ANTHROPIC_API_KEY`, `GROUPME_ACCESS_TOKEN`, or any future one) is read via `PropertiesService.getScriptProperties().getProperty(...)` at runtime, set manually through the Apps Script editor's Project Settings → Script Properties UI — never as a literal string assigned to a const in the `.gs` file itself.
 
-**Why:** BM-15's original safeguard ("the GAS script isn't stored in GitHub") turned out to be a false assumption in practice, not a durable boundary — see the correction above and IssuesTracker ISSUE-017. `PropertiesService` removes the secret from any file that could ever be committed at all, which doesn't depend on remembering the repo is private, remembering to `.gitignore` something, or any other manual discipline that can lapse.
+**Why:** BM-15's original safeguard ("the GAS script isn't stored in GitHub") turned out to be a false assumption in practice, not a durable boundary — see the correction above and IssuesTracker HQI-017. `PropertiesService` removes the secret from any file that could ever be committed at all, which doesn't depend on remembering the repo is private, remembering to `.gitignore` something, or any other manual discipline that can lapse.
 
 **Where this bit us:** `SportsEmailScanner.gs` — see DecisionLog AD-21.
 
@@ -273,7 +273,7 @@ If you need to reference the key location in docs: write `[see GAS script top-of
 
 **Why:** A private repo's protection depends on things that can silently change or be bypassed — a collaborator added later, an accidental visibility toggle, a compromised GitHub account, a forked/cloned copy nobody remembers exists. None of those require the repo to ever go technically "public" for the secret to be exposed. Confirmed as the actual failure mode here: `SportsEmailScanner.gs` was tracked in a private repo the whole time — privacy alone did not prevent the key from being a real leaked credential once committed.
 
-**Where this bit us:** IssuesTracker ISSUE-017; referenced directly in DecisionLog AD-21's rationale.
+**Where this bit us:** IssuesTracker HQI-017; referenced directly in DecisionLog AD-21's rationale.
 
 ---
 
@@ -281,7 +281,7 @@ If you need to reference the key location in docs: write `[see GAS script top-of
 
 **Rule (recommendation, not yet actioned):** Add a `gitleaks` pre-commit hook (or equivalent secret-scanning tool) to this repo so a credential-shaped string is caught *before* a commit is made, not after a push.
 
-**Why:** ISSUE-017's leak wasn't caught until after it was already pushed to the remote — rotation and history-scrubbing are cleanup, not prevention. A pre-commit scanner would have caught the `ANTHROPIC_API_KEY` const before it ever left the local machine.
+**Why:** HQI-017's leak wasn't caught until after it was already pushed to the remote — rotation and history-scrubbing are cleanup, not prevention. A pre-commit scanner would have caught the `ANTHROPIC_API_KEY` const before it ever left the local machine.
 
 **Status:** Not yet implemented — logged here as a known gap, not a completed safeguard. Revisit alongside any future GAS/dashboard session that touches secrets handling.
 
@@ -307,7 +307,7 @@ existing.forEach(r => merged.set(key(r), r));
 newRows.forEach(r => merged.set(key(r), r)); // fresh scan wins on collision
 ```
 
-**Where this bit us:** `updateHistorySheet()` in `SportsEmailScanner.gs`, after the Child→Activity model shipped — see DecisionLog AD-14 and IssuesTracker ISSUE-009.
+**Where this bit us:** `updateHistorySheet()` in `SportsEmailScanner.gs`, after the Child→Activity model shipped — see DecisionLog AD-14 and IssuesTracker HQI-009.
 
 ---
 
@@ -321,7 +321,7 @@ newRows.forEach(r => merged.set(key(r), r)); // fresh scan wins on collision
 
 **Symptom if forgotten:** a form field looks like it accepts input (the native browser textbox visibly updates as you type) but the value never persists anywhere the app's own state can see it; a delete/remove button silently does nothing, or throws `Cannot set properties of undefined` for anything past the very first item in a list.
 
-**Where this bit us:** `sports-dashboard.html`'s Settings tab, Add/Edit/Delete Child — see DecisionLog AD-13 and IssuesTracker ISSUE-008. Fixed by renaming the global array `children` → `kids` and the function `removeChild()` → `deleteChild()`.
+**Where this bit us:** `sports-dashboard.html`'s Settings tab, Add/Edit/Delete Child — see DecisionLog AD-13 and IssuesTracker HQI-008. Fixed by renaming the global array `children` → `kids` and the function `removeChild()` → `deleteChild()`.
 
 ---
 
@@ -354,7 +354,7 @@ Three more lessons, same append-only convention as the section above: numbered t
 
 **Diagnosis method that worked:** ruled out causes in order rather than guessing — (1) ran the function manually in the editor, got the identical error with no fresh consent screen, which ruled out a stale/revoked token; (2) checked Google Account → linked apps, found full Gmail scope freshly granted, which ruled out missing consent; (3) only then found the actual mismatch — the deploying account wasn't the Gmail-owning account.
 
-**Where this bit us:** see IssuesTracker ISSUE-016 and DecisionLog AD-19.
+**Where this bit us:** see IssuesTracker HQI-016 and DecisionLog AD-19.
 
 ---
 
@@ -362,7 +362,7 @@ Three more lessons, same append-only convention as the section above: numbered t
 
 **Rule:** Whenever a Claude prompt asks for a structured field the model has to derive (not just report) — a child-id tag, a computed date — treat the prompt instruction as a first line of defense, not the only one. Add a matching client-side check that discards or corrects results that violate the rule, regardless of what the model returned.
 
-**Why:** This project has now hit this pattern three times independently: ISSUE-010's childIds (a card might get tagged to the wrong kid, or not tagged at all), and this session's ISSUE-011/ISSUE-013 (a past-dated item or a wrong calendar date slipping through despite an explicit prompt rule). Model instruction-following is good, not guaranteed — a rule stated once in a prompt is not the same as a rule enforced in code.
+**Why:** This project has now hit this pattern three times independently: HQI-010's childIds (a card might get tagged to the wrong kid, or not tagged at all), and this session's HQI-011/HQI-013 (a past-dated item or a wrong calendar date slipping through despite an explicit prompt rule). Model instruction-following is good, not guaranteed — a rule stated once in a prompt is not the same as a rule enforced in code.
 
 **Where this bit us:** `isPastISO()` in `sports-dashboard.html`, added this session as the backstop for the "no stale content" prompt rule — see DecisionLog AD-16.
 
@@ -372,7 +372,7 @@ Three more lessons, same append-only convention as the section above: numbered t
 
 **Rule:** If the browser or server already has the real, correct value for something (e.g. a JS `Date` object for a loaded calendar event), pass that value through directly rather than describing it in prose and asking Claude to recompute it.
 
-**Why:** ISSUE-013 was exactly this mistake — calendar events were sent to the prompt as a display string like `"Mon, Aug 17"` (no year), requiring Claude to infer the actual calendar date itself, which it did unreliably (timeline items landed in an undated "Other" bucket instead of their correct day). The fix wasn't a better prompt — it was removing the need for the model to compute the value at all, by sending the real ISO date through in the `?cal=` payload.
+**Why:** HQI-013 was exactly this mistake — calendar events were sent to the prompt as a display string like `"Mon, Aug 17"` (no year), requiring Claude to infer the actual calendar date itself, which it did unreliably (timeline items landed in an undated "Other" bucket instead of their correct day). The fix wasn't a better prompt — it was removing the need for the model to compute the value at all, by sending the real ISO date through in the `?cal=` payload.
 
 **Where this bit us:** `calEventsParam()` / `calSection` construction in `sports-dashboard.html` and `SportsEmailScanner.gs` — see DecisionLog AD-17. Note as of 2026-08-19: `calEventsParam()` itself was removed entirely when the calendar data source changed (AD-23) — this entry's lesson still stands, it just no longer applies to a `?cal=` payload specifically since that payload no longer exists for the briefing.
 
@@ -390,7 +390,7 @@ Three new lessons: BM-25 extends the model-output-reliability pattern (BM-20) to
 
 **Why:** `activityId` (DecisionLog PD-06) is the third field to get this treatment. Each one is a separate opportunity for the model to under-tag, over-tag, or misapply — treating "we already solved this once" as covering the new field too would be assuming reliability that was never actually re-verified for it.
 
-**Where this applies:** `briefingItemMatches()` in `sports-dashboard.html`, extended to check `activityId` alongside `childIds` — see IssuesTracker ISSUE-020 for the corresponding monitoring entry.
+**Where this applies:** `briefingItemMatches()` in `sports-dashboard.html`, extended to check `activityId` alongside `childIds` — see IssuesTracker HQI-020 for the corresponding monitoring entry.
 
 ---
 
@@ -438,12 +438,12 @@ dump of `CalendarApp.getAllCalendars()`'s actual returned names showed the
 calendar was still reporting as "U17/U18 Girls Blue" — its real name, set
 by the Playmetrics-synced team calendar's owner, completely unaffected by
 the personal rename. This is the same underlying mechanism already
-described at a symptom level in IssuesTracker ISSUE-020 (the WNS Lax
+described at a symptom level in IssuesTracker HQI-020 (the WNS Lax
 naming-mismatch case) — this entry captures the actual cause, not just the
 symptom.
 
 **Where this bit us:** `scanGoogleCalendar()`'s Pass 1 matching in
-`SportsEmailScanner.gs` — see IssuesTracker ISSUE-020's 2026-08-21
+`SportsEmailScanner.gs` — see IssuesTracker HQI-020's 2026-08-21
 addendum and DecisionLog AD-25 (the `calMatchName` field this lesson
 motivated).
 
@@ -522,7 +522,7 @@ BM-31). Same append-only convention as prior session sections.
 
 **Rule:** Writing a plain string like `"2026-08-26"` or `"9:00 AM"` to a Sheets cell (e.g. via `setValue`) gets auto-converted to an actual `Date` value, the same as if it had been typed into the sheet by hand. A later `getValues()`/`getValue()` read then returns a JS `Date` object, not the original string — and `JSON.stringify`-ing that produces a full ISO timestamp (`"2026-08-26T00:00:00.000Z"`), not the expected plain-string shape. Any endpoint reading date/time-formatted cells back out of a Sheet should explicitly check the returned type and reformat `Date` objects to the exact string shape the frontend expects, rather than assuming `getValues()` returns what was originally written.
 
-**Why:** This caused IssuesTracker ISSUE-025 — a `doGet` endpoint fetch that "succeeded" (events loaded) but silently failed a client-side string-equality date filter, with no error anywhere in the chain.
+**Why:** This caused IssuesTracker HQI-025 — a `doGet` endpoint fetch that "succeeded" (events loaded) but silently failed a client-side string-equality date filter, with no error anywhere in the chain.
 
 **Where this bit us:** the new `action=calendarEvents` endpoint in `SportsEmailScanner.gs` — see DecisionLog AD-29.
 
@@ -532,7 +532,7 @@ BM-31). Same append-only convention as prior session sections.
 
 **Rule:** When a flex-row element with `margin-left:auto` appears to be misplacing sibling elements rather than just itself, check its position in flex order before adjusting margins.
 
-**Why:** IssuesTracker ISSUE-027 — a badge element with `margin-left:auto` but no explicit flex `order` was dragging its entire parent row rightward, not just itself, because it was first in DOM/flex order. Setting `order:1` on the badge (moving it to the end of the flex flow) fixed it without touching the margin at all.
+**Why:** IssuesTracker HQI-027 — a badge element with `margin-left:auto` but no explicit flex `order` was dragging its entire parent row rightward, not just itself, because it was first in DOM/flex order. Setting `order:1` on the badge (moving it to the end of the flex flow) fixed it without touching the margin at all.
 
 **Where this bit us:** the Calendars week view's "Today" row in `sports-dashboard.html`.
 
@@ -552,7 +552,7 @@ BM-31). Same append-only convention as prior session sections.
 
 **Rule:** Before treating a static-HTML text/markup fix as done, check whether any JS function rebuilds that same element's content on page load or on a state change it can't avoid firing (e.g. a filter re-render). If one exists, the same fix has to be applied there too, or the static markup's correction never survives past the first render.
 
-**Why:** ISSUE-033 — a prompt to remove icons and capitalize the "All family"/"All activities" default dropdown options specified only the static HTML. `renderChildSwitch()`/`renderActivitySwitch()` immediately overwrite that markup from their own template literals on every page load and filter change, so fixing only the HTML would have shipped a change that looked correct in the diff but was invisible in the running app.
+**Why:** HQI-033 — a prompt to remove icons and capitalize the "All family"/"All activities" default dropdown options specified only the static HTML. `renderChildSwitch()`/`renderActivitySwitch()` immediately overwrite that markup from their own template literals on every page load and filter change, so fixing only the HTML would have shipped a change that looked correct in the diff but was invisible in the running app.
 
 **Where this applies:** any UI element with both a static HTML default and a JS function that unconditionally re-renders it — a recurring shape in this codebase (the same class of gap, for a different reason, is why BM-16's DOM-shadowing bug and AD-13 were hard to spot from the markup alone).
 
@@ -584,7 +584,7 @@ BM-31). Same append-only convention as prior session sections.
 
 **Why:** A Top Center Lacrosse payment-confirmation email was silently attributed to a different family activity (Fighting Sue Hockey) purely because both shared the `sportsengine.com` domain and Fighting Sue Hockey's broad entry happened to be checked first — and even after fixing match ordering, the org name turned out to only appear in the Subject line for that notification template, not From at all.
 
-**Where this applies:** `detectApp()` in `SportsEmailScanner.gs` — see DecisionLog AD-31, IssuesTracker ISSUE-035.
+**Where this applies:** `detectApp()` in `SportsEmailScanner.gs` — see DecisionLog AD-31, IssuesTracker HQI-035.
 
 ---
 
@@ -594,8 +594,8 @@ BM-31). Same append-only convention as prior session sections.
 
 - **Session 1 (Mar 2026):** File created. BM-01 through BM-15 documented from MVP development.
 - **Session — 2026-08-17:** Added BM-16, BM-17, BM-18 from the Child→Activity Settings rebuild and its two bug fixes. Marked BM-08 `[Superseded by AD-10]` — the ICS proxy waterfall it described was replaced by a server-side GAS fetch. Added dated notes to BM-11 and BM-13 confirming both are still open/unapplied as of this session.
-- **Session — 2026-08-17 (later session):** Added BM-19 (deployment account discipline, from root-causing ISSUE-016), BM-20 and BM-21 (deterministic backstops / don't make the model compute what you already know, from ISSUE-011 and ISSUE-013).
-- **Session — 2026-08-18 (backfilled 2026-08-19 — this entry, and BM-22/23/24 themselves, were referenced by DecisionLog AD-21 and IssuesTracker ISSUE-017 since this date but never actually written into this file until now):** Added BM-22, BM-23, BM-24 from the leaked-API-key incident (rotate → Script Properties migration → git history scrub → prevention recommendation).
+- **Session — 2026-08-17 (later session):** Added BM-19 (deployment account discipline, from root-causing HQI-016), BM-20 and BM-21 (deterministic backstops / don't make the model compute what you already know, from HQI-011 and HQI-013).
+- **Session — 2026-08-18 (backfilled 2026-08-19 — this entry, and BM-22/23/24 themselves, were referenced by DecisionLog AD-21 and IssuesTracker HQI-017 since this date but never actually written into this file until now):** Added BM-22, BM-23, BM-24 from the leaked-API-key incident (rotate → Script Properties migration → git history scrub → prevention recommendation).
 - **Session — 2026-08-19:** Added BM-25 (model-output-reliability pattern extended to `activityId`), BM-26 (matching strategy should follow data-source structure, not be forced uniform), and BM-27 (new GAS service needs a manual one-time authorization run before deploy) — all three from replacing the `.ics` calendar pipeline with a direct Google Calendar scan (DecisionLog AD-23).
 - **Session — 2026-08-21:** Added BM-28 (personal calendar renames don't
   change what CalendarApp reads for calendars you don't own — the real
@@ -607,16 +607,16 @@ BM-31). Same append-only convention as prior session sections.
   debugging work.
 - **Session — 2026-08-26:** Added BM-31 (Google Sheets silently coerces
   date/time-shaped strings into real Date objects on write — the root
-  cause behind ISSUE-025), BM-32 (flex `order` vs. `margin-left:auto` can
+  cause behind HQI-025), BM-32 (flex `order` vs. `margin-left:auto` can
   fight each other in ways that look like a margin bug), and BM-33
   (GitHub Actions incidents can leave a workflow stuck "Queued" with
   cancel also failing) — from this session's Summary/Calendars UI/PWA
   polish pass.
 - **Session — 2026-08-27:** Added BM-34 (a fixed UI-text change is
   invisible if a JS render function immediately overwrites the same
-  element on load — from ISSUE-033), BM-35 (a phone's screen-lock/
+  element on load — from HQI-033), BM-35 (a phone's screen-lock/
   backgrounding can kill a long-lived client connection while the server
-  keeps running — the root cause behind the ISSUE-004 recurrence, fixed
+  keeps running — the root cause behind the HQI-004 recurrence, fixed
   by decomposing into short retryable steps per AD-30), and BM-36 (when a
   prompt's stated rationale for a bug doesn't match what you find, trust
   the code — verify the specific claim before applying the described

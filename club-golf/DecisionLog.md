@@ -1,5 +1,6 @@
 # DecisionLog.md — Club Golf App
 **All significant architecture and product decisions with rationale.**
+*Last updated: 2026-07-23 — Session 33 complete (through CGAD-056)*
 
 ---
 

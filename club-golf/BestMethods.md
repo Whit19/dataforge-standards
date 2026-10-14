@@ -11,38 +11,30 @@ These are not suggestions — they are proven fixes to real bugs that cost hours
 
 ## 1. PWA & Build
 
+Workspace-wide PWA/build rules (`--legacy-peer-deps`, `injectManifest` +
+iife, OneDrive, PowerShell `&&`, `no-cache`/immutable caching, VAPID keys,
+PWA icon specs, `user-scalable=no`, `window.confirm()` in standalone) live
+in Master Protocol Sections 7 and 9 — not re-copied here.
+
 | Rule | Detail |
 |------|--------|
-| Always `--legacy-peer-deps` | vite-plugin-pwa has peer dep conflicts — never plain `npm install` |
-| `injectManifest` + `rollupFormat: 'iife'` | Only SW strategy that works correctly with Firebase + iOS |
-| Keep project outside OneDrive | `node_modules` + OneDrive = corruption and build errors |
-| PowerShell: no `&&` chaining | Run commands sequentially. `npm run build` then `firebase deploy` |
-| `index.html` must be `no-cache` | Add to `firebase.json` — browsers will serve stale entry point forever otherwise |
-| SW files must be `no-cache` | Same reason — stale SW = invisible updates |
-| Immutable cache for `*.js` / `*.css` | Hashed filenames are safe to cache forever |
-| VAPID key: copy/paste only | Never retype — one wrong character = push silently fails forever |
-| PWA icons: white background | 180px (Apple touch), 192px, 512px. Transparent backgrounds render badly on iOS |
-| `user-scalable=no` is an accessibility violation | Use `maximum-scale=5.0` instead |
 | `<main id="root">` in `index.html` | Satisfies ARIA landmark requirement — Lighthouse Accessibility |
-| `window.confirm()` silently blocked in PWA standalone | Always use inline confirmation UI (a panel with Yes/No buttons) |
 
 ---
 
 ## 2. Firebase & Firestore
 
+Workspace-wide Firebase/Firestore rules (`firestorePaths.js`,
+`constants.js`, `persistentLocalCache`/deprecated `enableIndexedDbPersistence`,
+offline cold-start, Cloud Function "Allow public access", `functions/.env`)
+live in Master Protocol Section 8 — not re-copied here.
+
 | Rule | Detail |
 |------|--------|
-| All collection/doc refs through `firestorePaths.js` | Never inline Firestore refs in components — one path change breaks everything otherwise |
-| All constants in `constants.js` | Never hardcode collection names, status strings, or format labels in JSX |
-| `enableIndexedDbPersistence()` is deprecated | Use `persistentLocalCache` API instead |
-| Offline cold-start: `setLoading(false)` must NOT be inside `await loadProfile()` | If Firestore is offline, `loadProfile` never resolves — app spins forever |
 | `onSnapshot` for real-time reads; `setDoc/merge` for writes | Standard pattern across both apps — don't mix `getDocs` into real-time flows |
 | Firestore composite index | Create in Firebase console when query combines `where` + `orderBy` on different fields |
 | Member doc IDs are NOT Firebase Auth UIDs | ID is auto-generated. Firebase Auth UID stored as `uid` field. Never assume they match |
 | `includeMetadataChanges: true` on critical snapshots | Prevents stale cached status on app reopen |
-| Firestore path cleanup is non-negotiable | Every file that reads Firestore must go through `firestorePaths.js` — do a full audit before each phase ships |
-| Every new Cloud Function needs "Allow public access" in Cloud Run | Not set automatically — must be done manually in Cloud Run console after first deploy |
-| `functions/.env` is never committed | Gmail credentials, API keys — always in `.env`, always in `.gitignore` |
 | `httpsCallable` has TWO timeout ceilings, not one | The client SDK defaults to a ~70s timeout independent of the Cloud Function's own `timeoutSeconds` config. Raising the server-side timeout alone does not fix a client-perceived timeout — pass `{ timeout: Xms }` explicitly on the client `httpsCallable(...)` call to match the server value |
 | Route all outbound link domains through one constant | e.g. `APP_BASE_URL` in `functions/index.js`. A prior "fix" (CGI-077) updated an email's logo image src but not the actual CTA link, because the two were separate literals — the bug went undetected for months. One shared constant makes that class of drift impossible |
 
@@ -178,4 +170,4 @@ These are not suggestions — they are proven fixes to real bugs that cost hours
 
 ---
 
-*Last updated: July 2026 — Session 33 complete*
+*Last updated: 2026-07-23 — Session 33 complete*

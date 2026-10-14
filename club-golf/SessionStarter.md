@@ -2,7 +2,7 @@
 **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 Repo: github.com/Whit19/dataforge-standards
 **Load this at the start of every session to restore full context.**
-*Updated July 2026 — Session 33 complete (bulk resend, GHIN sync timeout fix, decline/opt-out flow, invite link domain fix)*
+*Updated 2026-07-23 — Session 33 complete (bulk resend, GHIN sync timeout fix, decline/opt-out flow, invite link domain fix)*
 
 ---
 

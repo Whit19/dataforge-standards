@@ -1,5 +1,6 @@
 # IssuesTracker.md — Club Golf App
 **Tracks open issues, bugs, deferred items, and resolved items.**
+*Last updated: 2026-07-23 — Session 33 complete (through CGI-096)*
 
 ---
 

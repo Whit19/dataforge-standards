@@ -9,7 +9,7 @@
 |--------|-------|
 | **Total Hours** | ~74.5h |
 | **Sessions** | 33 |
-| **Last Updated** | 7/23/26 |
+| **Last Updated** | 2026-07-23 |
 
 ---
 

@@ -557,6 +557,8 @@ Every bug or deferred item gets logged. Format:
 
 **Never silently fix an issue without logging it — even small ones that affect behavior.**
 
+**This is the default format for a new project or a project that already uses it.** A project may use a richer format instead — e.g. Club Golf's table-based `CGI-NNN` tracker with explicit Type and Priority columns, split into Open/Deferred/Resolved sections — as long as every entry is still identifiable by ID and status. When a project has an established convention that differs from this section, match that project's own convention rather than forcing this template onto it retroactively (same hedge as Section 11).
+
 ---
 
 ## 13. New Project Checklist

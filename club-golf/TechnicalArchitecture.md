@@ -1,6 +1,6 @@
 # TechnicalArchitecture.md — Club Golf Platform
 **Full technical spec: data models, file structure, Firestore paths, auth, calc engines, design system**
-*Updated May 2026 — Session 24 complete*
+*Updated 2026-10-14 (see footer for the most recent change)*
 
 ---
 
@@ -29,17 +29,10 @@
 
 ## Critical Build Rules
 
-| Rule | Why |
-|------|-----|
-| `npm install --legacy-peer-deps` always | vite-plugin-pwa peer dep conflict |
-| `injectManifest` + `rollupFormat: 'iife'` | Only SW strategy that works with Firebase + iOS |
-| `index.html` → `Cache-Control: no-cache` in firebase.json | Browsers serve stale entry point forever otherwise |
-| SW files → `no-cache` | Same reason |
-| Project must be outside OneDrive | node_modules + OneDrive = corruption |
-| `window.confirm()` silently blocked in PWA standalone | Use inline confirmation UI always |
-| `user-scalable=no` is accessibility violation | Use `maximum-scale=5.0` |
-| All Firestore refs through `firestorePaths.js` | One path change breaks everything otherwise |
-| All constants in `constants.js` | Never inline collection names or status strings |
+All of these are workspace-wide rules, not club-golf-specific — see Master
+Protocol Sections 7 (PowerShell), 8 (Firebase/Firestore), and 9 (PWA) for
+the full, current list. Not re-copied here; see **Known Pitfalls** below
+for lessons genuinely specific to this project.
 
 ---
 
@@ -166,6 +159,8 @@ function hiAgeDays(updatedAt) {
 | `deactivateMember` | onCall | Yes | Disables Firebase Auth account; sets inviteStatus:'skip' on member doc |
 | `reactivateMember` | onCall | Yes | Re-enables Firebase Auth account; sets inviteStatus:'accepted' on member doc |
 | `declineInvite` | onCall | No (public) | Validates decline token, sets member `inviteStatus:'skip'` + `declinedInvite:true` + `declinedAt`, clears `inviteToken` |
+| `syncHandicaps` | onCall, `timeoutSeconds: 540` | Yes | Logs into GHIN with admin-supplied credentials (`clubId`, `email`/`username`, `password`), then for each active member (or a `memberIds`-scoped subset) and any `guestNames` passed in, searches GHIN by first/last name and writes `handicapIndex` + `handicapUpdatedAt` + `hiSyncStatus` back to the member doc (`'synced'` / `'not_found'` / `'error'`). An ambiguous name match returns `candidates` for the client to disambiguate instead of writing anything. Guest lookups return results to the client only — never written to Firestore. `dryRun: true` runs the whole search without writing. A full-roster (non-scoped) run also updates `clubs/{clubId}/profile/profile.lastHiSync` (ranAt/updatedCount/notFoundCount/errorCount/ranBy). Called from `GamesPage`'s admin sync modal and per-game from `NewGamePage`'s SETUP step. |
+| `sendHiSyncReminder` | onSchedule, every Monday 13:00 UTC (8 AM Central) | — | Emails the admin a reminder to run the handicap sync for the week |
 
 **After every new function deploy:** Set "Allow public access" manually in Cloud Run console
 
@@ -231,8 +226,8 @@ clubs/
   name: string,
   email: string | null,
   handicapIndex: number | null,   // null if not set; plus handicaps stored as negative (e.g. -3.5 for +3.5 HI)
-  handicapUpdatedAt: timestamp | null,  // written on every HI save; null = never set
-  handicapIndex: number | null,
+  handicapUpdatedAt: timestamp | null,  // written on every HI save (manual or GHIN sync); null = never set
+  hiSyncStatus: "synced" | "not_found" | "error" | null,  // set by syncHandicaps Cloud Function; null = never synced via GHIN (e.g. manual-only entry)
   defaultTees: string,
   role: "admin" | "organizer" | "member",
   uid: string | null,
@@ -327,6 +322,18 @@ GAME_STATUS = {
 ```
 SCHEDULED → ACTIVE → COMPLETE
 ```
+
+---
+
+## NewGamePage Wizard
+
+4-step wizard (`STEPS = { SETUP, TEAMS, SETTINGS, REVIEW }` in `NewGamePage.jsx`), tabs across the top, each step its own `step-content` block:
+1. **Setup** — course, game date, 4 player slots (fill from roster or add a guest by name). A "Sync Handicaps" button appears once all 4 slots are filled, calling `syncHandicaps` scoped to just this game's `memberIds` + any `guestNames` (ambiguous GHIN matches resolved inline via a modal; guest results apply to the slot only, never written to Firestore).
+2. **Teams** — drag players from the pool into Team A / Team B slots; shows each team's combined playing handicap (PH) as players are assigned.
+3. **Settings** — Birdie Mode (3 options), CRACK setting + Auto Crack/Auto Re-Crack hole pickers, Casket, Bonus Settings.
+4. **Review** — final read-only summary: both teams' players with tee set / HI / CH / PH, and the chosen Settings — before the game doc is created.
+
+Back/Settings/Teams/Setup navigation at the top steps backward through the same order; forward navigation happens via each step's own "Next" button.
 
 ---
 
@@ -598,19 +605,16 @@ club-golf/
 
 ## Known Pitfalls
 
+Project-specific lessons only — workspace-wide rules (PowerShell `&&`,
+OneDrive, `--legacy-peer-deps`, `injectManifest`/iife, `window.confirm()`,
+offline cold-start, `firestorePaths.js`, Cloud Function public access) live
+in Master Protocol Sections 7–9, not duplicated here.
+
 | Pitfall | Note |
 |---------|------|
-| PowerShell `&&` | Not supported — run sequentially |
-| OneDrive + node_modules | Keep project outside OneDrive |
-| vite-plugin-pwa peer deps | `npm install --legacy-peer-deps` always |
-| SW iife format | `injectManifest` must use `rollupFormat: 'iife'` |
-| `window.confirm()` | Silently blocked in PWA standalone — inline UI always |
 | `position: sticky` | Unreliable in flex overflow — use `position: fixed` |
 | ResizeObserver | Use `el.offsetHeight` not `contentRect.height` |
-| Offline cold-start | `setLoading(false)` must NOT be inside `await loadProfile()` |
 | Stats on hole 18 | Always pass `{ ...game, totals: newTotals }` |
-| All Firestore refs | Must go through `firestorePaths.js` |
-| Cloud Function public access | Must be set manually in Cloud Run after each new function deploy |
 | Stats shape — NESTED not flat | `stats.all.gamesPlayed` NOT `stats.gamesPlayed` |
 | Deactivated member uid | Keep uid on member doc through deactivation |
 | handicapUpdatedAt — guard null | Always check before calling `.toMillis()` |
@@ -622,5 +626,5 @@ club-golf/
 
 ---
 
-*Last updated: Session 33 complete — July 2026 (this update layers in CGAD-055/056 only; the doc has known gaps predating this session — no `syncHandicaps` Cloud Function entry, no GHIN-related member fields like `hiSyncStatus`, no 4-step NewGamePage wizard section — flagged for a future dedicated refresh, not addressed here)*
+*Last updated: 2026-10-14 (docs audit pass — closed the gaps flagged after Session 33/CGAD-055/056: added the `syncHandicaps`/`sendHiSyncReminder` Cloud Functions, the member doc's `hiSyncStatus` field, and the NewGamePage 4-step wizard section, all read directly from the live source)*
 *Next: Begin sending member invites, Phase 3 TNML planning*

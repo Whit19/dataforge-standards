@@ -1,5 +1,5 @@
 # Club Golf — Product Definition Document
-**Version 1.0 | May 2026**
+**Version 1.0 | 2026-05 (see Version History below)**
 
 ---
 
@@ -249,7 +249,7 @@ Players belong to one primary club but can be invited as guests to games at othe
 - EZ Games
 - No time limit
 
-**Paid tier — "Club Golf Pro" ([amount]–[amount]/month per club):**
+**Paid tier — "Club Golf Pro" (modest flat monthly fee per club):**
 - Unlimited roster
 - Multi-organizer support (more than 1 trusted player per club)
 - Advanced stats and history export
@@ -257,7 +257,7 @@ Players belong to one primary club but can be invited as guests to games at othe
 - Future: cross-club events, district match format
 
 **Per-event option (for non-club organizers):**
-- District coordinators or one-off event organizers can pay per event ([amount]–[amount]/event)
+- District coordinators or one-off event organizers can pay a small flat fee per event
 - No club subscription required
 - Players participate as guests or create individual accounts
 - Targets the "runs 2 events a year" organizer that a club subscription doesn't fit

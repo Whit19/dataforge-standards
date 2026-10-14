@@ -1,5 +1,5 @@
 # ProjectRoadmap.md — Club Golf Platform
-**Phased build plan — updated June 2026**
+**Phased build plan — updated 2026-07-23**
 
 ---
 
@@ -129,6 +129,14 @@
 - [x] Sync modal — credential form → running state → results summary (updated/not found/errors)
 - [x] NOT FOUND / ERROR badges in RosterPage HI column
 - [x] CGAD-051 added to DecisionLog
+- [x] NewGamePage redesigned 3-step → 4-step wizard (Setup / Teams / Settings / Review) — Setup consolidates course/date/players/tees/HI confirmation; Teams is a new explicit step with player pool, PH display, 2×2 slot grid (CGAD-052)
+- [x] Inline HI editing in Setup step — tap-to-edit number input, validated -10 to 54, immediate Firestore write-back; guest HI edits stay local to the game only (CGAD-053)
+- [x] Per-game GHIN sync — "Update handicaps from GHIN" button in Setup step, scoped to just that game's players + guests; guest state picker (full US state list) plus disambiguation for multi-result matches (CGAD-054)
+
+### 2J — Invite Management Refinements ✅ COMPLETE
+- [x] Bulk "Resend All Expired (N)" button in RosterPage's Pending tab — sequentially reuses the existing `sendInvite` callable, confirm panel + live progress + success/failure summary (CGAD-055)
+- [x] Invite decline/opt-out flow — one-click decline link (same tokenized pattern as accept), new public `declineInvite` Cloud Function, `declinedInvite`/`declinedAt` fields; RosterPage shows a "Declined" badge in Not Active and swaps Reactivate for "Move to To Invite" (CGAD-056)
+- [x] Outbound email links (invite/join/decline) consolidated to one `APP_BASE_URL` constant — closes CGI-096, a months-old drift where the invite link itself never actually migrated to the custom domain
 
 ---
 
@@ -173,5 +181,5 @@
 
 ---
 
-*Next available Decision ID: CGAD-051*
-*Last updated: June 2026 — Session 28 complete. Phase 2H complete. Phase 2 complete. Phase 3/4 resequenced: Format Library ahead of TNML.*
+*Next available Decision ID: CGAD-057*
+*Last updated: 2026-07-23 — Session 33 complete. Phase 2I/2J additions through CGAD-056 (GHIN wizard refinements, bulk resend, decline/opt-out flow). Phase 3/4 resequencing (Format Library ahead of TNML) still in effect.*

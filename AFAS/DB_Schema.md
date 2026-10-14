@@ -374,13 +374,14 @@ Covers both expense and income categories. Manually maintained.
 **Example rows:**
 ```
 budget_id  budget_year  category   month  target_amount  type     is_default  notes
-1          NULL         Travel     NULL   40000.00       Expense  1           Default annual travel budget
-2          2025         Travel     NULL   55000.00       Expense  0           2025 override — Europe trip year
-3          2025         Travel     6      10000.00       Expense  0           Monthly override — June Europe trip
-4          2025         Travel     7      8000.00        Expense  0           Monthly override — July Europe trip
-5          NULL         Pay        NULL   86528.00       Income   1           Default — Amy salary 26 x [amount]
-6          2025         Bonus      NULL   175000.00      Income   0           2025 — expected Baird dividend + bonus
+1          NULL         Travel     NULL   5000.00        Expense  1           Default annual travel budget
+2          2025         Travel     NULL   6000.00        Expense  0           2025 override — high-travel year
+3          2025         Travel     6      1000.00        Expense  0           Monthly override — June trip
+4          2025         Travel     7      800.00         Expense  0           Monthly override — July trip
+5          NULL         Pay        NULL   5000.00        Income   1           Default — biweekly salary deposit
+6          2025         Bonus      NULL   10000.00       Income   0           2025 — expected annual bonus
 ```
+*(Figures above are illustrative placeholders, not live budget amounts — this repo is public; see Master Protocol Section 6a.)*
 
 **Query pattern — effective monthly budget for a given year/month:**
 ```sql

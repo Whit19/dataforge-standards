@@ -79,7 +79,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ Source labels consolidated: ASSOCIATED → ASSOCIATED_PERSONAL, AMEX DF → AMEX
 - ✅ Apple Card CSV import script created (import_apple_csv.py in imports\ folder)
 - ✅ Apple Card March + April + May 2026 imported (444 rows total)
-- ✅ enrich_transactions.py: bonus rule >[amount] threshold confirmed implemented (ISSUE-005 closed)
+- ✅ enrich_transactions.py: bonus rule high-value threshold confirmed implemented (ISSUE-005 closed)
 - ✅ enrich_transactions.py: retry path bug fixed — removed stale category_normalized parameter
 - ✅ Manual review of 46 Uncategorized/VENMO-Review transactions complete (ISSUE-004 closed)
 - ✅ ISSUE-043 fully resolved 2026-09-16 — Apple portion (31 rows, script 88) plus the HSA "Normal Distribution" backlog (61 rows, resolved via the CSV's previously-unused Consumer Note column)
@@ -96,7 +96,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ Year Over Year page complete
 - ✅ Top Merchants page complete — COALESCE merchant fix applied
 - ✅ Transaction Review page complete (added 2026-06-01)
-- ✅ Active data issues resolved: [amount] gap closed, Sports/Clubs confirmed flat YoY, YoY review complete
+- ✅ Active data issues resolved: reporting gap closed (see Power BI Data Health page), Sports/Clubs confirmed flat YoY, YoY review complete
 - ✅ Report published to Power BI Service (My Workspace)
 - ✅ Scheduled refresh live: daily 4:00 AM CT
 - ✅ vw_top_merchants: COALESCE(merchant_normalized, merchant_name_raw, 'Unknown')
@@ -112,8 +112,8 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ Phase 4 tables created in Azure
 - ✅ accounts table ALTERed: asset_class, display_name, owner, include_in_net_worth added
 - ✅ physical_assets seeded: HOUSE-WFB-BELLE, CAR-TSLA-NEBULA, CAR-TSLA-STORM, CAR-TSLA-TRINITY
-- ✅ physical_asset_valuations seeded 2026-06-17: house [amount], 3 Teslas (KBB estimates)
-- ✅ insurance_assets + valuations seeded and live: NWM-TOM ([amount]), NWM-AMY ([amount])
+- ✅ physical_asset_valuations seeded 2026-06-17: house + 3 Teslas (KBB estimates) — see Power BI Net Worth page for current figures
+- ✅ insurance_assets + valuations seeded and live: NWM-TOM, NWM-AMY cash values both populated — see Power BI Net Worth page for current figures
 - ✅ NWM Plaid tokens live — cash value syncs monthly via monthly_sync.py
 - ✅ liabilities seeded: Rocket Mortgage, US Bank LOC
 - ✅ Rocket Mortgage confirmed unsupported by Plaid — liability_balances updated manually
@@ -128,7 +128,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ security_sectors table created and seeded (115 tickers)
 - ✅ import_baird_holdings.py created — CSV import pipeline for all Baird accounts
 - ✅ Historical data imported: 2024-01 through 2026-06-17 (5,509 rows, 11 accounts)
-- ✅ Net worth verified: [amount] (Investment + Physical + Insurance + Cash - Liabilities)
+- ✅ Net worth verified (Investment + Physical + Insurance + Cash - Liabilities) — see `vw_net_worth` / Power BI Net Worth page for current figures
 - ✅ Phase 4 Power BI views created: vw_net_worth, vw_holdings_summary, vw_asset_allocation, vw_liability_summary, vw_budget_vs_actual
 - ✅ Connect Phase 4 views to Power BI — Net Worth, Holdings, and Asset Allocation report pages built and live (2026-09-14, Session 20). vw_holdings_summary/vw_asset_allocation replaced by new vw_holdings_all (Baird + Plaid Investments consolidated); old views now dead SQL, still in the DB.
 - ✅ vw_holdings_all reworked into the single source of truth for net worth (Session 21, 2026-09-15) — holding-level Cash reclassification, new Retirement category, full l1-l5 Power BI account hierarchy columns, 2011-2026 historical backfill (dbo.net_worth_history + vw_net_worth_all_time, forward-filled monthly).
@@ -136,7 +136,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 - ✅ Baird Activity — new page complete (2026-09-17): Trades/Fees/Income sections built on vw_baird_activity.
 - ❌ Liability Summary report page — not needed (Tom, 2026-09-16): only 2 liabilities, already visible on the Net Worth page.
 - ✅ Principal Financial 401k Plaid Investments — connected 2026-08-01. Real account: Baird Profit Sharing and Savings Plan (401k), owner Amy. principal_sync.py created and wired into the pipeline 2026-09-14 (see item 7 below).
-- ✅ HSA (Bank of America) added as a manual CSV-tracked account (Session 13) — Plaid confirmed unsupported for this institution outright ("Connectivity not supported"), not a stale-credential issue. import_hsa_transactions.py + import_hsa_holdings.py built and live: 461 transactions imported (full account history back to 2014), 2 holdings (both mutual funds), [amount] tracked value. Same permanent-CSV-fallback model as Baird. **Enrichment: `enrich_hsa_csv.py` retired 2026-09-08 — `enrich_transactions.py` is now the single enricher for all sources.**
+- ✅ HSA (Bank of America) added as a manual CSV-tracked account (Session 13) — Plaid confirmed unsupported for this institution outright ("Connectivity not supported"), not a stale-credential issue. import_hsa_transactions.py + import_hsa_holdings.py built and live: 461 transactions imported (full account history back to 2014), 2 holdings (both mutual funds) with tracked value populated — see Power BI Net Worth page for current figures. Same permanent-CSV-fallback model as Baird. **Enrichment: `enrich_hsa_csv.py` retired 2026-09-08 — `enrich_transactions.py` is now the single enricher for all sources.**
 - ✅ New Baird account **IRA - PE Millennium** (a CAIS-administered private-equity feeder fund) onboarded 2026-10-01 — added to `import_baird_holdings.py`'s canonical account list; its one holding (symbol 3063340) mapped in `security_sectors` (script 132). `baird_holdings.sector` for October's already-imported row is still NULL since the mapping came after that import ran — tracked as ISSUE-048.
 - ✅ **2026-10-01 (Session 25):** both `import_hsa_transactions.py` and `import_apple_csv.py` rewritten to insert-only after discovering their MERGE statements silently reverted manually-reviewed categorization work on routine monthly re-syncs — see BestMethods and DecisionLog 2026-10-01. HSA's last 9 rows on the old raw-text hash scheme re-keyed to the current scheme (script 134); all 466 HSA rows now on one scheme.
 - ⏳ Plaid Investments for Baird (when ISSUE-008 resolves)

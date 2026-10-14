@@ -6,6 +6,10 @@ Last Updated: 2026-09-04
 
 ## 1. Firebase / Firestore
 
+Workspace-wide Firestore rules (`firestorePaths.js`/`constants.js`,
+`persistentLocalCache`, offline cold-start) live in Master Protocol
+Section 8 — not re-copied here.
+
 ### Silent permission failures are the #1 hidden bug class
 Firestore collection queries silently return `[]` when the security rule blocks
 them — they do not throw an error. A per-document-owner read rule (e.g.
@@ -19,11 +23,6 @@ Before writing a hook that queries an entire collection, verify that the
 Firestore security rule permits a list read, not just a per-document read. A
 rule that allows individual reads does NOT allow collection-level queries.
 This catches a whole class of silent data failures before they reach production.
-
-### All Firestore refs go through `firestorePaths.js`
-Never inline a collection name, document path, or query in a component or hook.
-Always use `firestorePaths.js` and `constants.js`. Magic strings in JSX = bugs
-that are invisible until the wrong doc ID is generated in production.
 
 ### Doc ID suffixes are mandatory and exact
 - Foursomes: `{outingId}_R{roundNumber}_G{groupNumber}` — the `_G` prefix is required
@@ -42,15 +41,6 @@ Using `arrayUnion` for FCM tokens caused stale device tokens to pile up
 indefinitely. Always replace arrays entirely: `fcmTokens: [token]`.
 Apply this thinking to any array field updated frequently — if old entries become
 invalid, append semantics will silently accumulate garbage. (DEC-116)
-
-### `persistentLocalCache` is the correct offline API
-`enableIndexedDbPersistence()` is deprecated. Use `persistentLocalCache` API.
-Calling deprecated APIs produces warnings and may break in future SDK versions.
-
-### `setLoading(false)` must not be gated on async Firestore calls
-If `setLoading(false)` is inside an `await loadProfile()` call and Firestore is
-offline, the app spins forever. Always unblock the loading state before or
-independent of any awaited Firestore operation. (ISS-095, DEC-107)
 
 ### Admin SDK reads only — never commit service account keys
 `serviceAccountKey.json` is never committed. Delete after use. All secrets via
@@ -92,11 +82,6 @@ ISS-113)
 With the native push event as the sole path, remove `onMessage` from
 `usePushNotifications.js` entirely. Any foreground handler creates a second
 delivery path. iOS suppressing foreground notifications is OS behavior, not a bug.
-
-### VAPID key: copy/paste only, never retype
-A single wrong character in the VAPID key causes push to silently fail — no error
-is thrown, FCM returns success, but the device never receives anything. Always
-paste the key; never transcribe from a screenshot or memory. (ISS-070)
 
 ### Token refresh on every mount, replace not append
 Run `checkAndRefreshToken` on every component mount. If the token has changed or
@@ -144,11 +129,6 @@ breaking their viewport-relative positioning.
 hide the list, show the form in its place — same pattern as `NotesTab`,
 `AnnouncementForm`, `DiningEventForm`. (DEC-136, ISS-136)
 
-### `window.confirm()` is silently blocked in PWA standalone
-iOS PWA standalone mode blocks `window.confirm()` without throwing — it returns
-`false` silently. Always use inline confirmation UI (show/hide a confirm panel).
-(ISS-063)
-
 ### `position: fixed` elements need explicit z-index and safe-area padding
 Fixed elements on iOS (bottom nav, modals, sticky footers) require:
 - Explicit `z-index` — don't rely on stacking order
@@ -179,19 +159,12 @@ differently at this size than on desktop.
 
 ## 4. PWA / Service Worker
 
-### `injectManifest` + `rollupFormat: 'iife'` is the only working SW strategy
-With Firebase + iOS, the `injectManifest` strategy and `rollupFormat: 'iife'` in
-the Vite PWA plugin config are required. Other strategies cause SW scope
-conflicts that break push notification delivery on iOS.
-
-### Cache headers must be set explicitly in `firebase.json`
-- `index.html` → `no-cache` — browsers will serve stale HTML otherwise
-- SW files → `no-cache` — stale SW = invisible deploys
-- `**/*.@(js|css)` → `max-age=31536000, immutable` — hashed filenames are safe
-
-### Always build before deploy
-Run `npm run build` before every `firebase deploy --only hosting`. Never deploy
-a stale build. Functions require a separate deploy: `firebase deploy --only functions`.
+Workspace-wide PWA/build rules (`injectManifest`/iife, cache headers,
+build-before-deploy) live in Master Protocol Sections 7 and 9 — not
+re-copied here. One UP-Golf-specific note beyond those: the `injectManifest`
+requirement here isn't just the generic SW strategy — on this project,
+other strategies caused SW scope conflicts that broke push notification
+delivery specifically on iOS, which is why it's non-negotiable for this app.
 
 ---
 
@@ -285,26 +258,14 @@ in a single batch. (ISS-116, DEC-118)
 
 ## 7. Deployment & Environment
 
-### PowerShell: no `&&` chaining, always sequential commands
-PowerShell does not support `&&`. Run commands on separate lines or use `;`.
-Never chain install + build + deploy in a single command.
-
-### Always `--legacy-peer-deps` — no exceptions
-`npm install` without `--legacy-peer-deps` fails on this project due to
-vite-plugin-pwa peer dependency conflicts. This flag is always required.
+Workspace-wide deployment rules (PowerShell `&&`, `--legacy-peer-deps`,
+Cloud Function public access, `.env`/`local.settings.json` gitignored)
+live in Master Protocol Sections 6–8 — not re-copied here.
 
 ### Rules-only deploy when only Firestore rules changed
 `firebase deploy --only firestore:rules` — no rebuild needed. Faster and
 reduces risk of accidentally deploying a stale build. Only use the full
 `firebase deploy --only hosting` when source files changed.
-
-### Cloud Function public access must be set manually after every new function deploy
-After deploying a new Cloud Function, go to Cloud Run console and set public
-access manually. Firebase does not do this automatically for new functions.
-
-### `.env` and `local.settings.json` are always gitignored — confirm before first commit
-Never commit secrets. The `functions/.env` file is never committed. Always
-confirm `.gitignore` before the first `git push` on any new machine or project.
 
 ### Laptop setup: copy `.env` manually from desktop
 `.env` is gitignored — it is not in the repo. On first use of the laptop, copy
@@ -373,14 +334,9 @@ backfilled values against the trusted screen). (DEC-157, DEC-158)
 
 ## 9. Security
 
-### No sensitive values in MD files, chat, or screenshots
-API keys, tokens, passwords, connection strings, and doc IDs that act as
-credentials must never appear in documentation, chat responses, or screenshots.
-Use variable name references only: `ANTHROPIC_API_KEY`, not the value.
-
-### VAPID key and all push credentials: text only
-Never read a VAPID key or FCM config value from a screenshot. Always require
-copy/paste of the raw text. One wrong character = silent failure with no error.
+Workspace-wide security rules (no secrets in MD/chat/screenshots, VAPID/
+credential copy-paste only) live in Master Protocol Section 6 — not
+re-copied here.
 
 ### Firestore write rules unchanged when opening reads
 When opening a read rule to fix a broad query failure (e.g. payments collection),
@@ -391,9 +347,7 @@ with the specific fields being exposed and the privacy tradeoff accepted.
 
 ## 10. Accessibility
 
-### `user-scalable=no` is an accessibility violation — do not use
-Use `maximum-scale=5.0` in the viewport meta tag. Pinch zoom must always be
-available. (DEC-097, ISS-090)
+`user-scalable=no` (Master Protocol Section 9) not re-copied here.
 
 ### Leaderboard numbers use `var(--font-ui)`, not mono
 Leaderboard score cells (`.lb-table__seed-num`, `.lb-table__score`,

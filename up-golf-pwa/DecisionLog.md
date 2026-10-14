@@ -3,329 +3,329 @@
 
 ---
 
-## DEC-001 — DEC-071
+### DEC-001 — DEC-071
 *(See previous session docs — unchanged)*
 
 ---
 
-## DEC-072 — Round Lock as Sole Source of Truth for Tournament Status
+### DEC-072 — Round Lock as Sole Source of Truth for Tournament Status
 **Date:** 2026-03-31 | **Category:** Architecture | **Status:** Final
 
 ---
 
-## DEC-073 — Admin Navigation: Bottom Nav Always Visible
+### DEC-073 — Admin Navigation: Bottom Nav Always Visible
 **Date:** 2026-03-31 | **Category:** UX / Architecture | **Status:** Final
 
 ---
 
-## DEC-074 — AdminFoursomes Editable on All Rounds
+### DEC-074 — AdminFoursomes Editable on All Rounds
 **Date:** 2026-03-31 | **Category:** UX / Architecture | **Status:** Final
 
 ---
 
-## DEC-075 — SVG Lock Icons Replace Emoji in Admin Controls
+### DEC-075 — SVG Lock Icons Replace Emoji in Admin Controls
 **Date:** 2026-03-31 | **Category:** Technical / UX | **Status:** Final
 
 ---
 
-## DEC-076 — Tournament Summary Card Replaces Status Card on Completion
+### DEC-076 — Tournament Summary Card Replaces Status Card on Completion
 **Date:** 2026-03-31 | **Category:** UX | **Status:** Final
 
 ---
 
-## DEC-077 — Dynamic Fixed Header Height via ResizeObserver + offsetHeight
+### DEC-077 — Dynamic Fixed Header Height via ResizeObserver + offsetHeight
 **Date:** 2026-03-31 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-078 — Push Notification Foreground Handling
+### DEC-078 — Push Notification Foreground Handling
 **Date:** 2026-03-31 | **Category:** Technical | **Status:** Superseded by DEC-115
 
 ---
 
-## DEC-079 — Scores Nav Icon: Landscape Leaderboard Scoreboard SVG
+### DEC-079 — Scores Nav Icon: Landscape Leaderboard Scoreboard SVG
 **Date:** 2026-04-13 | **Category:** UX | **Status:** Final
 
 ---
 
-## DEC-080 — Player Activation Tracking
+### DEC-080 — Player Activation Tracking
 **Date:** 2026-03-31 | **Category:** Feature | **Status:** Final
 
 ---
 
-## DEC-081 — Groups Icon: SVG Stick Figure Pair
+### DEC-081 — Groups Icon: SVG Stick Figure Pair
 **Date:** 2026-04-01 | **Category:** UX | **Status:** Final
 
 ---
 
-## DEC-082 — Match Status Display: Always "Up X", Never "Down X"
+### DEC-082 — Match Status Display: Always "Up X", Never "Down X"
 **Date:** 2026-04-01 | **Category:** UX | **Status:** Final
 
 ---
 
-## DEC-083 — Rules Tab: Firestore-Backed with Admin Edit UI
+### DEC-083 — Rules Tab: Firestore-Backed with Admin Edit UI
 **Date:** 2026-04-01 | **Category:** Architecture | **Status:** Final
 
 ---
 
-## DEC-084 — Overall Leaderboard Shows +/- Not Raw Gross
+### DEC-084 — Overall Leaderboard Shows +/- Not Raw Gross
 **Date:** 2026-04-01 | **Category:** UX | **Status:** Final
 
 ---
 
-## DEC-085 — scrambleResults Shape in useLeaderboard
+### DEC-085 — scrambleResults Shape in useLeaderboard
 **Date:** 2026-04-01 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-086 — R3 Tee Times: Assigned by Team Index at Generation Time
+### DEC-086 — R3 Tee Times: Assigned by Team Index at Generation Time
 **Date:** 2026-04-01 | **Category:** Architecture | **Status:** Final
 
 ---
 
-## DEC-087 — Push Notification: notifyRoundLocked Above Idempotency Guard
+### DEC-087 — Push Notification: notifyRoundLocked Above Idempotency Guard
 **Date:** 2026-04-02 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-088 — Push Foreground Listener in Standalone useEffect
+### DEC-088 — Push Foreground Listener in Standalone useEffect
 **Date:** 2026-04-02 | **Category:** Technical | **Status:** Superseded by DEC-115
 
 ---
 
-## DEC-089 — Silent Token Refresh on Every Mount
+### DEC-089 — Silent Token Refresh on Every Mount
 **Date:** 2026-04-02 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-090 — checkAndRefreshToken Never Writes fcmTokens:[] to Firestore
+### DEC-090 — checkAndRefreshToken Never Writes fcmTokens:[] to Firestore
 **Date:** 2026-04-02 | **Category:** Technical | **Status:** Superseded by DEC-116
 
 ---
 
-## DEC-091 — generatePairings Delays Push 2 Seconds After batch.commit()
+### DEC-091 — generatePairings Delays Push 2 Seconds After batch.commit()
 **Date:** 2026-04-02 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-092 — onBackgroundMessage Foreground Guard via clients.matchAll()
+### DEC-092 — onBackgroundMessage Foreground Guard via clients.matchAll()
 **Date:** 2026-04-02 | **Category:** Technical | **Status:** Superseded by DEC-115
 
 ---
 
-## DEC-093 — Admin Broadcast Push UI
+### DEC-093 — Admin Broadcast Push UI
 **Date:** 2026-04-02 | **Category:** Feature | **Status:** Final
 
 ---
 
-## DEC-094 — Firestore Offline Cache API Migration
+### DEC-094 — Firestore Offline Cache API Migration
 **Date:** 2026-04-02 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-095 — COLLECTIONS.RULES Added to constants.js
+### DEC-095 — COLLECTIONS.RULES Added to constants.js
 **Date:** 2026-04-02 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-096 — Firestore Path Cleanup Complete Across All Files
+### DEC-096 — Firestore Path Cleanup Complete Across All Files
 **Date:** 2026-04-02 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-097 — Viewport Meta: user-scalable Removed for Accessibility
+### DEC-097 — Viewport Meta: user-scalable Removed for Accessibility
 **Date:** 2026-04-02 | **Category:** Technical / Accessibility | **Status:** Final
 
 ---
 
-## DEC-098 — main Landmark for Accessibility
+### DEC-098 — main Landmark for Accessibility
 **Date:** 2026-04-02 | **Category:** Accessibility | **Status:** Final
 
 ---
 
-## DEC-099 — Login Screen Text Contrast Fix
+### DEC-099 — Login Screen Text Contrast Fix
 **Date:** 2026-04-02 | **Category:** Accessibility | **Status:** Final
 
 ---
 
-## DEC-100 — Lighthouse PWA Category No Longer Applicable
+### DEC-100 — Lighthouse PWA Category No Longer Applicable
 **Date:** 2026-04-02 | **Category:** Process | **Status:** Final
 
 ---
 
-## DEC-101 — Phase 8: Handicap Index is Admin-Entered, Not GHIN-Connected
+### DEC-101 — Phase 8: Handicap Index is Admin-Entered, Not GHIN-Connected
 **Date:** 2026-04-04 | **Category:** Architecture | **Status:** Final
 
 ---
 
-## DEC-102 — Phase 8: Course Data Fetched Once at Setup via External API
+### DEC-102 — Phase 8: Course Data Fetched Once at Setup via External API
 **Date:** 2026-04-04 | **Category:** Architecture | **Status:** Final
 
 ---
 
-## DEC-103 — Phase 8: Format Engine is Data-Driven, Never Hardcoded
+### DEC-103 — Phase 8: Format Engine is Data-Driven, Never Hardcoded
 **Date:** 2026-04-04 | **Category:** Architecture | **Status:** Final
 
 ---
 
-## DEC-104 — Phase 8: variable_best_ball_net Uses Par-Keyed countingScores Object
+### DEC-104 — Phase 8: variable_best_ball_net Uses Par-Keyed countingScores Object
 **Date:** 2026-04-04 | **Category:** Architecture | **Status:** Final
 
 ---
 
-## DEC-105 — Phase 8: useActiveTournament Hook Replaces ACTIVE_OUTING_ID Constant
+### DEC-105 — Phase 8: useActiveTournament Hook Replaces ACTIVE_OUTING_ID Constant
 **Date:** 2026-04-04 | **Category:** Architecture | **Status:** Final
 
 ---
 
-## DEC-106 — Notification Re-enable Bell Badge in Dashboard Welcome Card
+### DEC-106 — Notification Re-enable Bell Badge in Dashboard Welcome Card
 **Date:** 2026-04-13 | **Category:** Feature / UX | **Status:** Final
 
 ---
 
-## DEC-107 — useAuth Offline Cold-Start Fix: setLoading Unblocked
+### DEC-107 — useAuth Offline Cold-Start Fix: setLoading Unblocked
 **Date:** 2026-04-13 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-108 — ScoreEntry Sync Status Driven by Real Network State
+### DEC-108 — ScoreEntry Sync Status Driven by Real Network State
 **Date:** 2026-04-13 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-109 — Push Prompt Flash Fix: isSupportChecked Gates isInitialising
+### DEC-109 — Push Prompt Flash Fix: isSupportChecked Gates isInitialising
 **Date:** 2026-04-13 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-110 — firebase.json: index.html Served with no-cache
+### DEC-110 — firebase.json: index.html Served with no-cache
 **Date:** 2026-04-13 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-111 — birdieNotify.js Has Independent Send Logic from push.js
+### DEC-111 — birdieNotify.js Has Independent Send Logic from push.js
 **Date:** 2026-04-13 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-112 — FCM Token Accumulation: arrayUnion Never Removes Old Device Tokens
+### DEC-112 — FCM Token Accumulation: arrayUnion Never Removes Old Device Tokens
 **Date:** 2026-04-13 | **Category:** Technical | **Status:** Superseded by DEC-116
 
 ---
 
-## DEC-113 — Admin Score Entry Bypass: Group Picker in ScoreEntry.jsx
+### DEC-113 — Admin Score Entry Bypass: Group Picker in ScoreEntry.jsx
 **Date:** 2026-04-14 | **Category:** Feature / UX | **Status:** Final
 
 ---
 
-## DEC-114 — Player Username Format: Full FirstnameLastname
+### DEC-114 — Player Username Format: Full FirstnameLastname
 **Date:** 2026-04-14 | **Category:** Architecture | **Status:** Final
 
 ---
 
-## DEC-115 — Push Notifications: Native push Event Replaces Firebase Compat SDK in SW
+### DEC-115 — Push Notifications: Native push Event Replaces Firebase Compat SDK in SW
 **Date:** 2026-04-21 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-116 — FCM Token Storage: Replace Array, Never Append
+### DEC-116 — FCM Token Storage: Replace Array, Never Append
 **Date:** 2026-04-21 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-117 — birdieNotify.js: data.url Added to FCM Payload
+### DEC-117 — birdieNotify.js: data.url Added to FCM Payload
 **Date:** 2026-04-21 | **Category:** Technical | **Status:** Final
 
 ---
 
-## DEC-118 — AdminFoursomes: Team Split UI + Match Doc Sync on Save
+### DEC-118 — AdminFoursomes: Team Split UI + Match Doc Sync on Save
 **Date:** 2026-04-22 | **Category:** Feature / Architecture | **Status:** Final
 
 ---
 
-## DEC-119 — Firestore Doc ID Prefixes: G for Foursomes, M for Matches
+### DEC-119 — Firestore Doc ID Prefixes: G for Foursomes, M for Matches
 **Date:** 2026-04-22 | **Category:** Architecture | **Status:** Final
 
 ---
 
-## DEC-120 — Skins Opt-In Cutoff: Round Lock Only
+### DEC-120 — Skins Opt-In Cutoff: Round Lock Only
 **Date:** 2026-04-22 | **Category:** UX | **Status:** Final
 
 ---
 
-## DEC-121 — Scramble Team Names: Admin-Only via AdminFoursomes
+### DEC-121 — Scramble Team Names: Admin-Only via AdminFoursomes
 **Date:** 2026-04-23 | **Category:** UX / Architecture | **Status:** Final
 **Decision:** Removed player-facing `TeamNameEditor` component from `Foursomes.jsx`. Team names are set exclusively by admins in AdminFoursomes. Player-facing entry had multiple issues and is not worth maintaining. `teamName` field remains on `scrambleTeams` docs.
 
 ---
 
-## DEC-122 — r3Leaderboard Derived from scrambleResults
+### DEC-122 — r3Leaderboard Derived from scrambleResults
 **Date:** 2026-04-23 | **Category:** Technical | **Status:** Final
 **Decision:** `r3Leaderboard` useMemo now derives from `scrambleResults` rather than sorting `r3Scores` independently. This ensures the Leaderboard R3 tab and MoneyScreen scramble results always show identical ranking. `rank` uses `s.place` (tiebreaker-aware) instead of array index. `scrambleResults` must be declared before `r3Leaderboard` in `useLeaderboard.js` — wrong order causes ReferenceError.
 
 ---
 
-## DEC-123 — Default Tab to Active Round: Leaderboard + MoneyScreen
+### DEC-123 — Default Tab to Active Round: Leaderboard + MoneyScreen
 **Date:** 2026-04-23 | **Category:** UX | **Status:** Final
 **Decision:** Both `LeaderboardScreen` and `MoneyScreen` now default to the currently active round on load. `LeaderboardScreen` reads `outing.status` and maps to tab key (`round1`→`r1` etc.). `MoneyScreen` uses last locked round among 2/3/4 (default 2 if none locked). Both use a `hasDefaulted`/`hasDefaultedWin` ref so the default fires once only and doesn't override user tab changes mid-session. `hasDefaultedSkins` added for Skins tab.
 
 ---
 
-## DEC-124 — Tiebreaker Scores Displayed in Leaderboard and MoneyScreen
+### DEC-124 — Tiebreaker Scores Displayed in Leaderboard and MoneyScreen
 **Date:** 2026-04-23 | **Category:** UX | **Status:** Final
 **Decision:** Tiebreaker detail shown whenever two or more players/teams share the same gross score (`.some()` check, not `.every()`). Labels: `Back 9 Score: ##` or `Last 3 Holes Score: ##`. Applies to R3 tab (scramble teams), R1/R2/R4 RoundTab, and ScrambleResultsList in MoneyScreen. Shown for ALL tied entries, not just winner. Required attaching `backNine` and `lastThree` to R1/R2/R4 row objects. R1 rows attach these directly (R1 bypasses `sortWithTiebreaker`).
 
 ---
 
-## DEC-125 — Dashboard Round Format Text: Dynamic via FORMAT_LABELS
+### DEC-125 — Dashboard Round Format Text: Dynamic via FORMAT_LABELS
 **Date:** 2026-04-24 | **Category:** UX / Architecture | **Status:** Final
 **Decision:** `STATUS_CONFIG` no longer hardcodes format description text for round1–round4 entries. Text is derived in JSX from `FORMAT_LABELS[activeRound?.format]`, falling back to `cfg.text` for setup/complete statuses. Prevents drift if round format is changed in Firestore (e.g. R4 was showing "Combined gross 2v2" instead of "Best Ball 2v2").
 
 ---
 
-## DEC-126 — Complete Round: Player Confirmation + completedAt on Foursome Doc
+### DEC-126 — Complete Round: Player Confirmation + completedAt on Foursome Doc
 **Date:** 2026-04-24 | **Category:** Feature / Architecture | **Status:** Final
 **Decision:** "Complete Round" button appears in `ScoreEntry.jsx` when all 18 holes are entered for all players (or round is already locked). Player taps button → confirmation panel shows per-player gross/to-par summary → on confirm, `completedAt: serverTimestamp()` written to foursome doc. Dashboard reads `myFoursome.completedAt != null || activeRound.isLocked` to show Round Complete card. Rainout/early-lock handled cleanly: admin locks round → `isLocked` drives complete state regardless of holes played. `completedAt` field preserved for future use.
 
 ---
 
-## DEC-127 — Winnings Gated on Round Lock in Dashboard and MoneyScreen
+### DEC-127 — Winnings Gated on Round Lock in Dashboard and MoneyScreen
 **Date:** 2026-04-24 | **Category:** UX | **Status:** Final
 **Decision:** Winnings are only shown once the corresponding round is locked by admin. In Dashboard `myWinnings` useMemo: R2 match winnings gated on R2 locked, scramble on R3 locked, R4 match on R4 locked, skins per-round lock. In MoneyScreen `WinningsTab`: results replaced with "Results will appear once Round X is locked" placeholder until round is locked. Prevents showing live/changing winnings mid-round.
 
 ---
 
-## DEC-128 — Font Consistency: UI Font for All Leaderboard Numbers
+### DEC-128 — Font Consistency: UI Font for All Leaderboard Numbers
 **Date:** 2026-04-24 | **Category:** UX / Technical | **Status:** Final
 **Decision:** Removed `font-family: var(--font-mono)` from `.lb-table__seed-num`, `.lb-table__score`, `.lb-table__tpar` in `index.css`. All leaderboard numbers now use `var(--font-ui)` for visual consistency. Admin screens that display code-like data (`AdminBulkImport`, `AdminRoundSetup`, `AdminPlayers`) use `var(--font-mono)` explicitly. Bare `'monospace'` strings replaced with `var(--font-mono)`. Redundant `fontFamily: 'inherit'` removed from `AdminPayments`, `AdminPanel`, `InfoScreen`.
 
 ---
 
-## DEC-129 — Chat Scroll to Bottom on Load and New Messages
+### DEC-129 — Chat Scroll to Bottom on Load and New Messages
 **Date:** 2026-04-24 | **Category:** UX / Technical | **Status:** Final
 **Decision:** `ChatThread.jsx` rewrote scroll-to-bottom logic. Initial load uses `setTimeout(0)` to fire after React paint. Each unloaded image gets `img.addEventListener('load', scrollToBottom)` to handle photos loading after initial scroll. Fixes Main Chat not scrolling to bottom when images are present. Back button moved to right side of thread header, labeled `← Back`.
 
 ---
 
-## DEC-130 — Foursomes R2/R4: Holes Thru Indicator on Match Cards
+### DEC-130 — Foursomes R2/R4: Holes Thru Indicator on Match Cards
 **Date:** 2026-04-24 | **Category:** UX | **Status:** Final
 **Decision:** Added "Thru X" indicator to R2/R4 team match cards in `Foursomes.jsx`. Single indicator per match shown in the VS column below match status. Computed as max thru across all four players in the match. Matches the existing R1 "Thru X" pattern.
 
 ---
 
-## DEC-131 — Three-State Round: scoringOpen Field Added to Round Doc
+### DEC-131 — Three-State Round: scoringOpen Field Added to Round Doc
 **Date:** 2026-04-27 | **Category:** Architecture | **Status:** Final
 **Decision:** Added `scoringOpen: boolean` field to round docs alongside existing `isLocked`. Three states: Scheduled (`!isLocked && !scoringOpen`), Scoring (`!isLocked && scoringOpen`), Locked (`isLocked`). Both fields always written together via `updateDoc(docRefs.round(...), { isLocked: newLocked, scoringOpen: newScoringOpen })`. All existing `isLocked` gates (winnings, skins, prize calc, Complete Round) unchanged.
 
 ---
 
-## DEC-132 — Three-State Round: Admin Tile Cycle with Sequential Enforcement
+### DEC-132 — Three-State Round: Admin Tile Cycle with Sequential Enforcement
 **Date:** 2026-04-27 | **Category:** UX / Architecture | **Status:** Final
 **Decision:** Admin round tile tapping cycles Scheduled → Scoring → Locked → Scheduled. Sequential rules: advancing to Scoring requires previous round ≥ Scoring or locked (R1 always ok); advancing to Locked requires previous round Locked; unlocking (Locked → Scheduled) requires next round not Locked. Tile shows calendar icon (blue-gray) for Scheduled, open lock (green) for Scoring, closed lock (red) for Locked. Hint text: "Tap to cycle: Scheduled → Scoring → Locked".
 
 ---
 
-## DEC-133 — Dashboard Player View: Three States Tied to Round State
+### DEC-133 — Dashboard Player View: Three States Tied to Round State
 **Date:** 2026-04-27 | **Category:** UX | **Status:** Final
 **Decision:** Player Dashboard tee time section has three distinct states:
 1. **Enter Scores** — shown when `!isLocked && scoringOpen`. Shows tee time card + "⛳ Enter Round X Scores" button.
@@ -335,20 +335,20 @@ Dual condition on `myScoresSubmitted` prevents showing submitted state after sco
 
 ---
 
-## DEC-134 — Tournament Complete: Manual Admin Action, Decoupled from R4 Lock
+### DEC-134 — Tournament Complete: Manual Admin Action, Decoupled from R4 Lock
 **Date:** 2026-04-27 | **Category:** Architecture | **Status:** Final
 **Decision:** R4 locking no longer auto-advances `outing.status` to `complete`. The status sync `useEffect` in Dashboard now derives max status as `round4` (not `complete`) when all 4 rounds are locked. A "🏆 Lock Tournament" button appears in Admin Controls when all 4 rounds are locked and status is not yet `complete`. Writes `status = 'complete'` on tap. Same button becomes "🔓 Reopen Tournament" when `status === 'complete'`, writing `status = 'round4'`. This gives admins control over when the TournamentSummaryCard appears.
 
 ---
 
-## DEC-135 — Tournament Status Card: Dynamic Title from Round State
+### DEC-135 — Tournament Status Card: Dynamic Title from Round State
 **Date:** 2026-04-27 | **Category:** UX | **Status:** Final
 **Decision:** STATUS_CONFIG no longer provides static title/color/icon for round1–round4. These are computed dynamically as `displayTitle`, `displayColor`, `displayIcon` based on active round state: "Round X Scheduled" + gray when `!scoringOpen && !isLocked`; "Round X UNDERWAY" + green when `scoringOpen`; "Round X Complete" + gold when `isLocked`. setup/complete statuses still use static STATUS_CONFIG values.
 
 
 ---
 
-## DEC-136 — Post-Freeze Exception: Dining/Announcement Modals → Inline Forms
+### DEC-136 — Post-Freeze Exception: Dining/Announcement Modals → Inline Forms
 **Date:** 2026-06-13 | **Category:** Architecture / UX | **Status:** Final
 **Decision:** Code freeze (per SessionStarter, citing "DEC-122") was exempted for a critical pre-outing UX fix. `AnnouncementModal` and `DiningEventModal` in `InfoScreen.jsx` (both rendered via the shared `.modal-overlay`/`.modal` floating overlay pattern) were converted to inline forms — `AnnouncementForm` and `DiningEventForm` — shown in-page when `showForm` is true, hiding the list, matching the existing `NotesTab`/`RulesTab` pattern. No modal overlay remains in `InfoScreen.jsx`.
 **Rationale:** On iOS PWA standalone, the floating `.modal-overlay`/`.modal` pattern made the Save button on the "Add Dining Event" form unreachable — the modal's bottom (including Save) was hidden behind the fixed bottom nav, and neither the modal nor the background scrolled to reveal it. Multiple CSS-only fixes were attempted and reverted (see "Attempts" below) before converting to the inline-form pattern resolved it completely with no side effects.
@@ -363,7 +363,7 @@ Dual condition on `myScoresSubmitted` prevents showing submitted state after sco
 
 ---
 
-## DEC-137 — Player Profile Card on Info Screen
+### DEC-137 — Player Profile Card on Info Screen
 **Date:** 2026-06-16 | **Category:** Feature / UX | **Status:** Final
 **Decision:** Added a "My Profile" card to the Info screen home grid (full width,
 above the INFO section). Tapping opens a `ProfileEditModal` bottom sheet with
@@ -378,7 +378,7 @@ padding-bottom: `calc(env(safe-area-inset-bottom) + 72px)`.
 
 ---
 
-## DEC-138 — Players Directory Screen
+### DEC-138 — Players Directory Screen
 **Date:** 2026-06-16 | **Category:** Feature / UX | **Status:** Final
 **Decision:** Added `PlayersScreen.jsx` at `/players` route — a 2-column tile
 grid showing all 32 enrolled players. Navigated to from an "All Players" card
@@ -393,7 +393,7 @@ driven by `ADMIN_DISPLAY_NAMES` constant — never hardcoded.
 
 ---
 
-## DEC-139 — Payments Collection Read Rule Opened to All Signed-In Players
+### DEC-139 — Payments Collection Read Rule Opened to All Signed-In Players
 **Date:** 2026-06-21 | **Category:** Security / Architecture | **Status:** Final
 **Decision:** `payments` Firestore read rule (both the `outings/{outingId}/payments`
 subcollection block and the top-level fallback block) changed from
@@ -427,7 +427,7 @@ gated by round lock per DEC-127 identically for all users.
 
 ---
 
-## DEC-140 — Tournament Results PDF Export
+### DEC-140 — Tournament Results PDF Export
 **Date:** 2026-06-24 | **Category:** Feature / Architecture | **Status:** Final
 **Decision:** Built a client-rendered tournament results page at `/results-pdf`
 (admin, with print button) and `/history/:year` (player-accessible, no print button).
@@ -455,7 +455,7 @@ sharing purposes.
 
 ---
 
-## DEC-141 — History Entry Point in Info Screen
+### DEC-141 — History Entry Point in Info Screen
 **Date:** 2026-06-24 | **Category:** Feature / UX | **Status:** Final
 **Decision:** Added a 🏆 History card to the Info screen home grid. Tapping
 navigates to `/history/2026` using the same navigate-not-setActiveSection pattern
@@ -468,7 +468,7 @@ future years will render from historical import data once Phase 8A is complete.
 
 ---
 
-## DEC-142 — Historical Data Import Schema
+### DEC-142 — Historical Data Import Schema
 **Date:** 2026-06-24 | **Category:** Architecture | **Status:** Final
 **Decision:** Historical data (2011–2025) stored in dedicated Firestore collections
 separate from live tournament collections to avoid collisions with Phase 8A
@@ -495,7 +495,7 @@ to Firestore. Script to be built in Phase 8A.
 
 ---
 
-## DEC-143 — CC Prompts Always Delivered as Downloadable MD Files
+### DEC-143 — CC Prompts Always Delivered as Downloadable MD Files
 **Date:** 2026-06-24 | **Category:** Process | **Status:** Final
 **Decision:** All CC prompts are delivered as downloadable `.md` files via
 `create_file` tool, never as inline chat text. Naming convention:
@@ -508,7 +508,7 @@ to be re-run; naming makes it clear which file each prompt targets.
 
 ---
 
-## DEC-144 — Session Docs Fetched via GitHub URLs, Never Uploaded Manually
+### DEC-144 — Session Docs Fetched via GitHub URLs, Never Uploaded Manually
 **Date:** 2026-06-24 | **Category:** Process / Architecture | **Status:** Final
 **Decision:** All project docs (SessionStarter, DecisionLog, IssuesTracker,
 ProjectRoadmap, TechnicalArchitecture, BestMethods, TimeLog) moved to the
@@ -521,57 +521,58 @@ Session end: Claude generates CC prompt MD files → Tom pastes into Claude Code
 **Rationale:** Eliminates manual upload friction, ensures Claude always has
 latest committed version, single source of truth in GitHub.
 **Repo:** github.com/Whit19/dataforge-standards (public)
+**Status: Superseded by DEC-162 (2026-10-14)** — the fetch mechanism described here (`web_fetch`) is superseded; everything else in this decision (public repo, GitHub URLs, no manual uploads) still holds.
 
 ---
 
 ## Session — June 29, 2026
 
-**DEC-145 — History collections use prefixed top-level names**
+### DEC-145 — History collections use prefixed top-level names
 `history_tournaments`, `history_rounds`, `history_results`, `history_standings` — prefixed to avoid collision with live data collections. All four are top-level (not subcollections), consistent with existing app architecture.
 
 ---
 
-**DEC-146 — Historical-only players stored by name only (no uid)**
+### DEC-146 — Historical-only players stored by name only (no uid)
 Players without app credentials (uid: null) in history_ collections. Active players (32) linked by UID at import time. If a historical player returns, linking done manually by admin.
 
 ---
 
-**DEC-147 — Off-season nav: 3-tab mode**
+### DEC-147 — Off-season nav: 3-tab mode
 When `outing.status === 'complete'`, bottom nav shows Home | History | Info (+ Admin for admins). Full 5-tab nav shown during active tournament. Driven by `useOutingStatus` hook reading live outing doc.
 
 ---
 
-**DEC-148 — History doc IDs: year-based for 2011–2025, outingId-based going forward**
+### DEC-148 — History doc IDs: year-based for 2011–2025, outingId-based going forward
 Imported historical docs use year as ID ("2025"). Future archived tournaments use outingId ("outing_2026"). Migration to unified outingId scheme deferred to Phase 8B.
 
 ---
 
-**DEC-149 — Archive to history is admin-triggered (manual)**
+### DEC-149 — Archive to history is admin-triggered (manual)
 No Cloud Function. AdminArchiveTournament component reads live Firestore data and writes to history_ collections via client SDK. Admin confirms before running. Safe to re-run (set() overwrites).
 
 ---
 
-**DEC-150 — TournamentResultsPDF stays hardcoded to ACTIVE_OUTING_ID for now**
+### DEC-150 — TournamentResultsPDF stays hardcoded to ACTIVE_OUTING_ID for now
 Phase 8B will add URL param support. "Full Results" button in history only shows for current outing (matched by outingId field on tournament doc).
 
 ---
 
-**DEC-151 — Tabler Icons added via CDN**
+### DEC-151 — Tabler Icons added via CDN
 `@tabler/icons-webfont` loaded from jsdelivr CDN in index.html. Matches Club Golf icon system. Used for history nav icon (ti ti-history) and header.
 
 ---
 
-**DEC-152 — App renamed to Tourney Golf**
+### DEC-152 — App renamed to Tourney Golf
 Display name only — Firebase project ID (up-golf-pwa), repo name, and local folder unchanged. index.html title and apple-mobile-web-app-title updated. Paired app Club Golf covers single-round play; Tourney Golf covers multi-day tournament outings.
 
 ---
 
-**DEC-153 — Player career stats exclude scramble rounds from scoring averages**
+### DEC-153 — Player career stats exclude scramble rounds from scoring averages
 Scramble round scores are team scores, not individual. Excluded from avg score calculation and shown as '—' in standings tables. Detection: gameFormat.startsWith('scramble').
 
 ---
 
-**DEC-154 — BestMethods.md raw URL uses refs/heads/main path**
+### DEC-154 — BestMethods.md raw URL uses refs/heads/main path
 Correct URL: `https://raw.githubusercontent.com/Whit19/dataforge-standards/refs/heads/main/up-golf-pwa/BestMethods.md`
 Standard `/main/` path returns 404. Update Claude Project Instructions to use refs/heads/main for all 7 doc URLs.
 **Status: Superseded by DEC-161 (2026-09-04)** — retested live, plain `/main/` works fine; the 404 this decision was based on did not reproduce.
@@ -580,7 +581,7 @@ Standard `/main/` path returns 404. Update Claude Project Instructions to use re
 
 ## Session — June 30, 2026
 
-**DEC-155 — AdminArchiveTournament.jsx reads only fields that actually exist on live docs**
+### DEC-155 — AdminArchiveTournament.jsx reads only fields that actually exist on live docs
 `payments.prizeWon`/`payments.skinsWon` (nonexistent fields) replaced with
 `payments.winningsEarned` (real, now-persisted field). `outing.location`/
 `outing.startDate`/`outing.endDate` (nonexistent — outings doc has no such
@@ -592,7 +593,7 @@ live-doc source field name was wrong.
 
 ---
 
-**DEC-156 — functions/prizes.js: loud failure replaces silent empty-batch writes**
+### DEC-156 — functions/prizes.js: loud failure replaces silent empty-batch writes
 `calculateAndWriteMatchResults` and `calculateAndWriteScrambleResults` now
 count actual writes against docs found and throw a descriptive error if data
 existed but nothing was updated, instead of committing an empty batch
@@ -620,7 +621,7 @@ logs, rather than resolving the historical mystery.
 
 ---
 
-**DEC-157 — Scramble place-assignment tie-detection uses the full tiebreaker chain**
+### DEC-157 — Scramble place-assignment tie-detection uses the full tiebreaker chain
 `calculateAndWriteScrambleResults`'s place-assignment step previously compared
 only `totalGross` to decide whether two consecutive sorted teams tied for the
 same place — but the sort immediately above it already breaks ties using
@@ -646,7 +647,7 @@ in the same code block since they were adjacent.
 
 ---
 
-**DEC-158 — Single source of truth for match/skins/scramble winnings: Firestore, not live recompute**
+### DEC-158 — Single source of truth for match/skins/scramble winnings: Firestore, not live recompute
 `AdminPayments.jsx`'s `CollectPaySection` no longer recomputes match winners
 (`resolvedMatches`), prize-per-player (`calculatePrizePools`/
 `prizePerMatchWinner`), or scramble winnings (`calculateScramblePrizes`)
@@ -684,7 +685,7 @@ raw scores/matches client-side.
 
 ---
 
-**DEC-159 — TournamentResultsPDF.jsx: historical mode reads history_ collections via :year param**
+### DEC-159 — TournamentResultsPDF.jsx: historical mode reads history_ collections via :year param
 New hook `useHistoricalResults.js` reads `history_tournaments`/
 `history_rounds`/`history_results`/`history_standings` and reshapes the data
 into the same row shapes `useLeaderboard`'s `cumulativeLeaderboard` already
@@ -723,7 +724,7 @@ since 2026 is the current active outing).
 
 ---
 
-**DEC-160 — Full payout breakdown by category added to TournamentResultsPDF**
+### DEC-160 — Full payout breakdown by category added to TournamentResultsPDF
 New "Payout Breakdown" table added to `TournamentResultsPDF.jsx`, placed
 between Final Standings and Top 5 Winners. Ranked highest-paid to $0,
 including $0 players (not filtered out, consistent with the ranking
@@ -742,7 +743,7 @@ already shown in Final Standings.
 
 ## Session — September 4, 2026
 
-**DEC-161 — DEC-154's refs/heads/main URL requirement does not hold up on retest; use plain /main/**
+### DEC-161 — DEC-154's refs/heads/main URL requirement does not hold up on retest; use plain /main/
 DEC-154 (2026-06-13) claimed the standard `/main/` raw GitHub URL path
 404s for this repo's docs and required `/refs/heads/main/` instead.
 Retested directly against the live repo during a "Read the docs" session
@@ -760,3 +761,25 @@ this was retested. The Claude Project Instructions field for UP Golf PWA
 has already been updated to use plain `/main/` for all 8 fetch URLs and
 confirmed working (all fetches succeeded, content verified current).
 **Status:** DEC-154 marked Superseded by this entry (see DEC-154 above).
+
+---
+
+## Session — October 14, 2026
+
+### DEC-162 — Session docs fetched via curl, never web_fetch
+**Date:** 2026-10-14 | **Category:** Process / Architecture | **Status:** Final
+**Decision:** Supersedes DEC-144's fetch-mechanism detail. All session docs
+(and MASTER_CLAUDE_PROTOCOL.md) are fetched via `curl` from the sandbox at
+session start, never `web_fetch`. DEC-144 remains correct on everything
+else it decided (public repo, GitHub URLs, no manual uploads, CC-prompt-
+based doc updates) — only the specific fetch tool changes.
+**Rationale:** `web_fetch` goes through a CDN layer (raw.githubusercontent.com)
+that can silently return a stale cached copy for a period after a fresh
+commit — confirmed directly elsewhere in this workspace: a `web_fetch` call
+returned a doc with a stale "Last updated" date immediately after a commit
+GitHub's own UI already showed as current. A direct `curl` request from the
+sandbox bypasses that CDN layer and reliably returns the live file. This is
+a workspace-wide rule (see MASTER_CLAUDE_PROTOCOL.md Section 3b), not
+UP-Golf-specific — logged here specifically because DEC-144 is the entry
+that needed superseding.
+**Status:** Final (supersedes DEC-144's fetch-mechanism detail)

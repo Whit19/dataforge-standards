@@ -2,6 +2,7 @@
 **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 Repo: github.com/Whit19/dataforge-standards
 **Load this at the start of every session to restore full context.**
+**Last updated:** 2026-09-04 (verification-only touch — see DEC-161; last substantive work session was 2026-06-30, see "Last Session" below)
 
 ---
 
@@ -30,7 +31,7 @@ GoDaddy CNAME subdomain.
   reading three fields that don't exist on live docs (`payments.prizeWon`/
   `skinsWon`, `outing.location`/`startDate`/`endDate`, `rounds.gameFormat`).
   All fixed (DEC-155, ISS-141). Archive re-run successfully — History screen
-  now shows correct format/course/dates/standings/[amount] total purse for 2026.
+  now shows correct format/course/dates/standings/total purse for 2026.
 - **functions/prizes.js rewritten** — the Cloud Function was running
   successfully on every round lock (confirmed via Cloud Run logs) but two of
   its four internal write steps were silently producing zero results despite

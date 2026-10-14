@@ -534,7 +534,9 @@ Every architectural or product decision gets logged. Format:
 
 *When a new project starts under an existing client, it gets its own prefix — never reuses another project's prefix, even under the same client. E.g. if MicroSynergies resumes: `ask-the-docs` → ATD, `tech-team-wiki` → TTW, `knowledge-hub` → KH.*
 
-**Always check the DecisionLog for the next available ID before adding an entry.**
+**A project may split its own prefix into category-based sub-prefixes** (e.g. HQ Dashboard's AD / DD / PD for Architecture / Design / Product decisions, each with its own independent numbering) when the categories are genuinely distinct kinds of decision, not just a historical accident. This does not violate "one repo = one prefix" (Section 2) — the repo/project still has exactly one *family* of prefixes, reserved for it alone; the split is one level below that, by decision type. Don't introduce a new sub-prefix casually — only when a project has a real, recurring need to distinguish categories of decision the way HQ Dashboard does.
+
+**Always check the DecisionLog for the next available ID before adding an entry** — per sub-prefix, if the project uses them.
 
 **This is the default format for a new project or a project that already uses it.** Not every live project follows the per-decision `### PREFIX-NNN` header format — AFAS's DecisionLog logs decisions in session-grouped `Date | Decision | Rows` tables instead, with no per-decision ID. When a project has an established convention that differs from this section, match that project's own convention rather than forcing this template onto it retroactively (see the same hedge in Section 5b step 3).
 

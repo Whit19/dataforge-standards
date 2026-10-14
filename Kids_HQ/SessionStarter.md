@@ -1,74 +1,24 @@
-# Game Day HQ — Project Session Starter
+# HQ Dashboard — Project Session Starter
 **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 Repo: github.com/Whit19/dataforge-standards
 
 ## ⚠ Deployment Account — Read This First
 Always deploy the Web App from `tjunker9@gmail.com` — that's the account whose Gmail inbox the script actually scans. Deploying from any other Google account silently binds the deployment to that account instead (Apps Script's "Execute as: Me" locks to whoever was logged in at Deploy time), with no error until Refresh Briefing is clicked later. See IssuesTracker ISSUE-016 / DecisionLog AD-19 for the full diagnosis.
 
-## Current Status (as of Aug 27, 2026 session)
+## Current Status (as of 2026-08-27 session)
 
 Full visual/functional pass across Summary, Calendars, Email History, and
-To-Do — all deployed and confirmed working by Tom via live testing.
+To-Do — all deployed and confirmed working by Tom via live testing. Shipped:
+Sports/School accent color system (PD-13), Email History redesign (PD-14),
+To-Do redesign (PD-15), Manual Updates tab removed (PD-16, closes ISSUE-001),
+Daily Briefing refresh hardening/progress bar (AD-30, closes ISSUE-004), and
+a two-part sender-attribution fix (AD-31, closes ISSUE-035). Several smaller
+bugs also found and fixed (ISSUE-031 through ISSUE-034). Doc-audit side
+finding: AD-25/26/27/28, previously logged as "designed, not yet deployed,"
+confirmed already live — corrected in DecisionLog.
 
-- **Sports/School accent color system** (PD-13): a `--accent`/
-  `--accent-light`/`--accent-mid` CSS variable trio, blue by default,
-  swapped to amber via a `body.cat-school` class toggled in
-  `updateCategoryControlUI()`. Applied across Summary, Calendars, and
-  Email History chrome. To-Do deliberately does NOT follow this system —
-  it uses a separate fixed-green `--todo-accent` set instead, via a
-  `body.tab-todo` class, since to-dos aren't Sports/School-specific.
-- **Email History redesign** (PD-14): dropped the old colored source-app/
-  activity pill badges entirely. Rows now show family member name(s) —
-  colored via their own `kids[].color`, reusing the `childColorSpansForIds()`
-  helper originally built for Calendars — followed by activity name in the
-  current accent color, subject on its own line, date top-right. Filtering
-  and tap-to-expand-full-body are unchanged.
-- **To-Do redesign** (PD-15): optional due dates, grouped into ⚠️ Overdue /
-  📅 Upcoming / No due date / Done, click-to-edit in place (text + date,
-  no modal), Sports/School filter controls hidden on this tab (never
-  applied to to-dos), moved in nav order to sit between Summary and
-  Calendars (both desktop tab-nav and mobile bottom-nav). To-Do's
-  already-existing cross-device sync (`getTodos`/`saveTodos` → a `Todos`
-  sheet) was confirmed working, not rebuilt — the due-date field just
-  rides along in the same opaque JSON blob.
-- **Daily Briefing refresh hardening** (AD-30): the single ~90s
-  `action=generate` call was split into four independently-retryable
-  steps (`scanCalendar` → `scanEmail` → `scanGroupMe` → `generateSummary`),
-  each with its own elapsed-time log line, driving a real progress bar on
-  both the desktop refresh button and mobile pull-to-refresh. Replaces an
-  earlier poll-based patch that papered over (rather than fixed) mobile
-  connection drops causing false "failed to reach Apps Script" errors
-  when the backend had actually succeeded.
-- **Manual Updates tab removed entirely** (PD-16) — confirmed dead UI
-  (the seven textareas were never read anywhere in the file), closing
-  ISSUE-001 by removal rather than by wiring it up. Settings' placement
-  was evaluated against moving into the freed nav slot and deliberately
-  left in the header gear icon (reaffirms PD-09's mobile-ergonomics
-  rationale rather than reversing it).
-- **Sender-attribution bug found and fixed in two passes** (AD-31): emails
-  from shared-platform senders (e.g. multiple orgs all sending from
-  `*.sportsengine.com`) were being attributed to whichever activity's
-  sender entry happened to be checked first, regardless of which org
-  actually sent the email. Fixed by (1) making `detectApp()` prefer the
-  most specific (longest) matching string instead of the first match, then
-  (2) widening the search from the From header only to From + Subject
-  combined, since some notification templates use a generic display name
-  with the real org name only in the subject line.
-- Several small bugs caught and fixed along the way: duplicate headers on
-  Daily Briefing cards and Calendars events, a static-markup-vs-JS-render
-  gap where a filter-dropdown text fix only touched the HTML and not the
-  functions that immediately overwrite it, and a To-Do cross-device sync
-  gap where "Load Settings from Cloud" never also pulled To-Dos.
-- **Doc audit finding, not new work this session:** while updating these
-  docs, direct inspection of the live `SportsEmailScanner.gs` confirmed
-  AD-25 (`calMatchName`), AD-26 (Activity archiving), AD-27 (`familyName`
-  field — visibly live in every screenshot this session as the
-  "{Family} Family HQ" title), and AD-28 (daily-trigger calendar-scan
-  parity) are all already deployed and active, not "designed, not yet
-  deployed" as DecisionLog previously stated. All four were apparently
-  shipped together around 2026-08-21 (git commit `cbdc0b6`) but the docs
-  were never updated to reflect it — corrected in this pass, see
-  DecisionLog for each entry's updated status.
+Full detail: see TimeLog.md's 2026-08-27 entry for the session narrative,
+and DecisionLog.md for each decision ID's rationale.
 
 ## Next Session's Priorities
 

@@ -1,6 +1,6 @@
 # HQ Dashboard — Technical Architecture
 
-**Last Updated:** August 26, 2026  
+**Last Updated:** 2026-08-26  
 **Status:** Unified Sports + School dashboard live, with a Child → Activity linking model and a Category → Child → Activity filter cascade that also filters Summary. The briefing's calendar data comes directly from a server-side Google Calendar scan on-demand (AD-23); the Calendars tab now reads that same scanned data too, via a new `action=calendarEvents` endpoint (AD-29), rather than a live `.ics` fetch. A matching scan on the 6 AM daily trigger, a calendar/display name split (`calMatchName`), Activity archiving, and a per-deployment family name field are designed and prompted but **not yet deployed** — see the "Pending Changes" note below and DecisionLog AD-25 through AD-28.
 
 ---

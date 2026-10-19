@@ -59,6 +59,10 @@ seasons/{seasonId}                      // e.g. '2026-27'
   newPlayerElo, guestElo, provisionalUnderSets, carryOverFactor, carryOverSetsPivot,  // carryOver* stored,
                                          // no consuming logic yet — season close isn't built (TP-054)
   dinnerLeadMinutes, automation: { availabilityOpens, reminder, draftBuilt, pairingsSent, finalized }
+                                         // each { daysBefore, time } — the season-wide default; editable
+                                         // from Settings via updateSeasonAutomation, which also
+                                         // recomputes the matching automation.{step}At on every week
+                                         // this season that hasn't fired that step yet (TP-079)
   defaultTimeSlots
   // seasons is now server-write only (allow write: if false) — the setupSeason / Settings callables
   // (Admin SDK) are the only writers; no client write path depended on direct access (TP-054).
@@ -82,9 +86,20 @@ sessionEnrollment/{sessionId}_{playerId}
 weeks/{weekId}                          // weekId is the ISO date, e.g. '2026-10-15'
   seasonId, sessionId, date, weekNumber, sessionWeekNumber
   status: draft | availability_open | pairing_draft | matches_set | in_progress | complete | skipped | cancelled
-  // 'cancelled' is RESERVED for a future whole-week cancel before pairings are
-  // sent — nothing sets it yet. Per-slot cancel (below) never changes
-  // week.status at all; it's a completely separate mechanism (TP-061).
+  // 'cancelled' is set by cancelSlots itself (not a separate whole-week-cancel
+  // callable) once every one of the week's matchGroups ends up cancelled —
+  // whether that's one "cancel all" tap or several individual slot cancels
+  // over time (TP-078). Groups stay MATCH_GROUP_STATUS.CANCELLED, never
+  // flipped to 'locked', and no eloHistory/currentElo is written at all for
+  // this path — not even for sets saved before the last slot was cancelled.
+  // A week cancelled this way is still reachable only after pairings are
+  // sent (matches_set/in_progress) — a whole-week cancel BEFORE pairings are
+  // sent remains reserved and unbuilt (see ProjectRoadmap.md Phase 2).
+  weekStatusBeforeCancel: 'matches_set' | 'in_progress'  // set alongside status: 'cancelled' (TP-078);
+                                                    // restoreSlot puts the week back to this exact value,
+                                                    // not unconditionally 'in_progress' — a week cancelled
+                                                    // before Thursday's finalize must restore to
+                                                    // matches_set, not skip straight to "scoring open"
   timeSlots: [{ id, label: "6:00 PM", start, courtsAvailable: 2 }, ...]   // slot order = array order
   customTimes: boolean                  // true once this week's slots were edited away from the season default (TP-053)
   pairingHold: boolean                  // admin can hold the Wednesday auto-send
@@ -94,10 +109,14 @@ weeks/{weekId}                          // weekId is the ISO date, e.g. '2026-10
   automation: { availabilityOpensAt, reminderAt, draftBuiltAt, pairingsSentAt, finalizedAt }  // Timestamps
   availabilityEmailSentAt, reminderSentAt          // set by weeklyAutomation, guards a double-send
   lockReminderSentAt                               // Tuesday-reminder guard (TP-047)
-  lockedAt, lockedBy, lockMode: 'manual' | 'auto' | 'import'  // 'import' set by importSeasonHistory.js (TP-052)
+  lockedAt, lockedBy, lockMode: 'manual' | 'auto' | 'import' | 'cancelled'  // 'import' set by
+                                                    // importSeasonHistory.js (TP-052); 'cancelled' set
+                                                    // alongside status: 'cancelled' above (TP-078)
   unlockedAt, unlockedBy                           // set by unlockWeekInternal
   cancelledSlots: { [slotId]: { at, by, reason } } // per-slot cancel after pairings are sent (TP-061);
-                                                    // reason is a trimmed string <=60 chars, or null
+                                                    // reason is a trimmed string <=60 chars, or null;
+                                                    // once every slot ends up cancelled the WEEK also
+                                                    // locks itself (status: 'cancelled' above, TP-078)
   watchdogAlerts: { [step]: Timestamp }            // automationWatchdog's "already alerted for this
                                                     // step" markers — availability/reminder/draft/send/
                                                     // finalize — so an overdue alert never repeats (TP-066)

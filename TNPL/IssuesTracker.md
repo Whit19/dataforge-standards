@@ -231,3 +231,8 @@
 **Status:** Resolved (2026-10-03)
 **Description:** The button showed "Sending…" and then reverted to its label, with no success or failure shown, so Tom couldn't tell whether the invite went out.
 **Resolution:** `PlayerEditSheet.jsx` shows an inline result in the existing `.notice` styles (TP-072): green on success, red on failure or a skipped player, with the reason for a skip. Commit `685e257`; built and hosting deployed. Tom confirmed the new Updated stamp on his phone.
+
+### TPI-046 — Settings' "Automatic messages" panel listed the 5 steps out of order
+**Status:** Resolved (2026-10-19)
+**Description:** Tom found the panel showing Availability opens, Pairings sent, Reminder, Finalized, Draft built — not the order they actually fire in. `Settings.jsx` rendered `Object.entries(season.automation)` directly, trusting whatever field order the season doc came back from Firestore in; that order had drifted from `SEASON_DEFAULTS.automation`'s own, already-chronological source order. Also reported in the same message: the times shown (e.g. "09:00") were 24-hour, not 12-hour.
+**Resolution:** An explicit `AUTOMATION_STEP_ORDER` array now drives the display order, and a small `formatTime12h` helper renders "9:00 AM"/"7:00 PM" instead of "09:00"/"19:00" (TP-079).

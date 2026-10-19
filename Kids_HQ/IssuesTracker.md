@@ -39,7 +39,7 @@ Add better error messaging when a Google Calendar URL fails to convert. Show use
 
 ### HQI-006 — Email History Not Refreshed After Generate
 **Severity:** 🟢 Low  
-**Status:** Open  
+**Status:** Fixed (2026-10-19)  
 **Filed:** Session 1 (Mar 2026)
 
 **Description:**  
@@ -51,6 +51,8 @@ If the user clicks "Refresh Briefing" (which rescans Gmail), then navigates to t
 
 **Proposed Fix:**  
 In `generate()`, after successful completion: `historyLoaded = false;`
+
+**Fix Applied (2026-10-19):** `generate()` now sets `historyLoaded=false` after a successful `renderOutput()`, and calls `loadHistory()` immediately if the Email History panel is the active tab. Dashboard-only change (GitHub Pages, no GAS redeploy). Commit f9d222e.
 
 ---
 
@@ -584,6 +586,21 @@ Two-part fix, see DecisionLog AD-31 and BestMethods BM-37 — (1) match resoluti
 
 ---
 
+### HQI-036 — Multi-Word Sender Matches Unquoted in Gmail Query, Silently Filtering Out Most Sports Email
+**Severity:** 🟠 High  
+**Status:** Fixed (2026-10-19)  
+**Filed:** 2026-10-19
+
+**Description:**  
+Since AD-31, a sender `match` can be a multi-word phrase intended for Subject matching (e.g. `Top Center Lacrosse`). `detectApp()` handled that, but `scanEmails()` still built the Gmail query as `from:${s.match}`. Gmail parsed `from:Top Center Lacrosse` as `from:Top` plus loose terms `Center` and `Lacrosse` ANDed onto the whole query, so nearly every result was filtered out. Confirmed from the 2026-10-19 `runDailyBriefing` log: sports query found 2 threads (school, with no multi-word terms, found 25). A coach email from `bweisse@bvsc.playmetrics.com` (Oct 18) never reached Email History even though `playmetrics.com` and that exact address were both configured.
+
+**Fix Applied:**  
+See DecisionLog AD-32 and BestMethods BM-38. Commit 80a474a. Confirmed working by Tom after redeploy.
+
+**Notes:** The first verification attempt showed the OLD query in the log because the updated `.gs` was never pasted into the Apps Script editor (the git repo is not what Apps Script runs) — see BM-38.
+
+---
+
 ## Closed / Won't Fix Issues
 
 ---
@@ -663,3 +680,4 @@ Run these checks periodically or after any GAS / dashboard update:
   above as HQI-004's closure — renumbered the genuinely-new one to
   HQI-035 to avoid colliding with the duplicate-kicker/sync-gap bugs
   already filed under 031-034.)
+- **Session — 2026-10-19:** Found and fixed HQI-036 (multi-word sender matches unquoted in the Gmail query, which dropped most sports email; DecisionLog AD-32). Closed HQI-006 (Email History not refetching after Refresh Briefing), open since Session 1. HQI-005, HQI-021, HQI-030 remain open/deferred, untouched.

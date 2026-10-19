@@ -746,6 +746,18 @@ under the ceiling.
 
 ---
 
+### AD-32 — `scanEmails()` Builds Gmail-Safe Terms: Quoted `from:` + `subject:` for Phrase Matches
+
+**Decision:** Each configured sender `match` is trimmed (empties skipped) and stripped of `"` characters. A match with no whitespace (email/domain) stays `from:<match>`, byte-identical to before. A match containing whitespace emits `from:"<match>"` and `subject:"<match>"`, mirroring `detectApp()`'s From+Subject search. Identical terms are deduplicated, then joined with ` OR `. The `after:` cutoff, `maxEmails`, and history merge are unchanged.
+
+**Rationale:** AD-31 let a Match be a Subject phrase, but the query builder didn't know. Unquoted `from:Top Center Lacrosse` became `from:Top` + ANDed loose terms, so sports found 2 threads instead of ~20+ and a coach's Oct 18 email never landed (HQI-036).
+
+**Alternatives Considered:** Quoting only `from:` (would miss Subject-only matches that `detectApp()` already supports); a separate Subject-match field (more config surface for no gain).
+
+**Status:** Active. Commit 80a474a.
+
+---
+
 ## Session Notes
 
 > Add entries when decisions are made, revisited, or reversed.
@@ -780,3 +792,4 @@ under the ceiling.
   (not new work): AD-25/26/27/28, all previously logged "not yet
   deployed," were confirmed already live — corrected in this pass rather
   than left inaccurate.
+- **Session — 2026-10-19:** Fixed the Gmail query builder so phrase-type sender matches are quoted and also searched in Subject (AD-32, HQI-036). Also closed HQI-006 (Email History refetch after Refresh), a dashboard-only fix with no new decision ID.

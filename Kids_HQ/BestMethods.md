@@ -588,6 +588,16 @@ BM-31). Same append-only convention as prior session sections.
 
 ---
 
+### BM-38 — Gmail Search Terms With Spaces Must Be Quoted, and the Git Repo Is Not What Apps Script Runs
+
+**Rule:** In a Gmail search, `from:Top Center Lacrosse` means `from:Top` AND `Center` AND `Lacrosse` anywhere — silently narrowing every result. Any multi-word value needs quotes (`from:"Top Center Lacrosse"`, `subject:"..."`). Separately: editing `SportsEmailScanner.gs` in this repo changes nothing in production until the file is pasted into the Apps Script editor, saved, and (for the web app) redeployed as a new version.
+
+**Why:** HQI-036 returned 2 sports threads instead of dozens with no error. And the first post-fix run still logged the old query because the repo edit hadn't been pasted into Apps Script.
+
+**How to apply:** After any `.gs` change, verify by running `runDailyBriefing` and reading the logged `Gmail query (...)` line, not by trusting the commit. See DecisionLog AD-32.
+
+---
+
 ## Session Notes
 
 > Append entries as new lessons are learned. Never delete entries — mark outdated ones as `[Superseded]`.
@@ -625,3 +635,4 @@ BM-31). Same append-only convention as prior session sections.
   matching needs specificity + multiple fields, not just a domain) in a
   same-day follow-up pass reconciling this session's doc updates against
   a separately-drafted set of prompts.
+- **Session — 2026-10-19:** Added BM-38 (quote multi-word Gmail terms; repo edits don't reach Apps Script until pasted and redeployed) from HQI-036.

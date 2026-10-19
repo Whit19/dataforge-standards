@@ -5,7 +5,11 @@ Repo: github.com/Whit19/dataforge-standards
 ## ⚠ Deployment Account — Read This First
 Always deploy the Web App from `tjunker9@gmail.com` — that's the account whose Gmail inbox the script actually scans. Deploying from any other Google account silently binds the deployment to that account instead (Apps Script's "Execute as: Me" locks to whoever was logged in at Deploy time), with no error until Refresh Briefing is clicked later. See IssuesTracker HQI-016 / DecisionLog AD-19 for the full diagnosis.
 
-## Current Status (as of 2026-08-27 session)
+## Current Status (as of 2026-10-19 session)
+
+Short follow-up session: fixed the sports Gmail query so multi-word sender matches (e.g. `Top Center Lacrosse`) are quoted and also searched in Subject (AD-32, HQI-036) — sports scan went from 2 threads to a normal count and coach emails now reach Email History. Also closed HQI-006 (Email History now refetches after Refresh Briefing). Both deployed and confirmed by Tom. Reminder: edits to `SportsEmailScanner.gs` in git must be pasted into Apps Script and redeployed (BM-38).
+
+### Previous status (2026-08-27 session)
 
 Full visual/functional pass across Summary, Calendars, Email History, and
 To-Do — all deployed and confirmed working by Tom via live testing. Shipped:
@@ -204,7 +208,7 @@ Existing pre-Child-model settings auto-migrate into an `(unsorted)` default Acti
 ## Possible Next Features
 - ~~Rework Manual Updates to be Activity-driven and actually wire it into the prompt~~ — moot as of 2026-08-27; the tab was removed entirely instead (PD-16), not reworked.
 - ~~Refresh Briefing timeout/wait-time handling~~ — resolved 2026-08-27 via a different fix than the originally-planned polling pattern: split into 4 independently-retryable steps with a real progress bar (AD-30, closes HQI-004).
-- Email History not refetching after Refresh Briefing (HQI-006) — still open, not incidentally fixed by the filter-cascade rework
+- ~~Email History not refetching after Refresh Briefing (HQI-006)~~ — fixed 2026-10-19
 - Extend the Calendars tab to show more than 7 days out, filterable by kid/sport/school — likely by reusing the Google-Calendar-scanned data from AD-23 (decision deferred, see ProjectRoadmap backlog)
 - PWA manifest + service worker (installable) — drafted, dashboard wiring + icons still pending
 - GroupMe API integration (direct message pull, no email delay) — backend drafted, blocked on OAuth app registration

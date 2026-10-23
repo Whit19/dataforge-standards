@@ -4,11 +4,6 @@
 
 ## Open
 
-### TPI-051 — Over Thanksgiving, a lock opens the week after the skipped one about two weeks early
-**Status:** Open — decision needed from Tom (logged 2026-10-23)
-**Description:** `findNextWeek` (`functions/results/send.js`) passes over `skipped`/`cancelled` weeks. Session 1 skips Thu Nov 26, so locking Week 6 (Thu Nov 19) makes the next automation run open **Dec 3's** availability around Fri Nov 20 with the results + "Are you in for Dec 3?" email. Answers still close Wed Dec 2, 9 AM, and the Monday nudge fires Mon Nov 30 (a different day from the opening, TP-088). Players would get an "are you in?" ask ~13 days ahead, plus the Nov 30 nudge and the Dec 1 Tuesday reminder. The Oct 23 chat handoff described this two contradictory ways; this is what the code does.
-**Resolution:** None yet. Options: leave it (an early ask is harmless and the nudge/reminder still land the week of play), or have `afterWeekLocked` skip the early open when a skipped week sits between the two (Dec 3 would then open on its normal Monday, Nov 30, with the plain email, and the Nov 19 results go out results-only). Decide before Nov 19.
-
 ### TPI-050 — Settings' "Automatic messages" panel doesn't show the Monday 6 AM auto-lock or open-on-lock
 **Status:** Open (logged 2026-10-23)
 **Description:** The panel (TP-079) still lists only the 5 original steps. The Monday 6:00 AM auto-lock (TP-085) is a fixed constant (`AUTO_LOCK_DAYS_AFTER`/`AUTO_LOCK_TIME` in `functions/automation/weekly.js`), not a `season.automation` step, so it's neither shown nor editable; nor is the fact that a lock now opens the next week early. The "Availability opens" row now really means "opens at this time unless the previous week was locked earlier."
@@ -266,3 +261,8 @@
 **Status:** Resolved (2026-10-23)
 **Description:** Week 2 (`weeks/2026-10-22`) was locked before the open-on-lock flow deployed (f93f12f), so it had no `resultsEmailPending` and nothing would ever send its results.
 **Resolution:** One-time script `functions/scripts/sendWeekResults.js` replayed `afterWeekLocked` (TP-089). Dry run and a preview to Tom first; Tom ran `--apply` at 4:34 PM; the 4:48 PM automation run opened Week 3 early and sent the results + Are-you-in email to all 34 Week 3 recipients. Confirmed from Week 2's `resultsEmailSentAt` and Week 3's `availabilityEmailSentAt`/`openedEarly: true`; no send failures in the Functions logs.
+
+### TPI-051 — Over Thanksgiving, a lock opened the week after the skipped one about two weeks early
+**Status:** Resolved (2026-10-23)
+**Description:** `findNextWeek` (`functions/results/send.js`) passes over `skipped`/`cancelled` weeks. Session 1 skips Thu Nov 26, so locking Week 6 (Thu Nov 19) would have made the next automation run open **Dec 3's** availability around Fri Nov 20 with the results + "Are you in for Dec 3?" email, an ask ~13 days ahead. The Oct 23 chat handoff described this two contradictory ways; that was what the code did.
+**Resolution:** Tom chose option 2 (TP-090): treat any gap like a session break. `afterWeekLocked` now requests an early open only when the next week's `date` is exactly 7 days after the locked week's (new pure `isNextThursday`), on top of the same-session / `draft` / not-yet-sent conditions; `findNextWeek` is unchanged. Locking Nov 19 now sends its results on their own (results-only, via the existing `send_results` path) within ~15 minutes, and Dec 3 opens Mon Nov 30 with the normal availability email. The Scores & lock screen says "The results email goes out within 15 minutes." 3 new tests (Thanksgiving gap, session break and month/year rollovers, normal next-Thursday case); 571 tests, rehearsal 112/112; functions deployed, `4ae8688`.

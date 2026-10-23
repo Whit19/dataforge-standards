@@ -69,7 +69,7 @@
   - [x] Weekly-loop rehearsal extended to 5 weeks (4 + a session break), 112/112
   - [x] Week 2's missed results email sent via a one-time script (TP-089, TPI-049)
 - [ ] Tom: assign each existing Info section's "Shows on" (League setup → Top of Info; update its availability line to "Next week opens as soon as this week's results are final…"), review the starter Elo text, and add the real Music content (WiFi, Sonos, amp reset, door code)
-- [ ] Decide the Thanksgiving early-open behavior before the Nov 19 lock (TPI-051)
+- [x] Thanksgiving early-open behavior: no early open across a skipped week or session break — option 2 (TPI-051, TP-090)
 - [ ] Show the Monday auto-lock / open-on-lock behavior in Settings' Automatic messages panel (TPI-050)
 - [ ] Re-date the weekly-loop rehearsal before ~Dec 2, 2026 (TPI-052)
 - [ ] Optional cleanup: make Rankings use `useSeasonStandings` instead of its own inline copy of the same logic (TP-083)

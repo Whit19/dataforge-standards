@@ -1,4 +1,5 @@
 # TNPL — DB Schema
+**Last updated:** 2026-10-23
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Moved out of TechnicalArchitecture.md (2026-10-14) to keep that file lean — it's fetched every session; this schema reference is linked from it instead.
 
@@ -107,8 +108,20 @@ weeks/{weekId}                          // weekId is the ISO date, e.g. '2026-10
   dinnerSpecial: string | null          // optional, <=120 chars, shown as "This week's special:" everywhere (TP-055)
   extraQuestion: { text } | null        // optional per-week yes/no question, <=80 chars (TP-055)
   automation: { availabilityOpensAt, reminderAt, draftBuiltAt, pairingsSentAt, finalizedAt }  // Timestamps
-  availabilityEmailSentAt, reminderSentAt          // set by weeklyAutomation, guards a double-send
+  availabilityEmailSentAt, reminderSentAt          // set by weeklyAutomation, guards a double-send;
+                                                    // openAvailability writes availabilityEmailSentAt from
+                                                    // the run's own clock (TP-085) — the same-day nudge rule
+                                                    // compares it to automation.availabilityOpensAt (TP-088)
   lockReminderSentAt                               // Tuesday-reminder guard (TP-047)
+  // --- open-on-lock / results email (TP-085, TP-086) ---
+  openEarlyRequestedAt                             // on the NEXT week: set by afterWeekLocked when a lock
+                                                    // should open it now (same session, still draft, not sent)
+  openedEarly: boolean                             // set at opening: true if opened before availabilityOpensAt
+  mondayNudgeSentAt                                // marker: the non-responder nudge at availabilityOpensAt
+  autoLockAttemptedAt                              // marker: the Monday 6:00 AM auto-lock ran (locked or not)
+  resultsEmailPending: boolean                     // on the LOCKED week: set by afterWeekLocked; never cleared
+  resultsEmailSentAt                               // marker, written before the results email is sent
+                                                    // (with the next week's opening, or standalone)
   lockedAt, lockedBy, lockMode: 'manual' | 'auto' | 'import' | 'cancelled'  // 'import' set by
                                                     // importSeasonHistory.js (TP-052); 'cancelled' set
                                                     // alongside status: 'cancelled' above (TP-078)
@@ -159,13 +172,23 @@ leagueSettings/main                     // single doc; league-wide values (seaso
   // All writes go through the updateLeagueSettings callable (Admin SDK) (TP-053).
 
 leagueInfo/main
-  sections: [{ id, title, body }]        // body is plain text: blank line = paragraph, "- " = bullet,
-                                          // **bold** = bold; parsed client-side, never raw HTML
+  sections: [{ id, title, body, page }]  // body is plain text: blank line = paragraph, "- " = bullet,
+                                          // **bold** = bold; parsed client-side, never raw HTML.
+                                          // page: 'info' | 'rules' | 'elo' (missing = 'rules') — where the
+                                          // section shows on the Info hub / sub-pages (TP-082)
   updatedAt, updatedBy, updatedByName
-  // Single admin-editable doc for the public "Rules & league info" page
-  // (/info). Public read (including signed out); admin write only, with
-  // shape validation in firestore.rules. Never put personal contact details
-  // in this doc — a content rule for Tom, not something rules enforce (TP-042).
+  // Admin-editable doc for Info (top), Rules and Elo. Public read (including
+  // signed out); admin write only, with shape validation in firestore.rules
+  // (sections ≤30). Never holds a 'music' section. Never put personal contact
+  // details in this doc — a content rule for Tom, not something rules enforce (TP-042).
+
+leagueInfo/members
+  sections: [{ id, title, body, page: 'music' }]
+  updatedAt, updatedBy, updatedByName
+  // Members-only doc for the Music page (WiFi password, door code): readable by
+  // signed-in members only (rule: docId == 'main' || isSignedInPlayer()), same
+  // write validation as main. The Info editor saves main + members in one
+  // writeBatch (TP-082).
 
 socialPlans/{weekId}_{playerId}
   weekId, playerId, dinner: 'none'|'before'|'after', golfSim: 'none'|'before'|'after', updatedAt

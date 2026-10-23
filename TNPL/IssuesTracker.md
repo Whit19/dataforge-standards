@@ -1,8 +1,23 @@
 # TNPL — Issues Tracker
 
-**Last updated:** 2026-10-05
+**Last updated:** 2026-10-23
 
 ## Open
+
+### TPI-051 — Over Thanksgiving, a lock opens the week after the skipped one about two weeks early
+**Status:** Open — decision needed from Tom (logged 2026-10-23)
+**Description:** `findNextWeek` (`functions/results/send.js`) passes over `skipped`/`cancelled` weeks. Session 1 skips Thu Nov 26, so locking Week 6 (Thu Nov 19) makes the next automation run open **Dec 3's** availability around Fri Nov 20 with the results + "Are you in for Dec 3?" email. Answers still close Wed Dec 2, 9 AM, and the Monday nudge fires Mon Nov 30 (a different day from the opening, TP-088). Players would get an "are you in?" ask ~13 days ahead, plus the Nov 30 nudge and the Dec 1 Tuesday reminder. The Oct 23 chat handoff described this two contradictory ways; this is what the code does.
+**Resolution:** None yet. Options: leave it (an early ask is harmless and the nudge/reminder still land the week of play), or have `afterWeekLocked` skip the early open when a skipped week sits between the two (Dec 3 would then open on its normal Monday, Nov 30, with the plain email, and the Nov 19 results go out results-only). Decide before Nov 19.
+
+### TPI-050 — Settings' "Automatic messages" panel doesn't show the Monday 6 AM auto-lock or open-on-lock
+**Status:** Open (logged 2026-10-23)
+**Description:** The panel (TP-079) still lists only the 5 original steps. The Monday 6:00 AM auto-lock (TP-085) is a fixed constant (`AUTO_LOCK_DAYS_AFTER`/`AUTO_LOCK_TIME` in `functions/automation/weekly.js`), not a `season.automation` step, so it's neither shown nor editable; nor is the fact that a lock now opens the next week early. The "Availability opens" row now really means "opens at this time unless the previous week was locked earlier."
+**Resolution:** None yet. Possible follow-up: a read-only note or row in the panel describing both.
+
+### TPI-052 — The weekly-loop rehearsal's simulated dates expire in early December 2026
+**Status:** Open (logged 2026-10-23)
+**Description:** `functions/scripts/runWeeklyLoop.js` now simulates Dec 3, 10, 17, 24 and Jan 7, 2027. Three checks it exercises deliberately use the real wall clock: `weekAcceptsAnswers`, a token's `expired` check (WK1's tokens expire at its draft build, Wed Dec 2, 2026) and `restoreSlot`'s "already started" check. Once the real date passes ~Dec 2, 2026 the rehearsal will start failing for reasons that aren't regressions.
+**Resolution:** None yet. Re-date the simulated season (keep 4 weeks in session 1 plus 1 in session 2 for the session-break check) before then.
 
 ### TPI-042 — Bottom tab bar floats mid-screen on the Admin dashboard (iPhone installed PWA)
 **Status:** Open — can't reproduce yet (logged 2026-10-03)
@@ -236,3 +251,18 @@
 **Status:** Resolved (2026-10-19)
 **Description:** Tom found the panel showing Availability opens, Pairings sent, Reminder, Finalized, Draft built — not the order they actually fire in. `Settings.jsx` rendered `Object.entries(season.automation)` directly, trusting whatever field order the season doc came back from Firestore in; that order had drifted from `SEASON_DEFAULTS.automation`'s own, already-chronological source order. Also reported in the same message: the times shown (e.g. "09:00") were 24-hour, not 12-hour.
 **Resolution:** An explicit `AUTOMATION_STEP_ORDER` array now drives the display order, and a small `formatTime12h` helper renders "9:00 AM"/"7:00 PM" instead of "09:00"/"19:00" (TP-079).
+
+### TPI-047 — Home was blank between a week's lock and the next week's pairings
+**Status:** Resolved (2026-10-23)
+**Description:** Tom's post-Week-2 report. Confirmed in code: Home's match cards render only while the week is `matches_set`/`in_progress`, and the availability card only once the next week is `availability_open`/`pairing_draft`. From lock until then nothing rendered, even though `useWeekMatches()` already resolved `matchWeek` to the most recent `complete` week and loaded its groups.
+**Resolution:** Post-lock "Your season" card and last week's results on Home (TP-083), shown while `matchWeek` is `complete`. With TP-085 the next week now usually opens right after the lock, so the availability card is back within ~15 minutes too.
+
+### TPI-048 — Rankings said "1 matches"
+**Status:** Resolved (2026-10-23)
+**Description:** The Rankings row's stats line hardcoded `{n} matches`.
+**Resolution:** `RANKINGS_TEXT.matchesCount(n)` in `src/constants.js` ("1 match" / "N matches"), shipped with the Rankings changes (TP-081).
+
+### TPI-049 — Week 2 never got a results email
+**Status:** Resolved (2026-10-23)
+**Description:** Week 2 (`weeks/2026-10-22`) was locked before the open-on-lock flow deployed (f93f12f), so it had no `resultsEmailPending` and nothing would ever send its results.
+**Resolution:** One-time script `functions/scripts/sendWeekResults.js` replayed `afterWeekLocked` (TP-089). Dry run and a preview to Tom first; Tom ran `--apply` at 4:34 PM; the 4:48 PM automation run opened Week 3 early and sent the results + Are-you-in email to all 34 Week 3 recipients. Confirmed from Week 2's `resultsEmailSentAt` and Week 3's `availabilityEmailSentAt`/`openedEarly: true`; no send failures in the Functions logs.

@@ -1,6 +1,6 @@
 # TNPL — Project Roadmap
 
-**Last updated:** 2026-10-05
+**Last updated:** 2026-10-23
 
 ## Phase 0 — Kickoff (done)
 - [x] Repo, Notion, docs, .gitignore, pwa-firebase-rules skill
@@ -37,7 +37,7 @@
 - [x] Availability collection UI — existing questions plus dinner / golf-sim questions (writes `socialPlans`); `weekId`/`playerId` fields on availability docs (TPI-005 resolved); Monday-morning email + Tuesday reminder; one-tap email answers; admin response tracker (TP-044)
 - [x] Weekly dinner / golf-sim section UI (admin + staff + players) — shared `SocialPlanEditor` on both Matches and Home
 - [x] Player Matches page (compact style) + score entry (`matchGroups.sets`, per-set lineups from `setLineups`; any-order set entry; editable until locked) (TP-045)
-- [x] Lock Week admin function (Elo calc reading each set's teams from `setLineups` + `players.currentElo` update), transactional lock/unlock, Tuesday reminder + Wednesday auto-lock, admin "Scores and lock" screen (`/admin/scores`) (TP-046, TP-047, TP-048)
+- [x] Lock Week admin function (Elo calc reading each set's teams from `setLineups` + `players.currentElo` update), transactional lock/unlock, Tuesday reminder + Wednesday auto-lock, admin "Scores and lock" screen (`/admin/scores`) (TP-046, TP-047, TP-048) — Monday 6 AM is now the main auto-lock, Wednesday the fallback (TP-085)
 - [x] Rankings / History / Season summary pages, computed on-device from `eloHistory` via `src/lib/standings.js` (TP-051)
 - [x] Change-request admin approve/deny UI: player request form, withdraw, `/admin/changes` page + dashboard tile, approval via `PairingDraft.jsx`'s `PlayerSheet` inside the same transaction as the pairing edit (TP-006, TP-049, TP-050) — "Text Tom" links now stand in only outside the request window or when no League contact is set
 - [x] Settings: Elo/pairing values, default + per-week time slots (with per-slot courts), skip a week, admins, golf-sim link, League contact, and an uploaded menu PDF in Firebase Storage (TP-053, TP-054); new admin `Season.jsx` screen
@@ -60,6 +60,19 @@
 - [x] Whole-week cancel, after pairings are sent: cancelling every slot in a week now locks it as `CANCELLED`, Elo-neutral — `cancelSlots` itself does it, no separate callable; `restoreSlot` reverses it back to whatever status the week had before (TP-078)
 - [x] Automatic messages (Settings): chronological order, 12-hour clock, and each step's day/time is now editable — `updateSeasonAutomation` recomputes upcoming weeks' send times inside a transaction (TP-079)
 - [x] Admin availability shortcut on Home, visible before pairings are sent; fixed a row-spacing regression in the Availability admin list from TP-077 (TP-080)
+- [x] Post-Week-2 round (Tom's 7 notes, Oct 23), in build order:
+  - [x] Rankings lists every enrolled player in the active season ("Not played yet" rows mixed in by starting Elo); Provisional counts past seasons; "1 match" fix (TP-081, TPI-048)
+  - [x] Info hub + Rules / Elo / Menu & Golf Sim / Music sub-pages; members-only `leagueInfo/members` for Music; editor "Shows on" picker and "Add starter Elo text" (TP-082)
+  - [x] Home after lock — "Your season" card + last week's results with a per-player Elo column (TP-083, TPI-047); match details page with per-set Elo, linked from every final score table on Home and Matches (TP-084)
+  - [x] Monday 6 AM auto-lock; any lock opens the next week right away with the new results + Are-you-in email; Monday nudge to non-responders (skipped when the week opened that same morning); session-break exception (TP-085, TP-086, TP-088)
+  - [x] Email recipients: admin copies of every player email, full-schedule emails to staff + admins at send/finalize/changes/cancel (TP-087)
+  - [x] Weekly-loop rehearsal extended to 5 weeks (4 + a session break), 112/112
+  - [x] Week 2's missed results email sent via a one-time script (TP-089, TPI-049)
+- [ ] Tom: assign each existing Info section's "Shows on" (League setup → Top of Info; update its availability line to "Next week opens as soon as this week's results are final…"), review the starter Elo text, and add the real Music content (WiFi, Sonos, amp reset, door code)
+- [ ] Decide the Thanksgiving early-open behavior before the Nov 19 lock (TPI-051)
+- [ ] Show the Monday auto-lock / open-on-lock behavior in Settings' Automatic messages panel (TPI-050)
+- [ ] Re-date the weekly-loop rehearsal before ~Dec 2, 2026 (TPI-052)
+- [ ] Optional cleanup: make Rankings use `useSeasonStandings` instead of its own inline copy of the same logic (TP-083)
 - [ ] Per-slot pairing re-run on change-request approval (deferred, not built — TPI-006)
 - [ ] Whole-week cancel **before** pairings are sent (reserved, not built — a week only ever reaches `CANCELLED` via `cancelSlots`, which requires `matches_set`/`in_progress` first, TP-078)
 - [ ] "Invite all" — deliberately held; "Invite selected" is used instead (TP-039, TP-069)

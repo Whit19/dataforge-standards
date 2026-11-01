@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues plus a resolved-issues archive, below. Resolved items stay in this file's Resolved Issues section with date closed — not moved to Decision Log (bug-fix write-ups don't map onto DecisionLog's Decision/Rationale/Alternatives format).**
-Last updated: 2026-10-01 (Session 25 — ISSUE-047 still awaiting live confirmation, Amex reconnected but untested; ISSUE-048 opened)
+Last updated: 2026-11-01 (Session 27 — ISSUE-047 confirmed for Chase, Amex still pending; ISSUE-048 resolved; ISSUE-049/050/051 opened)
 
 ---
 
@@ -24,21 +24,40 @@ Last updated: 2026-10-01 (Session 25 — ISSUE-047 still awaiting live confirmat
 ---
 
 ### ISSUE-047 — plaid_sync.py stores refunds and statement credits as charges
-**Status:** In Progress — fix deployed 2026-09-21 (deployed copy matched the local file), **still awaiting live confirmation**
+**Status:** In Progress — fix deployed 2026-09-21; **confirmed live for Chase 2026-11-01**, Amex still awaiting a real credit
 **Opened:** 2026-09-21
 **Priority:** High
 **Description:** `plaid_sync.py` stored every Plaid transaction outside `INCOME`/`TRANSFER_IN` as `-abs(amount)`, discarding the sign. Plaid sends a credit (refund, statement credit, return) as a negative amount, so it landed in `dbo.transactions` as a charge and was counted as spend. Verified 2026-09-21 against live Plaid data that the sign convention is identical for the Chase credit card and Associated checking/savings (positive = money out, negative = money in) — it is not account-type specific. Found while investigating a Chase rideshare statement credit stored with the wrong sign.
 **Last Action:** Sign logic fixed in `plaid_sync.py` (merchant/spend categories now use `-amount`; `LOAN_PAYMENTS` transfers keep `-abs` as before). A replay of 825 live Chase + Associated transactions changed exactly 8, all credits. Eight already-stored rows corrected by script 122. **2026-10-01:** checked directly against live `dbo.transactions` — no Chase or Amex credit/refund has posted anywhere since the 2026-09-21 deploy (the specific hotel credit expected on 2026-09-18 never materialized; the only positive-amount row since is the routine Chase card payment itself, a `LOAN_PAYMENTS`-type row this fix deliberately left alone). Amex's `ITEM_LOGIN_REQUIRED` recurred and was re-fixed via a second Link update-mode re-login 2026-10-01; its first post-reconnect sync (3 rows) had no credit in it either, so the Amex-specific sign check still hasn't happened.
-**Next Step:** Keep watching for the next real Chase or Amex credit/refund/statement credit and confirm it posts positive — that is still the only way to close this out. A text search only catches credits with telltale wording, so other credits stored as charges before 2026-09-21 may remain — the Amazon return found in the original investigation had no such wording.
+**2026-11-01:** two real Chase credits have posted since the fix — a merchant refund (2026-10-22) and a Pay Yourself Back credit (2026-10-01) — both stored **positive**, confirming the Chase half. Amex reconnected again (4th `ITEM_LOGIN_REQUIRED`); its 4 new rows were all charges plus the card autopay, so still no Amex credit to check.
+**Next Step:** Keep watching for the next real Amex credit/refund/statement credit and confirm it posts positive — that is still the only way to close this out. A text search only catches credits with telltale wording, so other credits stored as charges before 2026-09-21 may remain — the Amazon return found in the original investigation had no such wording.
 
 ---
 
-### ISSUE-048 — baird_holdings.sector NULL for IRA - PE Millennium (CAIS Millennium, symbol 3063340)
+### ISSUE-049 — Chase card autopay stored as a positive inflow
 **Status:** Open
-**Opened:** 2026-10-01
+**Opened:** 2026-11-01
+**Priority:** Medium
+**Description:** Since August 2026, Plaid labels the Chase card's `AUTOMATIC PAYMENT - THANK` row `INCOME_SALARY` instead of `LOAN_PAYMENTS_CREDIT_CARD_PAYMENT`. `plaid_sync.py` stores `INFLOW_CATEGORIES` as `+abs(amount)`, so the Aug/Sep/Oct autopays are positive, while June/July (still `LOAN_PAYMENTS`) and every Amex autopay are negative by design (`LOAN_PAYMENTS` → `-abs`, both legs of a transfer negative). Categorized Payment / Other (out of budget) via merchant_pattern, so Budget vs Actual is unaffected, but any view summing raw amounts (cash flow) sees a large monthly inflow. Found during the 2026-11-01 ISSUE-047 check.
+**Next Step:** Override in `plaid_sync.py` so a card-payment row is treated as `LOAN_PAYMENTS` regardless of Plaid's label (e.g. on the payment text), backfill the Aug-Oct rows' sign, then deploy and verify the deployed file content (see the 2026-09-01 critical-incident note).
+
+---
+
+### ISSUE-050 — Apple "Gas" category maps to Car / Gas despite no gas vehicles
+**Status:** Open
+**Opened:** 2026-11-01
 **Priority:** Low
-**Description:** The new IRA - PE Millennium account's one holding (symbol `3063340`, a CAIS-administered private-equity feeder fund) imported with `sector = NULL` in October's `baird_holdings` snapshot because `security_sectors` had no row for it yet. The mapping was added the same day (script 132, `sector`/`asset_type` = `'Private Equity'`, matching the holding's nature and 2 existing rows using that value) — but `import_baird_holdings.py` only consults `security_sectors` at import time, so the already-imported October row isn't retroactively fixed by adding the mapping afterward.
-**Next Step:** Either re-run `import_baird_holdings.py` against October's CSV (idempotent, safe to re-run), or write a one-line SQL backfill setting `sector = 'Private Equity'` on the specific October `baird_holdings` row for symbol `3063340`. Low priority — cosmetic (shows as a blank sector on the Holdings page), doesn't affect net worth totals.
+**Description:** Apple's CSV category `Gas` goes through `category_map` to Car / Gas. The household has no gas vehicles (all electric) and Tom's standing call is that gas-station-branded charges are convenience-store purchases (Groceries / General, 2026-11-01). One October Quick Mart row arrived as Car / Gas and only got corrected because a second same-day Quick Mart row was unmatched and drew attention to it.
+**Next Step:** Repoint the Apple `Gas` category_map row — Groceries / General, or Uncategorized so each one is reviewed per the dual-use rule — and sweep existing Apple Car / Gas rows.
+
+---
+
+### ISSUE-051 — HSA transaction_id collides for identical same-day rows
+**Status:** Open
+**Opened:** 2026-11-01
+**Priority:** Low
+**Description:** `import_hsa_transactions.py` hashes date + description + amount with no occurrence counter (unlike `import_baird_activity.py`). Two 2017-04-14 pharmacy charges of identical amount, four minutes apart (distinct only in Consumer Note timestamps), share one ID, so only one is stored. Visible as "already present" running one higher than the table's HSA row count on every import.
+**Next Step:** Decide whether it matters (one small 2017 row). A fix would need an occurrence counter or the Consumer Note timestamp in the hash, which re-keys IDs — weigh against the insert-only design.
 
 ---
 
@@ -79,6 +98,13 @@ Last updated: 2026-10-01 (Session 25 — ISSUE-047 still awaiting live confirmat
 ---
 
 ## Resolved Issues (archive — recent)
+
+### ISSUE-048 — baird_holdings.sector NULL for IRA - PE Millennium (CAIS Millennium, symbol 3063340)
+**Status:** Resolved — 2026-11-01
+**Description:** October's `baird_holdings` row for symbol `3063340` imported with `sector = NULL` because the `security_sectors` mapping (script 132) was added after that month's import ran; `import_baird_holdings.py` only consults `security_sectors` at import time.
+**Resolution:** November's import (2026-11-01) picked the mapping up on its own (`Private Equity`, 0 unmapped tickers). The October row was backfilled from `security_sectors` (`sector` and `asset_type`) in script 150, guarded to exactly 1 row.
+
+---
 
 ### ISSUE-038 — Apple Card CSV enrichment mislabels category_source (two distinct shapes)
 **Status:** Resolved — 2026-09-08

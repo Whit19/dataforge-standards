@@ -9,7 +9,11 @@ manual trigger (`http_monthly_ingest_all`); institution hyperlinks and the
 liability/physical-valuation update mechanism added 2026-09-16. Steps 3
 and 5 updated 2026-10-01: both CSV importers are now insert-only (never
 touch an already-imported row), and Step 4's snapshot-date convention was
-corrected to the 1st of the month. See DecisionLog.md for the history and
+corrected to the 1st of the month. Updated 2026-11-01: Step 0 (no Resume
+button on serverless; firewall rule per machine), Step 3 (watermark now
+compares clearing dates), Steps 4/4a (Baird now exports .xlsx — convert
+to CSV with accounting-style negatives), Step 5 (BofA's default
+filenames). See DecisionLog.md for the history and
 rationale behind individual steps; see BestMethods.md for the lessons
 several of these steps encode.
 
@@ -31,6 +35,19 @@ paused. Both sub-steps below are required, not alternatives to each other.
    monthly routine.
 2. **In VS Code, reconnect the SQL Server extension** to FinanceDB (enter the
    Azure password when prompted).
+
+**If there's no Resume button** (confirmed 2026-11-01 — the Free/Serverless
+tier's Overview toolbar often has none): connecting is what wakes it. The
+first VS Code connect attempt may fail with "database not currently
+available" (40613) — wait 30-60 seconds and connect again; the Portal
+status then flips from Paused to Online.
+
+**New machine or new network:** Azure SQL's firewall rejects an unknown
+client IP ("Client with IP address … is not allowed"). Accept the VS Code
+extension's *Add Firewall Rule* prompt (single client IP, not the subnet
+range), or Portal → SQL servers → financeauto-sql-server → Networking →
+Add your client IPv4 address. Needed for the Python importers too, not
+just VS Code.
 
 ---
 
@@ -117,10 +134,19 @@ completed.
    prior month's manual categorization work is never at risk from this
    month's overlapping export. Check the console output for an
    "old-dated, needs review" warning list — a row with a genuinely new
-   `transaction_id` but a date on/before the account's current watermark
-   is deliberately not inserted and needs a manual look (almost always
-   export-formatting drift, not a real backdated transaction). Add
-   `--dry-run` to preview without writing or moving anything.
+   `transaction_id` but a **Clearing Date** on/before the latest clearing
+   date already stored (`MAX(authorized_date)`) is deliberately not
+   inserted and needs a manual look (almost always export-formatting
+   drift, not a real backdated transaction). Add `--dry-run` to preview
+   without writing or moving anything.
+
+   **As of 2026-11-01 the watermark compares clearing dates, not purchase
+   dates.** Apple dates rows by purchase date, so last-day-of-month
+   purchases that clear after the export, and refunds Apple back-dates to
+   the original purchase, used to be held every month (5 real rows in
+   November's run). They always clear after the prior export, so they now
+   go straight in; a drifted re-send keeps its old clearing date and is
+   still held.
 
 ---
 
@@ -135,14 +161,26 @@ completed.
    2026-10-01 against live `baird_holdings.snapshot_date` values that this
    is the actual running convention, not month-end as an earlier draft of
    this file said).
+
+   **Baird now exports `.xlsx`, not CSV (first seen 2026-11-01).** Convert
+   with Claude Code rather than Excel's Save As: drop the trailing `Total`
+   row, write dates as M/D/YYYY, and write **negative numbers in
+   accounting style `(123.45)`, never `-123.45`** —
+   `import_baird_holdings._parse_currency()` strips a bare minus sign, so a
+   plain-minus loss imports as a gain (344 negative values in November's
+   export alone). Reconcile the imported `SUM(value)` against the export's
+   own Total row afterward (a few cents of rounding is expected — the xlsx
+   carries 4-decimal values, the table stores 2).
 3. Move the file to `Run_Monthly\imports\baird\`.
 4. Add cash sweep rows: **Holdings → Asset Class → Cash and Cash
    Equivalents → All Cash Sweeps** — add one row per cash sweep (symbol=CASH,
-   Asset Classification=Cash and Cash Equivalents).
-5. Run `python import_baird_holdings.py`.
-6. Move the processed file to `imports\baird\archive\` — **this script does
-   not auto-move files** (unlike `import_apple_csv.py`), so this is a manual
-   step every time.
+   Asset Classification=Cash and Cash Equivalents). As of 2026-11-01 Tom
+   adds only the MAIN - BKG sweep.
+5. Run `python import_baird_holdings.py`. Check `unmapped_tickers` is
+   empty.
+6. Move the processed file (and the original `.xlsx`) to
+   `imports\baird\_Archive\` — **this script does not auto-move files**
+   (unlike `import_apple_csv.py`), so this is a manual step every time.
 
 ### Baird Account Name Conventions (reference — for spot-checking the export, not manual entry)
 | Account | Account Name |
@@ -176,7 +214,11 @@ tax-planning income detail); nothing here feeds Budget vs Actual.
    is a no-op).
 2. Save the file as `activity_<start>_<end>.csv` (any descriptive name
    starting with `activity_` works — the import script globs
-   `activity_*.csv`).
+   `activity_*.csv`). Also `.xlsx` as of 2026-11-01 — convert the same way
+   as Holdings (drop the `Total` row). This export added `Account Number`
+   (already masked) and `Description` columns; the importer's "new" layout
+   detection ignores extra columns, and `_parse_money_flexible()` handles
+   plain-minus negatives here, so no code change was needed.
 3. Move the file to `Run_Monthly\imports\baird\`.
 4. Run `python import_baird_activity.py`. Check the output for
    `unknown_activity_types` — an empty list means every row categorized
@@ -192,8 +234,11 @@ tax-planning income detail); nothing here feeds Budget vs Actual.
 Portal: [BofA HSA login](https://myhealth.bankofamerica.com/Login.aspx?ReturnUrl=%2fMain.aspx)
 
 **Account Activity (transactions):**
-1. Export account activity from the portal above.
-2. Rename to `HSA_Transactions_YYYY-MM-DD`.
+1. Export account activity from the portal above (downloads as
+   `HSA_PaymentData.csv`).
+2. Rename to `HSA_Transactions_YYYY-MM-DD`. Run with `--dry-run` first.
+   "Already present" running one higher than the table's HSA row count is
+   expected — two identical 2017 rows share one ID (ISSUE-051).
 3. Run `python import_hsa_transactions.py`. type/in_budget are set
    deterministically at import (4 known non-spending description types
    whitelisted; everything else treated as real spending/income, typed by
@@ -206,7 +251,7 @@ Portal: [BofA HSA login](https://myhealth.bankofamerica.com/Login.aspx?ReturnUrl
 
 **Fund Summary (holdings):**
 4. Export via **Accounts → Investment Summary → Fund Activity Details →
-   Export.**
+   Export** (downloads as `HSA_Fund_Activity.csv`).
 5. Rename to `HSA_Fund_Summary_YYYY-MM-DD`.
 6. Run `python import_hsa_holdings.py` (value-only import — no units/price in
    this export; snapshot date parsed from the filename).
@@ -287,7 +332,11 @@ are classified manually per-transaction, not given a blanket
 `merchant_patterns` entry — same logic as the Work-Expense dual-use rule.
 **Household has no gas-purchasing vehicles (all electric)** — a
 gas-station-branded charge (Marathon, Raceway, ExxonMobil, …) is a
-convenience-store purchase, not gasoline.
+convenience-store purchase, not gasoline — Tom's call 2026-11-01:
+Groceries / General. **Also check already-categorized rows**: Apple's own
+"Gas" category goes through `category_map` to Car / Gas, so an Apple
+gas-station charge can arrive categorized (and miss the Uncategorized
+list) despite this rule (ISSUE-050).
 
 ---
 

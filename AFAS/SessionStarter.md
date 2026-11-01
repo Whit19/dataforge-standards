@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-10-01 (Session 25 — October monthly close plus a MERGE-statement data-safety fix; see Pick Up Here for full detail. SQL watermark 135)
+Last updated: 2026-11-01 (Session 27 — November monthly close, run from the new laptop; Apple import watermark now compares clearing dates. SQL watermark 150)
 
 ---
 
@@ -18,11 +18,12 @@ Serverless financial pipeline: Plaid → Azure Function (Python) → Azure SQL (
 | Database | FinanceDB |
 | Auth | SQL username/password (Managed Identity deferred) |
 | Project Root (local) | C:\DEV_Projects\AFAS |
+| Machines | Desktop (original) and a Windows **ARM64** laptop (set up 2026-11-01): Python 3.12 arm64 + ODBC Driver 18 via winget, project venv at `.venv` (pyodbc, python-dotenv, pandas, openpyxl, flask, plaid-python). The laptop runs **pandas 3.x** — pandas 2.x has no win-arm64 wheel; enrichment verified clean on it. Each machine's public IP needs its own Azure SQL firewall rule. |
 | get_plaid_tokens.py | C:\DEV_Projects\AFAS\scripts\get_plaid_tokens.py — now supports Plaid Link update mode (existing-token field per institution) as of 2026-08-01 |
 | Amount convention | Positive = credit/income, Negative = debit/expense |
 | Manual override rule | category_source = 'manual' — pipeline NEVER overwrites |
 | Pending column | Always use ISNULL(pending,0) = 0 in all queries |
-| Azure SQL auto-pause | Free tier Serverless — resume manually via Azure Portal before 1st-of-month imports. Can also collide with the automated monthly timer itself (ISSUE-032) — function status reports "Succeeded" even when this happens, so don't trust status alone |
+| Azure SQL auto-pause | Free tier Serverless — resume before 1st-of-month imports (the Portal may show no Resume button; a connection attempt wakes it — see MonthlyProcedure Step 0). Can also collide with the automated monthly timer itself (ISSUE-032) — function status reports "Succeeded" even when this happens, so don't trust status alone |
 
 ---
 
@@ -111,74 +112,74 @@ top-level status, when verifying an automated sync actually ran.**
 
 ## Pick Up Here — Next Session
 
-2026-10-01 (Session 25 — October monthly close): ran the full
-MonthlyProcedure.md end to end, and along the way found and fixed a
-structural data-safety bug — see DecisionLog for the complete writeup.
-Short version: `import_hsa_transactions.py` and `import_apple_csv.py`
-both used a `MERGE ... WHEN MATCHED THEN UPDATE` that unconditionally
-overwrote `merchant_name_raw`/`type`/`in_budget` (HSA) or
-`merchant_name_raw`/`type` (Apple) on every re-import, silently
-reverting manually-reviewed work whenever a routine monthly re-sync
-happened to re-match an already-fixed row. Found because today's HSA
-resync reverted script 118's two corrections and all 60 ISSUE-043
-Consumer Note merchant-text restorations from 2026-09-16. Both
-importers rewritten to insert-only (an existing `transaction_id` is
-never touched, full stop — scripts/commits `b1fd9aa`/`9516e44`); the
-specific reverted rows restored (script 135). A CSV row that produces a
-genuinely new `transaction_id` but is dated on/before the source's
-current watermark is no longer auto-inserted either — it's logged for
-manual review instead, since an insert-only importer never gets a
-second chance to reconcile it. **This changes the insert-only importers'
-monthly-review workflow slightly — watch the "old-dated needs review"
-warning list on the next Apple/HSA import.**
+2026-11-01 (Session 27 — November monthly close): ran the full
+MonthlyProcedure.md end to end, for the first time from the new ARM64
+laptop (environment set up from scratch — see Environment above). Every
+step closed: Plaid syncs current for all sources, Apple / Baird holdings
++ activity / HSA transactions + holdings imported, liabilities and
+physical assets posted (scripts 147-148), all 29 Uncategorized rows
+worked (script 149), Needs Review cleared to 0 (script 150), Power BI Data
+Health confirmed clean by Tom.
 
-Also this session: re-keyed the last 9 HSA rows still on the
-pre-2026-09-01 raw-text hash scheme to the current normalized scheme
-(script 134 — closes out the recurring-duplicate root cause for good,
-confirmed 466/466 HSA rows now on one scheme); onboarded the new Baird
-**IRA - PE Millennium** account (a CAIS-administered private-equity
-feeder fund) into `import_baird_holdings.py`'s canonical account list
-and mapped its one unmapped security (script 132); stopped storing
-pending Plaid transactions at ingest at all (commit `6f232b9`) and
-deleted the 40 already stored (script 131 — Tom explicitly waived the
-usual "don't delete manually-reviewed rows" guard here, since every
-downstream view already excludes pending rows and none of that
-categorization work was ever visible or load-bearing); found and fixed
-raw financial CSVs/scripts appearing in the deployed Function App's
-package (`.funcignore` is confirmed NOT honored by this app's deploy
-path — worked around via a physical move-aside-before-deploy technique,
-now scripted as `scripts/deploy_function_app.ps1`); stopped tracking
-the 23 financial CSV/XLSX files in git (`git rm --cached`, files kept on
-disk, no history rewrite).
+Changes this session:
+- **`import_apple_csv.py` watermark now compares Clearing Date against
+  `MAX(authorized_date)`** instead of purchase date vs `MAX(date)`
+  (commit `700e390`). The insert-only rewrite's old-dated hold fired on 5
+  genuinely new rows on its first real month — 3 purchases dated the last
+  day of September that cleared in October, and 2 Southwest refunds Apple
+  back-dated to the original purchase date. A clearing-date watermark lets
+  those through while still holding a drifted re-send. Dry run went
+  169 + 5 held → 174 + 0 held.
+- **Baird now exports `.xlsx`** (both Holdings and Activity). Converted to
+  CSV with accounting-style negatives — `_parse_currency()` strips a bare
+  minus sign and would have flipped 344 unrealized losses to gains.
+  MonthlyProcedure Steps 4/4a updated.
+- **Grand Geneva is Work - Expense / Amy** (Tom's standing rule): May and
+  October 2026 rows recategorized, all 6 Grand Geneva patterns repointed,
+  exact pattern added for the new `Grande Geneva` spelling. 2024-2025 rows
+  deliberately left as they were.
+- **ISSUE-048 resolved** (October sector backfilled in script 150;
+  November's import picked the mapping up on its own).
+- **ISSUE-047 confirmed live for Chase** — two real Chase credits since
+  the fix (a refund and a Pay Yourself Back credit) both stored positive.
+  Amex still unverified.
+- Amex needed a 4th Link update-mode re-login (`ITEM_LOGIN_REQUIRED`);
+  token unchanged, so no settings update needed.
+
+**Session 26 (2026-10-06) was never synced to these docs** — no Pick Up
+Here, DecisionLog or TimeLog entry, and no Notion daily note was found.
+From the AFAS git log only: scripts 136-146 (Apple type/in_budget mapping,
+category_map Cash Advance, October review follow-ups, illy coffee rule,
+2025 Baird activity layout + Sold - Cancel, Future Projections tables /
+view / account map), the shared `account_scrub.py` account-number masker
+for Baird activity text, and the Future Projections tooling in `scripts/`
+(assumptions workbook generator, loader, history seeder). See the SQL
+run-order list in TechnicalArchitecture.md. The projections work means
+the "Future work" item below is no longer "not started".
 
 **Needs action next session or next month's regular downloads:**
-1. **Confirm the `plaid_sync.py` sign fix (ISSUE-047) live.** Checked
-   today (2026-10-01) — no Chase or Amex credit/refund has posted since
-   the 2026-09-21 fix deployed, so there is still nothing to verify
-   against. Keep watching for the next statement credit or return.
-2. **Amex needed a second Link update-mode re-login today**
-   (`ITEM_LOGIN_REQUIRED` recurred since 2026-09-22) and is reconnected
-   and syncing again as of 2026-10-01 — but the batch it pulled (3 rows,
-   all charges) had no credit in it, so the Amex-specific sign
-   comparison from ISSUE-047 is still unverified. Re-run it once a real
-   Amex credit shows up.
-3. **`baird_holdings.sector` is still NULL for the new IRA - PE
-   Millennium holding** (symbol 3063340) even though `security_sectors`
-   is now mapped (script 132) — `import_baird_holdings.py` only
-   consults `security_sectors` at import time, and October's import
-   already ran before the mapping existed. Needs either a Baird import
-   re-run or a one-line SQL backfill. Tracked as ISSUE-048.
-4. The United Way Gmwc pending donation deleted today (script 131) had
-   posted in Tom's Chase app on 9/30 but hadn't reached Plaid as of this
-   morning's sync — watch for it on the next sync and make sure it's not
-   missed now that it's no longer sitting as a pending row anywhere.
-5. Optional, not urgent: decide whether to scrub the 23 financial
-   CSV/XLSX files out of git history entirely (they're untracked going
-   forward as of today, but still present in past commits); investigate
-   why `.funcignore` has no effect on this Function App's deploy path
-   (worked around, not root-caused).
+1. **ISSUE-049 — Chase autopay stored positive.** Plaid has labeled the
+   Chase card autopay `INCOME_SALARY` since August, so `plaid_sync.py`'s
+   inflow branch stores it as `+abs` (June/July were `LOAN_PAYMENTS`,
+   negative). Categorized Payment / Other (out of budget), but any view
+   summing raw amounts sees it as an inflow. Likely fix: treat
+   `AUTOMATIC PAYMENT - THANK` as a card payment regardless of Plaid's
+   label, plus a backfill of the Aug-Oct rows. Function-App file — needs
+   deploy + deployed-content verification.
+2. **ISSUE-050 — Apple "Gas" → Car / Gas via category_map** conflicts with
+   the no-gas-vehicles rule (one October Quick Mart row needed manual
+   correction). Decide whether to repoint that category_map row to
+   Groceries / General or to Uncategorized for per-transaction review.
+3. **ISSUE-047 (Amex half):** still waiting on a real Amex credit.
+4. Optional: teach the Baird importers to read `.xlsx` directly (would
+   remove the manual conversion and the minus-sign trap).
+5. Optional, carried over: scrub the 23 financial CSV/XLSX files from git
+   history; root-cause why `.funcignore` has no effect on this Function
+   App's deploy path.
+6. Backfill Session 26 (2026-10-06) into DecisionLog/TimeLog if Tom
+   remembers the reasoning behind it.
 
-**Future work — not started (Tom, 2026-09-21): a Power BI page that
+**Future work — started in Session 26, 2026-10-06 (Tom, 2026-09-21): a Power BI page that
 projects future years.** Tom built the model in Excel and wants it in
 Power BI. The Excel workbook is the spec; it has two halves:
 1. *Cash flow by category by year, with the ability to change a category's
@@ -222,8 +223,9 @@ Design notes for when this is picked up:
 ## Active Data Issues
 | Issue | Priority | Description | Next Step |
 |-------|----------|-------------|-----------|
-| ISSUE-047 | High | `plaid_sync.py` stored refunds/statement credits as charges (`-abs`); fix deployed 2026-09-21 | Still no Chase/Amex credit has posted since the fix (checked 2026-10-01) — confirm on the first one that does; Amex reconnected 2026-10-01 but its batch had no credit to check |
-| ISSUE-048 | Low | `baird_holdings.sector` NULL for IRA - PE Millennium's CAIS Millennium holding (symbol 3063340) — `security_sectors` mapped 2026-10-01 (script 132) after that month's import already ran | Re-run `import_baird_holdings.py` for October, or a one-line SQL backfill |
+| ISSUE-047 | High | `plaid_sync.py` stored refunds/statement credits as charges (`-abs`); fix deployed 2026-09-21 | **Chase confirmed live 2026-11-01** (two real credits stored positive). Amex half still unverified — confirm on the first real Amex credit |
+| ISSUE-049 | Medium | Chase card autopay labeled `INCOME_SALARY` by Plaid since August, so stored positive (inflow) instead of negative | Payment-text override in `plaid_sync.py` + Aug-Oct backfill; deploy + verify deployed content |
+| ISSUE-050 | Low | Apple CSV "Gas" category → Car / Gas via `category_map`, conflicting with the no-gas-vehicles rule | Repoint the category_map row (Groceries / General, or Uncategorized for per-transaction review) |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---
@@ -233,7 +235,7 @@ Design notes for when this is picked up:
 |----------------|-------------|--------|
 | PLAID_ACCESS_TOKEN_CHASE | Checking/credit issuer A | ✅ Live |
 | PLAID_ACCESS_TOKEN_ASSOCIATED_PERSONAL | Checking issuer B | ✅ Live |
-| PLAID_ACCESS_TOKEN_AMEX | Credit card issuer C | ✅ Live — reconnected via Link update mode 2026-10-01 (was ITEM_LOGIN_REQUIRED again — third occurrence for this institution, see DecisionLog 2026-09-01/2026-10-01); synced successfully same day (3 rows) |
+| PLAID_ACCESS_TOKEN_AMEX | Credit card issuer C | ✅ Live — reconnected via Link update mode 2026-11-01 (`ITEM_LOGIN_REQUIRED` again — fourth occurrence for this institution; token unchanged after re-login, so no settings update needed); synced 4 rows same day |
 | PLAID_ACCESS_TOKEN_NWM_TOM | Whole life insurer — Tom's policy | ✅ Live — reconnected via Link update mode 2026-08-01 (was ITEM_LOGIN_REQUIRED) |
 | PLAID_ACCESS_TOKEN_NWM_AMY | Whole life insurer — Amy's policy | ✅ Live — reconnected via Link update mode 2026-08-01 (was ITEM_LOGIN_REQUIRED) |
 | PLAID_ACCESS_TOKEN_PRINCIPAL | 401k provider, owner Amy — recordkept via a separate plan administrator | ✅ Live — first connection 2026-08-01 (ISSUE-009 resolved after being open since 2026-06-02). Resolves a prior naming ambiguity between two names for the same account — confirmed same account. |
@@ -253,7 +255,7 @@ one place and in run order.
 
 ## Python Scripts & SQL Script Log
 
-Moved to TechnicalArchitecture.md (Section 5c — keep SessionStarter lean): the per-script status table (**Python Scripts Inventory**) and the session-by-session **SQL Scripts — Run Order Reference**. Current SQL high watermark: **135** (confirmed live 2026-10-01 — re-confirm live rather than trust this number).
+Moved to TechnicalArchitecture.md (Section 5c — keep SessionStarter lean): the per-script status table (**Python Scripts Inventory**) and the session-by-session **SQL Scripts — Run Order Reference**. Current SQL high watermark: **150** (2026-11-01 — re-confirm live rather than trust this number).
 
 ---
 
@@ -264,13 +266,13 @@ Moved to TechnicalArchitecture.md (Section 5c — keep SessionStarter lean): the
 | holdings | ✅ Live | Was missing cost_basis and updated_at columns despite being documented — added 2026-08-01 (script 51). Populated via principal_sync.py (11 rows, Principal 401k) and import_hsa_holdings.py (2 rows, HSA Bank of America, value-only — no units/price in that export). `vw_holdings_all` (script 95, 2026-09-14) is now the consolidated read path across this table and `baird_holdings` — see TechnicalArchitecture. |
 | account_balances | ✅ Live | Associated 7 accounts |
 | liabilities | ✅ Live | Rocket Mortgage (rate corrected to 2.625%, origination_principal backfilled), US Bank LOC |
-| liability_balances | ✅ Live | Mortgage and US Bank LOC balances updated as part of the monthly procedure (MonthlyProcedure.md Step 6) — most recently 2026-08-01 for both; see the Power BI Net Worth page for current figures (no dollar totals kept in this file — Section 6a). |
+| liability_balances | ✅ Live | Mortgage and US Bank LOC balances updated as part of the monthly procedure (MonthlyProcedure.md Step 6) — most recently 2026-11-01 for both (script 147); see the Power BI Net Worth page for current figures (no dollar totals kept in this file — Section 6a). |
 | physical_assets | ✅ Live | WFB-Belle, TSLA Nebula/Storm/Trinity |
 | physical_asset_valuations | ✅ Live | House valuation via Zillow Zestimate, pasted in monthly (Claude Code can't fetch Zillow directly — 403 to automated requests). Teslas switched 2026-09-16 to a flat 1%/month depreciation policy instead of a monthly KBB lookup — see MonthlyProcedure.md Step 7. |
 | insurance_assets | ✅ Live | NWM-TOM, NWM-AMY |
 | insurance_asset_valuations | ✅ Live | Both reconnected 2026-08-01, synced monthly via `http_monthly_ingest_all` (or `http_nwm_sync` individually). |
 | baird_holdings | ✅ Live | 737 rows as of 2026-08-01 snapshot, reconciled to Baird's own CSV total + manual cash row to the penny. MAIN - Brokerage naming corrected to MAIN - BKG. |
-| security_sectors | ✅ Live | 116 tickers mapped — CAIS Millennium (symbol 3063340, the IRA - PE Millennium account's holding) added 2026-10-01 (script 132); `baird_holdings.sector` for that specific October row is still NULL since the import already ran before the mapping existed (ISSUE-048) |
+| security_sectors | ✅ Live | 116 tickers mapped — CAIS Millennium (symbol 3063340, the IRA - PE Millennium account's holding) added 2026-10-01 (script 132); the October row's NULL `baird_holdings.sector` was backfilled 2026-11-01 (script 150, ISSUE-048 resolved) |
 | budget_targets | ✅ Live | Seeded 2026-09-15 (seed_budget_targets.py) — 240 rows, 20 categories × 12 months, `budget_year = 2026`. Combined old-budget categories (Groceries/Dining Out, Personal Care/Clothing, Entertainment/Subscriptions, Housing blending Housing+Bills & Utilities) split using real trailing-12-month actual spend ratios from `dbo.transactions`, not guessed. `is_default = 0` (month-specific override — required by `vw_budget_vs_actual`'s join logic) and `target_amount` stored positive (view computes `actual_amount` as always-positive `SUM(ABS(amount))`) — both discovered as real bugs against the pre-existing view, not assumed. |
 | net_worth_history | ✅ Live | New 2026-09-15 (script 104). 2011-2026 backfill from Tom's manually-tracked CSV, `account_key` matching `vw_holdings_all`'s own scheme so historical + live union cleanly. `source_detail` = `CSV_IMPORT` or `INTERPOLATED` (linear interpolation across the interior gap between each account's last CSV value and first live value). Loaded via scripts/load_net_worth_history.py + scripts/interpolate_net_worth_gaps.py — see DecisionLog for the account-lineage decisions (Tom 401k rollover, HSA custodian history, NWM Tom/Amy split, the Vanguard/MAIN-BKG carve-out). |
 

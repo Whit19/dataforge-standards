@@ -391,6 +391,9 @@ Three agents, each reading from FinanceDB views and external inputs:
 
 | File | Purpose | Status |
 |------|---------|--------|
+| scripts/spending_agent.py | **NEW 2026-11-02** — Phase 5 Spending Intelligence agent. Read-only; computes month vs budget, anomalies and YTD vs last year in Python, Claude (`claude-opus-5-5`) writes the narrative; saves to `AGENT_REPORT_DIR` and publishes to Notion "Monthly Spending Reviews". Flags `--month`, `--dry-run`, `--no-notion`. Needs ANTHROPIC_API_KEY (expires 2027-02-03) and NOTION_TOKEN in `.env`. | ✅ 2026-11-02 (`3a6da77`) |
+| scripts/notion_publish.py | **NEW 2026-11-02** — stdlib Notion publisher: Markdown (headings, bullets, numbered lists, tables, bold, code) to blocks; creates or replaces a same-titled child page. Connection must be added to the parent page (404 otherwise). | ✅ 2026-11-02 |
+| scripts/holdings_agent.py | **NEW 2026-11-02** — Phase 5 Holdings Strategy agent. Read-only. Reads `vw_holdings_all`, `risk_profile_*`, `account_buckets`, `education_schedule`, `cash_plan_adjustments`, `vw_baird_activity` (PIM fees). Computes allocation drift, bucket-aware liquidity, annual cash plan, PIM-vs-VUSXX fee comparison, Baird dividend plan (shares x per-share, taxes the same December, break-even dividend), the December leftover split (shares vs LOC paydown) and account-to-account moves; Claude writes the narrative; publishes to "Monthly Holdings Reviews". Open assumptions: ISSUE-052. | ✅ 2026-11-02 (`d21bbe4`, `54d3bab`) |
 | plaid_sync.py | Shared sync module | ✅ 2026-10-01 (commit `6f232b9`): `_sync_institution()` now skips any transaction Plaid reports as `pending` (added/modified) instead of storing it — eliminates the pending/settled duplicate-row class at the source; logged via `skipped_pending` in the returned dict. `removed` transaction_ids from Plaid are still only counted (`len(removed)`), never acted on — no DELETE is issued for them; this is by design, not a gap (confirmed by code read 2026-10-01). Earlier: both known bugs fixed AND deployed 2026-09-01 (confirmed via VS Code's "Files (Read-only)" remote view — both had been drafted-but-undeployed since Session 14): (1) plaid_category_raw now extracts a clean category string instead of storing full JSON; (2) INFLOW_CATEGORIES no longer includes BANK_FEES/LOAN_PAYMENTS (ISSUE-023). Still does not write to run_log (ISSUE-016, carried over). |
 | enrich_transactions.py | **The single enricher for every source** (Plaid CHASE/ASSOCIATED_PERSONAL/AMEX, Apple Card CSV, HSA CSV) as of 2026-09-08 | ✅ 2026-09-16 (AFAS 3b6989d): fixed the "only write real changes" comparison — it compared rows by *position*, not `transaction_id`, so a full run flagged 9,604 of 16,754 rows as changed (most were untouched — `enrich_from_merchant_patterns`/`enrich_from_history` both reorder rows via `pd.concat(ignore_index=True)`, breaking positional alignment with the pre-pipeline snapshot). Not a data-safety bug (`write_results()` targets `transaction_id`) but destroyed `updated_at` as a "genuinely modified" signal. Verified: an immediate full re-run now reports "0 of 16,754 rows actually changed." Earlier: 2026-09-08 (AFAS b1a3ef3) `enrich_apple_csv.py` + `enrich_hsa_csv.py` retired — this file already had no source filter; `load_transactions()` date cutoff removed; `apply_fallback()` now only fills `in_budget`/`type` where NULL. **Matcher note:** only leading/trailing `%` are wildcards; a mid-pattern `%` is dead. Earlier still: `enrich_from_history()` carry-forward step (2026-09-03, AFAS 557cdd1 + 4f0c052); write-back scoped to changed rows (ISSUE-035); apply_fallback() defaults + `--unenriched-only` retry (2026-08-03). |
 | scripts/taxonomy_audit.py | Read-only taxonomy-drift diagnostic (4 checks: undocumented category/subcategory combos in merchant_patterns / category_map / transactions; same-priority pattern shadowing). AFAS 13b959e. | ✅ 2026-09-08: (a) ISSUE-041 (AFAS 6c652ae) — parses `Category_Taxonomy.md`'s `## Full Taxonomy` block live every run, no hardcoded dict, exits 2 on parse failure; (b) AFAS 1db78e4 — Check 4 no longer false-flags no-wildcard exact-match patterns (`ACT`, `IRS`) as substring collisions. As of session end: Checks 1/2/3 = 0, Check 4 = 207 (8 benign `[DIFFERENT DEST]` + 199 cosmetic `[same dest]`). |
@@ -613,7 +616,18 @@ Session 27 (2026-11-01):
                            149_november2026_uncategorized_review.sql
                            150_november2026_needs_review_and_grand_geneva.sql
 
-Current high watermark: **150** (2026-11-01 — re-confirm live rather than
+Session 28 (2026-11-02):
+                           151_tesla_oct_service_to_car_maintenance.sql
+                           152_holdings_strategy_profile_tables.sql
+                             (risk_profile_targets, risk_profile_settings,
+                              account_buckets, education_schedule)
+                           153_cash_plan_settings.sql
+                             (plan settings + empty cash_plan_adjustments)
+                           154_baird_dividend_cash_plan_settings.sql
+                             (shares 66,180, price 37.55, $7.50/$7.00 dividend,
+                              $135K Dec taxes, 2,300 shares added, loan 6.25%)
+
+Current high watermark: **154** (2026-11-02). Previous note: 150 (2026-11-01 — re-confirm live rather than
 trust this number. Earlier note, as of watermark 135: re-confirm
 live rather than trust this number next session too. Note: code changes
 committed to AFAS `main` this session that are NOT numbered SQL scripts —

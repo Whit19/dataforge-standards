@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues plus a resolved-issues archive, below. Resolved items stay in this file's Resolved Issues section with date closed — not moved to Decision Log (bug-fix write-ups don't map onto DecisionLog's Decision/Rationale/Alternatives format).**
-Last updated: 2026-11-01 (Session 27 — ISSUE-047 confirmed for Chase, Amex still pending; ISSUE-048 resolved; ISSUE-049/050/051 opened)
+Last updated: 2026-11-02 (Session 28 — ISSUE-052 opened for the Holdings Strategy agent's open assumptions)
 
 ---
 
@@ -12,6 +12,15 @@ Last updated: 2026-11-01 (Session 27 — ISSUE-047 confirmed for Chase, Amex sti
 ---
 
 ## Active Issues
+
+### ISSUE-052 — Holdings Strategy agent: open assumptions to confirm (PRIORITY #1 next session)
+**Status:** Open
+**Opened:** 2026-11-02
+**Priority:** High
+**Description:** The agent (`scripts/holdings_agent.py`) is built and published, but several inputs are assumptions Tom has not confirmed. Until they are, treat the cash plan and moves as provisional: (1) the account the December Baird dividend lands in; (2) whether the roughly $31K/yr LOC interest (6.25% variable, paid from PIM dividends) is inside the budgeted spend or in the Other group; (3) dividend history in `projection_fixed_history` stops at 2024 (2025 and the Dec 2026 actual $496,350 not recorded); (4) no expense offset yet for sports, groceries and dining out once the kids leave (`cash_plan_adjustments` is empty); (5) 2,300 shares ($86,365) gives a 42/58 split of the $205K leftover, not 50/50; (6) tax rate 27.2% on later dividends and whether the $135K is the whole December payment (the $20K paid 2026-09-28 is treated as already out); (7) the liquidity section still quotes the old $315,533 ladder shortfall; (8) ownership of IRA - Baird Stock, IRA ROTH - Baird Stock and IRA - PE Millennium, what BAIRD Capital is, Whit's scholarship ($8K to $14K) and the twins' $60K/yr; (9) the Anthropic API key expires 2027-02-03.
+**Next Step:** Walk the list with Tom, store the confirmed values (risk_profile_settings, cash_plan_adjustments, projection_fixed_history), re-run `python scripts\holdings_agent.py`, and tidy the stale narrative. The plan stays funded down to about $6.24 a share against the $7.00 planning figure.
+
+---
 
 ### ISSUE-008 — Baird Plaid Connection Failure
 **Status:** Open

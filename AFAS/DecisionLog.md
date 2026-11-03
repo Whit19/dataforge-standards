@@ -4,6 +4,25 @@ Last updated: 2026-11-01
 
 ---
 
+## 2026-11-02 (Session 28 — Phase 4 Complete; Phase 5 Agents: Spending Intelligence and Holdings Strategy, Notion Publishing, Baird Dividend Counted as Cash)
+
+*Moved from Phase 4 to the AI agent layer. Agents are local read-only Python scripts; deterministic figures are computed in Python and Claude only writes the narrative, so the numbers never depend on the model.*
+
+| Date | Decision | Rows |
+|------|----------|------|
+| 2026-11-02 | Phase 4 declared complete by Tom (October enrichment finished); Phase 5 begins | — |
+| 2026-11-02 | Agents run as **local Python scripts**, read-only against FinanceDB, saving Markdown to `AGENT_REPORT_DIR` (OneDrive `_PROJECTS\AFAS\agent_reports`, git-ignored) and publishing to Notion through the REST API with a connection token (NOTION_TOKEN); the connection must be added to each parent page | — |
+| 2026-11-02 | Spending agent household rules (Tom): the October Tesla $1,422.44 is Car / Maintenance, not a subscription (script 151); the large charity gift hit in September though budgeted for October; Grand Geneva is reimbursable. YTD-vs-last-year table lists categories >= $1,000 and >= 10% (20% hid real decreases) | 1 |
+| 2026-11-02 | Holdings target: ONE household allocation, Equities 75 / Fixed Income 15 / Alternatives 3 / Cash 7, +/-5 points. Baird stock counts as Equities (a correction of my first proposal that called it Alternatives) | — |
+| 2026-11-02 | Account buckets (script 152): Locked (Baird stock, until Amy retires, end of 2034), Retirement (401(k)/IRAs/HSA: rebalance inside, never count as cash before 59.5, Tom 2034-07, Amy 2034-11, HSA 2040-05), Earmarked (529s used on the twins' last two years from Aug 2031, kids' accounts), Insurance (excluded), Free (taxable + cash: funds the floor and college) | — |
+| 2026-11-02 | Cash floor = 6 months of trailing budgeted spend; college inflated 3% a year; Whit 2027-2031 (June 2031, $42,882 tuition + $17,668 housing and food, less $8,000 merit scholarship, possibly $14,000), twins 2029-2033 at about $60,000 each | — |
+| 2026-11-02 | PIM fee drag: PIM fixed income nets about 4.89% after the 0.75% fee vs 3.69% in the BKG VUSXX money market, so far-out college bills go to PIM fixed income and near-term bills to BKG cash. Fees apply only to PIM and IRA accounts, not BKG | — |
+| 2026-11-02 | **Baird stock dividend counts as cash** (Baird stock account only, not IRA shares): 66,180 shares x $7.50 in Dec 2026 = $496,350, about $135,000 of federal and state estimated tax paid the same December (27.2%), planning figure $7.00 a share afterwards. Each December's net dividend funds the next year's gap. This replaced the earlier formula that excluded dividends and produced $598K of equity sales with about $436K of realized gains | — |
+| 2026-11-02 | **December 2026 leftover split between more Baird shares and paying down the US Bank LOC** (Tom: 50/50 guideline; about 2,300 shares fixed). Reasoning: Baird yields about 20% ($7.50 on $37.55) vs a 6.25% variable loan rate, so shares add cash flow, but the stock is 24.9% of assets, locked to 2034, and Amy's pay and bonus depend on Baird, so half goes to the loan. Loan-to-value cap 20%; the paydown leaves 14.8% | — |
+| 2026-11-02 | Retirement accounts take the equity-to-fixed-income rebalancing (about $1.09M inside 401(k)/IRAs/HSA, no withdrawals or tax); Free-bucket equity sales are only a backstop (none needed at $7.00 a share) | — |
+
+---
+
 ## 2026-11-01 (Session 27 — November Monthly Close From the New Laptop; Apple Import Watermark Switched to Clearing Date; Baird .xlsx Exports; Grand Geneva Rule)
 
 *Ran MonthlyProcedure.md end to end for November, for the first time from a new Windows ARM64 laptop. The insert-only Apple importer's old-dated hold fired on its first real month and turned out to be catching real rows, which led to a small structural fix. Baird's exports changed format to .xlsx, which hid a sign-flip trap in the holdings parser. Session 26 (2026-10-06) is not recorded here — its docs were never synced; see SessionStarter's Pick Up Here.*

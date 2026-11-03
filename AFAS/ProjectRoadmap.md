@@ -19,8 +19,8 @@ Serverless financial data pipeline feeding AI agents that recommend:
 | Phase 1 | Plaid ingestion → Azure SQL | ✅ Complete |
 | Phase 2 | Enrichment, normalization, schema cleanup | ✅ Complete |
 | Phase 3 | Automation, Power BI reporting | ✅ Complete |
-| Phase 4 | Accounts/balances, investments/holdings | 🔄 In Progress |
-| Phase 5 | AI agent layer | ⏳ Not Started |
+| Phase 4 | Accounts/balances, investments/holdings | ✅ Complete (Tom, 2026-11-02) |
+| Phase 5 | AI agent layer | 🔄 In Progress |
 
 ---
 
@@ -106,7 +106,7 @@ Serverless financial data pipeline feeding AI agents that recommend:
 
 ---
 
-## Phase 4 — Accounts, Balances & Holdings 🔄 In Progress
+## Phase 4 — Accounts, Balances & Holdings ✅ Complete (2026-11-02)
 
 ### 8. Accounts & Balances
 - ✅ Phase 4 tables created in Azure
@@ -163,24 +163,23 @@ Serverless financial data pipeline feeding AI agents that recommend:
 
 ---
 
-## Phase 5 — AI Agent Layer ⏳ Not Started
+## Phase 5 — AI Agent Layer 🔄 In Progress
 
-### 10. Spending Intelligence Agent
-- ⏳ Agent reads vw_category_yoy, vw_monthly_spend, vw_cash_flow, vw_budget_vs_actual
-- ⏳ Compares actual vs prior year / budget targets (budget_targets table)
-- ⏳ Flags anomalies and generates spending adjustment recommendations
+Built as local Python scripts (Azure SQL read-only; figures computed in Python,
+Claude writes the narrative), reports saved locally and published to Notion.
 
-### 11. Portfolio Rebalancing Agent
-- ⏳ Agent reads holdings data + external market data feed
-- ⏳ Compares current allocation vs target allocation
-- ⏳ Generates rebalancing recommendations based on market trends
-- ⏳ Inputs: holdings snapshot + risk tolerance profile
+### 10. Spending Intelligence Agent ✅ Built 2026-11-02 (`scripts/spending_agent.py`)
+- ✅ Month vs budget, anomalies, household notes, YTD vs last-year by category (>= $1,000 and >= 10%)
+- ✅ Publishes to Notion "Monthly Spending Reviews"; saves to agent_reports
+- ✅ First review: October 2026
 
-### 12. Holdings Strategy Agent
-- ⏳ Agent assesses current holdings vs risk tolerance (current and projected)
-- ⏳ Recommends additions, reductions, or reallocation
-- ⏳ Risk tolerance profile: structured table in FinanceDB (risk_profile)
-- ⏳ Inputs: holdings, market data, risk profile
+### 11. Portfolio Rebalancing Agent ⏳ Not Started
+- ⏳ Needs an external market data feed (not chosen)
+- ⏳ Compares current vs target allocation; recommendations from market trends
 
----
-
+### 12. Holdings Strategy Agent ✅ Built 2026-11-02 (`scripts/holdings_agent.py`) — open items are ISSUE-052 / SessionStarter priority #1
+- ✅ Target allocation 75/15/3/7 (+/-5), account buckets (Locked / Retirement / Earmarked / Insurance / Free), Baird stock counted as Equities but never liquidity
+- ✅ College schedule (Whit 2027-31, twins 2029-33, 3% inflation, 529s from Aug 2031)
+- ✅ Annual cash plan, PIM-fee vs BKG money-market comparison, specific account-to-account moves
+- ✅ Baird dividend counted as cash (shares x per-share, taxes the same December); Dec 2026 leftover split between more Baird shares and paying down the US Bank LOC
+- ⏳ Close the ISSUE-052 items; run monthly and re-confirm the dividend assumptions each December

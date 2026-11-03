@@ -1,6 +1,23 @@
 # AFAS Project — Decision Log
 **Append only. Never delete entries. Most recent session at top.**
-Last updated: 2026-11-01
+Last updated: 2026-11-03
+
+---
+
+## 2026-11-03 (Session 29 — Baird Stock as a Private Book-Value Alternative; Fixed Income Target 10%; Cash Plan Assumptions; Baird Capital; Four-Bucket December Dividend; Portfolio Rebalancing Agent)
+
+*Finished Phase 5's third agent and reshaped the Holdings agent's model around how Baird stock really behaves. Deterministic figures stay in Python; Claude only writes narrative.*
+
+| Date | Decision | Rows |
+|------|----------|------|
+| 2026-11-03 | **Baird stock is a private, employee-owned, book-value Alternative investment, not an equity.** It is shown as its own "Baird Stock" class and excluded from the allocation targets (Tom's choice: separate it, measure the rest). Valuation: keep the holdings price, note book value from the annual report. Supersedes the Session 28 decision that Baird counts as Equities | — |
+| 2026-11-03 | **Targets now Equities 80 / Fixed Income 10 / Alternatives 3 / Cash 7 (+/-5)**, applied to financial assets excluding Baird stock and insurance cash value (script 157). Fixed income cut from 15% by Tom; equity-to-fixed-income shifts happen inside the 401(k)/IRAs/HSA. Supersedes the 75/15/3/7 target | — |
+| 2026-11-03 | Cash plan income and expense model (scripts 158-160): Amy pay +3%/yr; Amy bonus held flat from Feb 2027; other income flat; Whit's college not inflated, twins' inflate 3%; the Marquette drop-off grows with the baseline (a flat amount left a residual); the Tesla Y swap in 2027 is two one-time items excluded from the cash floor | — |
+| 2026-11-03 | **Plan cash excludes DF Checking, Associated Money Market and a reserve left in Associated Checking for the current-year gap.** Allocation still counts all of it as cash. Vanguard money market in MAIN-BKG counts as cash toward the floor | — |
+| 2026-11-03 | **Baird Capital (BCGF III Affiliates Fund LP):** a call already paid is modeled as cash to Alternatives until the next holdings import (script 162); the unfunded commitment is paid from cash on hand, **not** from the dividend buckets (scripts 163-164); the cash sweep inside MAIN-PIM cannot be moved | — |
+| 2026-11-03 | **December dividend is presented as four buckets summing to the gross dividend:** taxes; cash to Associated Checking and the money market (gap, floor and Baird Capital commitment less cash on hand, with a per-account breakdown table); a round number of Baird shares (script 165); LOC paydown. Shares-vs-LOC is a manual approximately-50/50 setting | — |
+| 2026-11-03 | **Portfolio Rebalancing agent** (`scripts/rebalancing_agent.py`): all accounts; free yfinance market data (delayed, unofficial; indicative only); single-stock cap measured against taxable equities; 27.2% capital-gain tax estimate; publishes to "Monthly Rebalancing Reviews" (script 161 settings) | — |
+| 2026-11-03 | Baird dividend is its own category, Baird Stock Dividend (script 156); the 24-month Baird activity backfill added seven activity types; activity files go to `_Archive` after import | — |
 
 ---
 

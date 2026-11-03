@@ -1,6 +1,6 @@
 # AFAS Project — Best Methods
 **Hard-won lessons. Add entries as they are learned. Never delete.**
-Last updated: 2026-09-22
+Last updated: 2026-11-03
 
 ---
 
@@ -1643,3 +1643,36 @@ fact table, set `Sort by Column` inside the dimension table, and point the
 chart's Legend well at the dimension table's field instead of the fact
 table's own field.
 *Source: Session 24 — Net Worth history chart legend order*
+
+---
+
+### Baird activity_id is vintage-dependent: start the activity export on the 1st and keep the window overlapping
+
+`import_baird_activity.py` hashes parsed values plus an occurrence counter,
+so the same transaction can get a different `activity_id` when it appears in
+exports with a different set of neighboring rows (different window start).
+Re-importing a differently-windowed file can therefore duplicate rows
+instead of being idempotent. Start each export on the first of the month and
+keep the overlap with the prior export consistent; after the import, move
+the files to `Run_Monthly/imports/baird/_Archive` (the importer globs
+`activity_*.csv` and does not archive).
+*Source: Session 29 — 24-month Baird activity backfill*
+
+### Agents: put every judgment call in a database setting, and show buckets that sum to the source number
+
+Holdings-agent assumptions (shares to buy, reserved cash, pending capital
+call, unfunded commitment, PIM cash that cannot move) live in
+`risk_profile_settings`/`cash_plan_adjustments` so changing one is a SQL
+script, not a code edit. When presenting an allocation, show the buckets
+that sum to the gross figure (here the December dividend) and a breakdown
+table for any bucket that is a net of several items; a single "left to
+allocate" number invited questions that a gross-to-net table answers.
+*Source: Session 29 — four-bucket December dividend*
+
+### Settings that mirror a pending real-world event must be cleared at the next import
+
+`pending_baird_capital_call` moves cash to alternatives in the plan before
+the holdings import reflects it. Once the next import posts the movement the
+setting double counts, so zero it (and lower any matching commitment) as
+part of that import.
+*Source: Session 29 — Baird Capital call*

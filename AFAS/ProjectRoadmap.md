@@ -1,6 +1,6 @@
 # AFAS Project — Roadmap
 **Living document. Update status and tasks as work completes.**
-Last updated: 2026-10-01 (Sessions 14-25 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh; note Session 22 deregistered `timer_sync.py`/`monthly_sync.py` in favor of a manual `http_monthly_ingest_all` route — bullets below still referencing "monthly sync via monthly_sync.py" describe the sync logic, which is unchanged, not the now-inert automatic timer; Session 25 rewrote both the HSA and Apple Card CSV importers to insert-only — see BestMethods and DecisionLog 2026-10-01)
+Last updated: 2026-11-03 (Session 29: Rebalancing agent built, Holdings agent reworked) / 2026-10-01 (Sessions 14-25 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh; note Session 22 deregistered `timer_sync.py`/`monthly_sync.py` in favor of a manual `http_monthly_ingest_all` route — bullets below still referencing "monthly sync via monthly_sync.py" describe the sync logic, which is unchanged, not the now-inert automatic timer; Session 25 rewrote both the HSA and Apple Card CSV importers to insert-only — see BestMethods and DecisionLog 2026-10-01)
 
 ---
 
@@ -173,13 +173,15 @@ Claude writes the narrative), reports saved locally and published to Notion.
 - ✅ Publishes to Notion "Monthly Spending Reviews"; saves to agent_reports
 - ✅ First review: October 2026
 
-### 11. Portfolio Rebalancing Agent ⏳ Not Started
-- ⏳ Needs an external market data feed (not chosen)
-- ⏳ Compares current vs target allocation; recommendations from market trends
+### 11. Portfolio Rebalancing Agent ✅ Built 2026-11-03 (`scripts/rebalancing_agent.py`)
+- ✅ All accounts; positions, single-stock cap, fund-level 401(k) moves, free yfinance market context (returns vs SPY/AGG, 52-week-high distance, trailing P/E)
+- ✅ Publishes to Notion "Monthly Rebalancing Reviews"
+- ⏳ 401(k) fixed income fund options from Tom (ISSUE-052 / SessionStarter priority #1)
 
 ### 12. Holdings Strategy Agent ✅ Built 2026-11-02 (`scripts/holdings_agent.py`) — open items are ISSUE-052 / SessionStarter priority #1
-- ✅ Target allocation 75/15/3/7 (+/-5), account buckets (Locked / Retirement / Earmarked / Insurance / Free), Baird stock counted as Equities but never liquidity
+- ✅ Target allocation 80/10/3/7 (+/-5) excluding Baird stock, which is a separate book-value Alternative (Session 29); account buckets (Locked / Retirement / Earmarked / Insurance / Free)
 - ✅ College schedule (Whit 2027-31, twins 2029-33, 3% inflation, 529s from Aug 2031)
 - ✅ Annual cash plan, PIM-fee vs BKG money-market comparison, specific account-to-account moves
 - ✅ Baird dividend counted as cash (shares x per-share, taxes the same December); Dec 2026 leftover split between more Baird shares and paying down the US Bank LOC
+- ✅ Session 29: income/college/Tesla model, plan-cash exclusions, Baird Capital commitment, four-bucket December dividend with per-account detail
 - ⏳ Close the ISSUE-052 items; run monthly and re-confirm the dividend assumptions each December

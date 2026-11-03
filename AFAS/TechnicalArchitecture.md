@@ -366,7 +366,7 @@ survives. AFAS b1a3ef3.
 
 ---
 
-### AI Agent Layer (Phase 5 — Architecture Planned)
+### AI Agent Layer (Phase 5 — all three agents built; see Python Scripts Inventory)
 Three agents, each reading from FinanceDB views and external inputs:
 
 | Agent | Primary Data Sources | External Input | Output |
@@ -394,6 +394,8 @@ Three agents, each reading from FinanceDB views and external inputs:
 | scripts/spending_agent.py | **NEW 2026-11-02** — Phase 5 Spending Intelligence agent. Read-only; computes month vs budget, anomalies and YTD vs last year in Python, Claude (`claude-opus-5-5`) writes the narrative; saves to `AGENT_REPORT_DIR` and publishes to Notion "Monthly Spending Reviews". Flags `--month`, `--dry-run`, `--no-notion`. Needs ANTHROPIC_API_KEY (expires 2027-02-03) and NOTION_TOKEN in `.env`. | ✅ 2026-11-02 (`3a6da77`) |
 | scripts/notion_publish.py | **NEW 2026-11-02** — stdlib Notion publisher: Markdown (headings, bullets, numbered lists, tables, bold, code) to blocks; creates or replaces a same-titled child page. Connection must be added to the parent page (404 otherwise). | ✅ 2026-11-02 |
 | scripts/holdings_agent.py | **NEW 2026-11-02** — Phase 5 Holdings Strategy agent. Read-only. Reads `vw_holdings_all`, `risk_profile_*`, `account_buckets`, `education_schedule`, `cash_plan_adjustments`, `vw_baird_activity` (PIM fees). Computes allocation drift, bucket-aware liquidity, annual cash plan, PIM-vs-VUSXX fee comparison, Baird dividend plan (shares x per-share, taxes the same December, break-even dividend), the December leftover split (shares vs LOC paydown) and account-to-account moves; Claude writes the narrative; publishes to "Monthly Holdings Reviews". Open assumptions: ISSUE-052. | ✅ 2026-11-02 (`d21bbe4`, `54d3bab`) |
+| scripts/rebalancing_agent.py | **NEW 2026-11-03** — Phase 5 Portfolio Rebalancing agent. Imports `holdings_agent` as H for allocation and buckets; reads all positions (including 401(k) mutual fund tickers); yfinance (free, delayed, unofficial) for 1/3/6/12-month returns vs SPY/AGG, 52-week-high distance and trailing P/E; single-stock cap, 27.2% capital-gain tax estimate; Claude writes the six-section narrative; publishes to "Monthly Rebalancing Reviews" (env NOTION_REBALANCE_PAGE_ID). Flags `--dry-run`, `--no-notion`, `--no-market`. requirements.txt gained `yfinance`. | ✅ 2026-11-03 (`628ac4e`) |
+| scripts/holdings_agent.py (Session 29 changes) | Baird stock as its own class outside targets; ex-Baird targets 80/10/3/7; actual Baird dividends and shares read from data; income model (Amy pay/bonus, flat Whit college, Marquette and Tesla one-time adjustments); plan cash exclusions and reserve; Baird Capital pending call and unfunded commitment; four-bucket December dividend (`dividend_cash_plan`) with a per-account bucket-2 breakdown. Settings live in `risk_profile_settings` (scripts 157-165). | ✅ 2026-11-03 (latest `29c9994`) |
 | plaid_sync.py | Shared sync module | ✅ 2026-10-01 (commit `6f232b9`): `_sync_institution()` now skips any transaction Plaid reports as `pending` (added/modified) instead of storing it — eliminates the pending/settled duplicate-row class at the source; logged via `skipped_pending` in the returned dict. `removed` transaction_ids from Plaid are still only counted (`len(removed)`), never acted on — no DELETE is issued for them; this is by design, not a gap (confirmed by code read 2026-10-01). Earlier: both known bugs fixed AND deployed 2026-09-01 (confirmed via VS Code's "Files (Read-only)" remote view — both had been drafted-but-undeployed since Session 14): (1) plaid_category_raw now extracts a clean category string instead of storing full JSON; (2) INFLOW_CATEGORIES no longer includes BANK_FEES/LOAN_PAYMENTS (ISSUE-023). Still does not write to run_log (ISSUE-016, carried over). |
 | enrich_transactions.py | **The single enricher for every source** (Plaid CHASE/ASSOCIATED_PERSONAL/AMEX, Apple Card CSV, HSA CSV) as of 2026-09-08 | ✅ 2026-09-16 (AFAS 3b6989d): fixed the "only write real changes" comparison — it compared rows by *position*, not `transaction_id`, so a full run flagged 9,604 of 16,754 rows as changed (most were untouched — `enrich_from_merchant_patterns`/`enrich_from_history` both reorder rows via `pd.concat(ignore_index=True)`, breaking positional alignment with the pre-pipeline snapshot). Not a data-safety bug (`write_results()` targets `transaction_id`) but destroyed `updated_at` as a "genuinely modified" signal. Verified: an immediate full re-run now reports "0 of 16,754 rows actually changed." Earlier: 2026-09-08 (AFAS b1a3ef3) `enrich_apple_csv.py` + `enrich_hsa_csv.py` retired — this file already had no source filter; `load_transactions()` date cutoff removed; `apply_fallback()` now only fills `in_budget`/`type` where NULL. **Matcher note:** only leading/trailing `%` are wildcards; a mid-pattern `%` is dead. Earlier still: `enrich_from_history()` carry-forward step (2026-09-03, AFAS 557cdd1 + 4f0c052); write-back scoped to changed rows (ISSUE-035); apply_fallback() defaults + `--unenriched-only` retry (2026-08-03). |
 | scripts/taxonomy_audit.py | Read-only taxonomy-drift diagnostic (4 checks: undocumented category/subcategory combos in merchant_patterns / category_map / transactions; same-priority pattern shadowing). AFAS 13b959e. | ✅ 2026-09-08: (a) ISSUE-041 (AFAS 6c652ae) — parses `Category_Taxonomy.md`'s `## Full Taxonomy` block live every run, no hardcoded dict, exits 2 on parse failure; (b) AFAS 1db78e4 — Check 4 no longer false-flags no-wildcard exact-match patterns (`ACT`, `IRS`) as substring collisions. As of session end: Checks 1/2/3 = 0, Check 4 = 207 (8 benign `[DIFFERENT DEST]` + 199 cosmetic `[same dest]`). |
@@ -627,7 +629,23 @@ Session 28 (2026-11-02):
                              (shares 66,180, price 37.55, $7.50/$7.00 dividend,
                               $135K Dec taxes, 2,300 shares added, loan 6.25%)
 
-Current high watermark: **154** (2026-11-02). Previous note: 150 (2026-11-01 — re-confirm live rather than
+Session 29 (2026-11-03):
+                           155_baird_stock_dividend_2025.sql
+                           156_vw_baird_activity_baird_stock_dividend.sql
+                             (Baird Stock Dividend category + 7 activity types)
+                           157_risk_targets_ex_baird_fi10.sql
+                           158_plan_income_college_and_one_time_items.sql
+                             (cash_plan_adjustments gains is_one_time)
+                           159_baird_shares_added_50_50.sql
+                           160_plan_cash_reserved_current_year.sql
+                           161_rebalancing_agent_settings.sql
+                             (single_stock_max_pct, cap_gain_tax_rate_pct)
+                           162_pending_baird_capital_call.sql
+                           163_baird_capital_unfunded_commitment.sql
+                           164_baird_capital_commitment_and_pim_sweep.sql
+                           165_round_share_purchase.sql
+
+Current high watermark: **165** (2026-11-03). Previous note: 154 (2026-11-02). Earlier note: 150 (2026-11-01 — re-confirm live rather than
 trust this number. Earlier note, as of watermark 135: re-confirm
 live rather than trust this number next session too. Note: code changes
 committed to AFAS `main` this session that are NOT numbered SQL scripts —

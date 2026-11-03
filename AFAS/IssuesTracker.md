@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues plus a resolved-issues archive, below. Resolved items stay in this file's Resolved Issues section with date closed — not moved to Decision Log (bug-fix write-ups don't map onto DecisionLog's Decision/Rationale/Alternatives format).**
-Last updated: 2026-11-02 (Session 28 — ISSUE-052 opened for the Holdings Strategy agent's open assumptions)
+Last updated: 2026-11-03 (Session 29 — ISSUE-052 rewritten after the Baird-as-alternative, cash-plan and Baird Capital changes)
 
 ---
 
@@ -13,12 +13,12 @@ Last updated: 2026-11-02 (Session 28 — ISSUE-052 opened for the Holdings Strat
 
 ## Active Issues
 
-### ISSUE-052 — Holdings Strategy agent: open assumptions to confirm (PRIORITY #1 next session)
+### ISSUE-052 — Holdings / Rebalancing agents: open assumptions to confirm (PRIORITY #1 next session)
 **Status:** Open
-**Opened:** 2026-11-02
+**Opened:** 2026-11-02 (updated 2026-11-03, Session 29)
 **Priority:** High
-**Description:** The agent (`scripts/holdings_agent.py`) is built and published, but several inputs are assumptions Tom has not confirmed. Until they are, treat the cash plan and moves as provisional: (1) the account the December Baird dividend lands in; (2) whether the roughly $31K/yr LOC interest (6.25% variable, paid from PIM dividends) is inside the budgeted spend or in the Other group; (3) dividend history in `projection_fixed_history` stops at 2024 (2025 and the Dec 2026 actual $496,350 not recorded); (4) no expense offset yet for sports, groceries and dining out once the kids leave (`cash_plan_adjustments` is empty); (5) 2,300 shares ($86,365) gives a 42/58 split of the $205K leftover, not 50/50; (6) tax rate 27.2% on later dividends and whether the $135K is the whole December payment (the $20K paid 2026-09-28 is treated as already out); (7) the liquidity section still quotes the old $315,533 ladder shortfall; (8) ownership of IRA - Baird Stock, IRA ROTH - Baird Stock and IRA - PE Millennium, what BAIRD Capital is, Whit's scholarship ($8K to $14K) and the twins' $60K/yr; (9) the Anthropic API key expires 2027-02-03.
-**Next Step:** Walk the list with Tom, store the confirmed values (risk_profile_settings, cash_plan_adjustments, projection_fixed_history), re-run `python scripts\holdings_agent.py`, and tidy the stale narrative. The plan stays funded down to about $6.24 a share against the $7.00 planning figure.
+**Description:** Both agents (`scripts/holdings_agent.py`, `scripts/rebalancing_agent.py`) are built and published, but several inputs are unconfirmed. Resolved in Session 29: December dividend landing and split (four-bucket presentation), 2025/2026 dividend actuals now read from data, Baird as a book-value alternative outside targets, fixed income target 10%, Amy pay/bonus, flat Whit college, Marquette and Tesla items, plan-cash exclusions, Baird Capital commitment. Still open: (1) the 401(k) fixed income fund options (Tom to supply, blocks the fund-level purchase side); (2) source of the Baird per-share price versus the annual report book value, and the unverified equity and no-decline claims; (3) December tax estimate versus last year's actual; (4) whether LOC interest (6.25% variable) is inside budgeted spend; (5) Nov-Dec 2026 spending drawdown not modeled; (6) whether MAIN-PIM sweep cash counts toward the floor, and the advisor's answer on funding the Baird Capital call from it; (7) bucket 2 presentation and the after-moves cash % counting the reserve; (8) after the next Baird holdings import set `pending_baird_capital_call` to 0 and lower `baird_capital_unfunded_commitment` as calls are paid; (9) expense offsets after the kids leave; (10) ownership of IRA - Baird Stock, IRA ROTH - Baird Stock, IRA - PE Millennium; (11) the Anthropic API key expires 2027-02-03.
+**Next Step:** Get the 401(k) fund list from Tom, walk the rest with him, store confirmed values (risk_profile_settings, cash_plan_adjustments), re-run both agents.
 
 ---
 

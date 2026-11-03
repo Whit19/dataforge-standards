@@ -1,6 +1,6 @@
 # AFAS Project — Category Taxonomy Reference
 **Update this file when any category, subcategory, or type assignment changes.**
-Last updated: 2026-09-08 (Session 19 cont.: added 6 subcategories — Clothing/Dry Cleaning, Large Purchases/General, Bills & Utilities/General, Other Income/Dividends, Uncategorized/eBay - Review, Uncategorized/PayPal - Review — as ISSUE-012's Check 1-3 cleanup landed; added the "closed list" hard rule)
+Last updated: 2026-11-03 (Baird activity categories section added, incl. new `Baird Stock Dividend`; earlier: 2026-09-08 Session 19 cont.: added 6 subcategories — Clothing/Dry Cleaning, Large Purchases/General, Bills & Utilities/General, Other Income/Dividends, Uncategorized/eBay - Review, Uncategorized/PayPal - Review — as ISSUE-012's Check 1-3 cleanup landed; added the "closed list" hard rule)
 
 ---
 
@@ -87,6 +87,34 @@ Last updated: 2026-09-08 (Session 19 cont.: added 6 subcategories — Clothing/D
 | 2026-09-08 | Bills & Utilities: added subcategory `General` — generic-utilities Plaid codes (`Utilities`, `RENT_AND_UTILITIES_UTILITIES`) with no Electric/Gas/Internet/Phone specificity | 2 (category_map) |
 | 2026-09-08 | Other Income: added subcategory `Dividends` — Baird / investment dividend income; script 89 | 1 (category_map) |
 | 2026-09-08 | Uncategorized: added subcategories `eBay - Review` and `PayPal - Review` — review-queue holding pens matching the existing `VENMO - Review` convention | 3 (merchant_patterns) |
+| 2026-11-03 | **Baird activity (separate from transaction taxonomy):** added activity category `Baird Stock Dividend` (see section below). Applied in `dbo.vw_baird_activity` (script 156), so it covers all history | 2 rows (Dec 2024 $203,787.50; Dec 2025 $400,276.50) |
+
+---
+
+## Baird Activity Categories (`dbo.vw_baird_activity`)
+
+Separate from the transaction taxonomy above. Baird brokerage activity is
+categorized in `dbo.vw_baird_activity.activity_category`, which is computed
+in the view from `activity_type` (not stored), so a view change re-categorizes
+every historical row. Current definition: script 156 (supersedes 143).
+
+| activity_category | activity_type values |
+|-------------------|----------------------|
+| **Baird Stock Dividend** | `Dividend` in account `BAIRD Stock` only (checked first, before Income) |
+| Trade | Asset Bought-reinv, Asset Bought, Others, Asset Sold, Sold - Cancel, Asset Redeemed, Asset Bought-Close, Asset Sold-Open |
+| Fee | Asset Based Fee, Asset Fee Rebate, Other-fee |
+| Income | Dividend (all other accounts), Dividend-st Cap, Capital Gain Distrib, Interest, Other-foreign Taxes, Other Distribution |
+| Cash Movement | Money Market Deposit, Money Market Withdrawal, Other-journal, Deposit-journal, Withdrawal-journal, Other-adjust, ACH, ACH/ATM Activity, Deposit-contribution, Deposit-rollover |
+| Other | anything else (e.g. Spinoff, Stock Distribution) |
+
+**Baird Stock Dividend** is the annual Baird dividend that drives household
+cash flow. It lands in the BAIRD Stock account (cash sweep) in early December
+(2025: 12/9, 61,581 sh x $6.50 = $400,276.50) and is journaled to MAIN - BKG
+as `Other-journal`, which stays `Cash Movement`, so it is not counted twice.
+It was previously grouped with all other dividends as `Income`.
+
+The 2025 dividend is also recorded in `projection_fixed_history`
+(script 155, 'Baird Stock Dividends', 2025, $400,276.50).
 
 ---
 

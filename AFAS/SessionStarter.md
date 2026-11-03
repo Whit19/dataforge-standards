@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-11-02 (Session 28 — Phase 4 declared complete; Phase 5 started: Spending Intelligence and Holdings Strategy agents built, publishing to Notion. SQL watermark 154)
+Last updated: 2026-11-03 (Session 29 — all three Phase 5 agents built and publishing to Notion; Baird stock reclassified as a private book-value alternative outside allocation targets. SQL watermark 165)
 
 ---
 
@@ -106,71 +106,96 @@ top-level status, when verifying an automated sync actually ran.**
 | Phase 2 | Enrichment, normalization, schema cleanup | ✅ Complete |
 | Phase 3 | Automation, Power BI reporting | ✅ Complete |
 | Phase 4 | Accounts/balances, investments/holdings | ✅ Complete (Tom, 2026-11-02) |
-| Phase 5 | AI agent layer | 🔄 In Progress — Spending Intelligence ✅, Holdings Strategy ✅ (open items below), Portfolio Rebalancing ⏳ |
+| Phase 5 | AI agent layer | 🔄 In Progress — Spending Intelligence ✅, Holdings Strategy ✅, Portfolio Rebalancing ✅ (open items below) |
 
 ---
 
 ## Pick Up Here — Next Session
 
-2026-11-02 (Session 28 — Phase 5 started): Tom declared Phase 4 complete
-(October enrichment finished) and the AI agent layer began as local Python
-scripts. Two agents are built, committed and pushed (AFAS `main`,
-`3a6da77`, `d21bbe4`, `54d3bab`) and publish to Notion from the script:
+2026-11-03 (Session 29 — Phase 5 agents completed): all three agents are
+built, committed and pushed (AFAS `main`, latest `29c9994`) and publish to
+Notion from the script. Run order and flags are in TechnicalArchitecture.
 
-- **`scripts/spending_agent.py`** — monthly spending review (month vs
-  budget, anomalies, YTD vs last year by category). Notion parent: "Monthly
-  Spending Reviews". Household notes (Grand Geneva reimbursable; October
-  charity timing) live in the script.
-- **`scripts/holdings_agent.py`** — holdings strategy: allocation vs the
-  75/15/3/7 target, account buckets, college funding schedule, annual cash
-  plan, PIM-vs-money-market fee check, December Baird dividend allocation,
-  and account-to-account moves. Notion parent: "Monthly Holdings Reviews".
-- **`scripts/notion_publish.py`** — shared stdlib Notion publisher
-  (creates or replaces a same-titled child page).
-- SQL 151-154 (see TechnicalArchitecture). Reports also save to
-  `AGENT_REPORT_DIR` (OneDrive `_PROJECTS\AFAS\agent_reports`, git-ignored).
+- `scripts/holdings_agent.py` — now treats **Baird stock as a private,
+  employee-owned, book-value Alternative investment** shown as its own
+  "Baird Stock" class and **excluded from the allocation targets**. Targets
+  (ex-Baird, ex-insurance cash value): Equities 80 / Fixed Income 10 /
+  Alternatives 3 / Cash 7, +/-5. Reads actual Baird dividend history and
+  share count from `vw_baird_activity` / holdings.
+- Cash plan income model: Amy pay +3%/yr, Amy bonus held flat from Feb 2027,
+  other income flat, Whit's college **not** inflated (twins' are), Marquette
+  removed (its drop-off grows with the baseline so none remains), Tesla Y
+  swap in 2027 as one-time items outside the cash floor.
+- Plan cash excludes DF Checking, Associated Money Market and a reserve held
+  in Associated Checking for the current-year gap (settings in script 160).
+- Baird Capital (BCGF III Affiliates Fund LP): the call already paid is
+  modeled as cash to Alternatives until the next holdings import; the
+  unfunded commitment is paid from cash on hand, not from the dividend; the
+  cash sweep inside MAIN-PIM cannot be moved.
+- **December 2026 dividend is shown as four buckets** that sum to the gross
+  dividend: (1) taxes, (2) cash to Associated Checking and the money market
+  for the 2027 gap, floor and Baird Capital commitment (with a "what makes
+  up bucket 2" table by account), (3) a round number of Baird shares and its
+  cost, (4) LOC paydown. The shares-vs-LOC split is a manual setting
+  (`baird_shares_added_dec_2026`), roughly 50/50.
+- `scripts/rebalancing_agent.py` (new) — all-account rebalancing review with
+  free yfinance market context (1/3/6/12-month returns vs SPY/AGG,
+  52-week-high distance, trailing P/E), single-stock cap, fund-level 401(k)
+  moves. Notion parent: "Monthly Rebalancing Reviews" (env
+  NOTION_REBALANCE_PAGE_ID).
+- `Category_Taxonomy.md` documents the Baird Stock Dividend category and the
+  `vw_baird_activity` activity-type mapping.
+- SQL 155-165 (see TechnicalArchitecture). Baird activity export files were
+  moved to `Run_Monthly/imports/baird/_Archive` (the importer globs
+  `activity_*.csv` and does not auto-archive).
 
-### PRIORITY #1 — open items to check or fix before trusting the Holdings Strategy agent's numbers (ISSUE-052)
-1. **Where the December Baird dividend lands** — the moves say "Baird
-   dividend cash (confirm landing account)". Confirm the account so the
-   moves name it.
-2. **Loan interest (~$31K/yr at 6.25%, paid from PIM dividends)** — not
-   verified whether it sits inside the budgeted spend or in the "Other"
-   (LOC Interest Payment) group. If outside, the cash plan misses it.
-   Variable rate: 6.00% to 6.25% on 2026-09-17.
-3. **Dividend history stops at 2024** in `projection_fixed_history`
-   ($55K / $268K / $204K for 2022-2024). Record 2025 and the Dec 2026
-   actual ($7.50 x 66,180 = $496,350). Planning figure for Dec 2027 on is
-   $7.00 a share; the plan stays funded down to about $6.24.
-4. **Expenses after the kids leave** — expenses grow 3% a year with no
-   offset. Tom to supply sports / groceries / dining-out reductions for
-   `cash_plan_adjustments` (table is empty).
-5. **Share purchase size** — Tom fixed about 2,300 shares ($86,365); with
-   $205K left that is a 42/58 split, not 50/50 (50/50 is about 2,700
-   shares). Decide whether to re-set `baird_shares_added_dec_2026`. Also
-   confirm Tom/Amy can buy at $37.55 and that new shares are locked like
-   the rest.
-6. **Tax assumptions** — 27.2% on every dividend (135,000 / 496,350);
-   the $20,000 federal estimate paid 2026-09-28 is treated as already out;
-   whether the $135K is the full December payment needs confirming.
-7. **Stale wording in the report** — the liquidity section still quotes
-   the old tuition-ladder shortfall ($315,533) that the dividend plan
-   makes moot; clean up that narrative.
-8. **Unconfirmed account facts** — owner of IRA - Baird Stock, IRA ROTH -
-   Baird Stock, IRA - PE Millennium (later Amy date used); what BAIRD
-   Capital is; Whit's scholarship ($8,000 now, up to $14,000 with GPA);
-   twins' ~$60,000/yr is a rough estimate.
-9. **Retirement shifts total about $1.09M** (equities to fixed income
-   inside 401(k)/IRAs/HSA) to reach 15% fixed income — review with the
-   advisor before acting.
-10. **Concentration risk** — Baird stock is 24.9% of assets, locked until
-    2034, and Amy's pay, bonus and the dividend all depend on Baird.
-11. **Anthropic API key expires 2027-02-03** (set in `.env` as
-    ANTHROPIC_API_KEY); renew before then or the agents stop. Notion needs
-    NOTION_TOKEN and the connection added to each parent page.
+### PRIORITY #1 — 401(k) fixed income fund options (waiting on Tom)
+Tom will supply the Principal 401(k) plan's fixed income / stable value fund
+options. The 401(k) screenshots showed only equity funds, so the fund-level
+rebalance (sell the mid cap growth fund, trim the large cap growth and value
+funds into fixed income, a few hundred thousand of equity to fixed income)
+cannot be finalized until the destination fund exists. Then re-run
+`python scripts\rebalancing_agent.py` and `python scripts\holdings_agent.py`.
 
-Then: the **Portfolio Rebalancing agent** (needs an external market data
-feed; Tom has not chosen one) and the optional Phase 5 items below.
+### Other open items (ISSUE-052 — provisional numbers until confirmed)
+1. **Baird stock price source** — the holdings carry a per-share price that
+   does not match the 2025 annual report book value; Tom chose to keep the
+   holdings price and note book value. Confirm where it comes from. Tom's
+   "shareholders' equity over 2.8 billion" and "23 years without a decline"
+   are unverified against the annual report page (it showed less).
+2. **Tax estimate** — 27.2% on the December dividend gives a figure well
+   below last year's actual payment; confirm the December estimate.
+3. **LOC interest (~6.25% variable)** — still unverified whether it sits
+   inside budgeted spend or in the Other group; if outside, the cash plan
+   misses it.
+4. **Nov-Dec 2026 spending drawdown** is not modeled.
+5. **Should the MAIN-PIM sweep cash count toward the 6-month floor?** It
+   cannot be moved; the advisor was asked whether it can fund the Baird
+   Capital call.
+6. **Bucket 2 presentation** — whether to show only the money to move and a
+   separate "kept in cash" line; after-moves cash % still counts the reserve.
+7. **After the next Baird holdings import:** set `pending_baird_capital_call`
+   to 0 (it double counts once the cash leaves the sweep); lower
+   `baird_capital_unfunded_commitment` as calls are paid.
+8. **Expenses after the kids leave** — `cash_plan_adjustments` has only the
+   Marquette and Tesla rows; Tom to supply sports / groceries / dining-out
+   reductions.
+9. **Unconfirmed account facts** — owner of IRA - Baird Stock, IRA ROTH -
+   Baird Stock, IRA - PE Millennium; Whit's scholarship range; twins' cost.
+10. **Concentration** — Baird stock, Amy's pay, bonus and the dividend all
+    depend on Baird; the stock is locked until 2034.
+11. **Anthropic API key expires 2027-02-03** (`ANTHROPIC_API_KEY` in
+    `.env`). yfinance is free, delayed and unofficial — treat market context
+    as indicative.
+12. Dividend history in `projection_fixed_history` — confirm the 2025 and
+    Dec 2026 actuals are recorded (Baird activity now carries them).
+
+### Previous session — Session 28 (2026-11-02)
+Phase 4 declared complete; Spending Intelligence and Holdings Strategy
+agents first built (`3a6da77`, `d21bbe4`, `54d3bab`), Notion publishing via
+`scripts/notion_publish.py`, SQL 151-154. The 75/15/3/7 target and
+"Baird counts as Equities" decision from that session are superseded by
+Session 29 (DecisionLog 2026-11-03).
 
 ### Previous session — Session 27 (2026-11-01)
 2026-11-01 (Session 27 — November monthly close): ran the full

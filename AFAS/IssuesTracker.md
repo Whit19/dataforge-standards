@@ -1,6 +1,6 @@
 # AFAS Project — Data Issues Tracker
 **Active issues plus a resolved-issues archive, below. Resolved items stay in this file's Resolved Issues section with date closed — not moved to Decision Log (bug-fix write-ups don't map onto DecisionLog's Decision/Rationale/Alternatives format).**
-Last updated: 2026-11-03 (Session 29 — ISSUE-052 rewritten after the Baird-as-alternative, cash-plan and Baird Capital changes)
+Last updated: 2026-11-04 (Session 30 — ISSUE-052 narrowed; ISSUE-053 opened for the tax estimate inputs)
 
 ---
 
@@ -13,12 +13,21 @@ Last updated: 2026-11-03 (Session 29 — ISSUE-052 rewritten after the Baird-as-
 
 ## Active Issues
 
-### ISSUE-052 — Holdings / Rebalancing agents: open assumptions to confirm (PRIORITY #1 next session)
+### ISSUE-052 — Holdings / Rebalancing agents: open assumptions to confirm
+**Status:** Open (narrowed Session 30)
+**Opened:** 2026-11-02 (updated 2026-11-04, Session 30)
+**Priority:** Medium
+**Description:** Resolved in Session 30: the 401(k) fixed income fund options (menu loaded, shift made and recorded), the December tax method (now the Python tax estimate, see ISSUE-053), the cash floor (3 months), the dividend and book-value model, Amy's pay/bonus/401(k)/Super-Roth/HSA model, the mortgage payoff, the Baird dividend landing account, and the 8-year horizon. Still open: (1) source of the Baird per-share price versus the annual report book value; (2) whether LOC interest (6.25% variable) is inside budgeted spend; (3) Nov-Dec 2026 spending drawdown not modeled; (4) whether MAIN-PIM sweep cash counts toward the floor, and the advisor's answer on funding the Baird Capital call from it; (5) bucket 2 presentation and the after-moves cash % counting the reserve; (6) after the next Baird holdings import set `pending_baird_capital_call` to 0 and lower `baird_capital_unfunded_commitment` as calls are paid, and confirm `pending_position_changes` stopped applying after the next Principal import; (7) expense offsets after the kids leave (only the Marquette and Tesla rows exist; expenses after the last college bill are not reduced); (8) ownership of IRA - Baird Stock, IRA ROTH - Baird Stock, IRA - PE Millennium; (9) the profit share base (Tom's figures versus the paystub salary) and the pre-tax bonus after 2027; (10) retirement income and spending after Amy retires (end of 2034) are not modeled; (11) the Anthropic API key expires 2027-02-03.
+**Next Step:** Walk the remaining items with Tom, store confirmed values (risk_profile_settings, cash_plan_adjustments), re-run the agents.
+
+---
+
+### ISSUE-053 — Estimated tax: manual inputs and later-year assumptions
 **Status:** Open
-**Opened:** 2026-11-02 (updated 2026-11-03, Session 29)
-**Priority:** High
-**Description:** Both agents (`scripts/holdings_agent.py`, `scripts/rebalancing_agent.py`) are built and published, but several inputs are unconfirmed. Resolved in Session 29: December dividend landing and split (four-bucket presentation), 2025/2026 dividend actuals now read from data, Baird as a book-value alternative outside targets, fixed income target 10%, Amy pay/bonus, flat Whit college, Marquette and Tesla items, plan-cash exclusions, Baird Capital commitment. Still open: (1) the 401(k) fixed income fund options (Tom to supply, blocks the fund-level purchase side); (2) source of the Baird per-share price versus the annual report book value, and the unverified equity and no-decline claims; (3) December tax estimate versus last year's actual; (4) whether LOC interest (6.25% variable) is inside budgeted spend; (5) Nov-Dec 2026 spending drawdown not modeled; (6) whether MAIN-PIM sweep cash counts toward the floor, and the advisor's answer on funding the Baird Capital call from it; (7) bucket 2 presentation and the after-moves cash % counting the reserve; (8) after the next Baird holdings import set `pending_baird_capital_call` to 0 and lower `baird_capital_unfunded_commitment` as calls are paid; (9) expense offsets after the kids leave; (10) ownership of IRA - Baird Stock, IRA ROTH - Baird Stock, IRA - PE Millennium; (11) the Anthropic API key expires 2027-02-03.
-**Next Step:** Get the 401(k) fund list from Tom, walk the rest with him, store confirmed values (risk_profile_settings, cash_plan_adjustments), re-run both agents.
+**Opened:** 2026-11-04
+**Priority:** Medium
+**Description:** `scripts/tax_engine.py` and `scripts/tax_agent.py` match Tom's workbook to the dollar for 2026, but several inputs are still typed or assumed: this year's realized gains and joint-account dividends and interest (typed from the workbook into `tax_inputs`); later years assume realized gains at the 2025 level, other investment income at the 2026 estimate, bracket and deduction indexing at a planning rate and the standard deduction winning once the mortgage ends; Amy's pay comes from the latest paystub (add each new one to `paystub_snapshots`); estimated payments made are typed into `tax_inputs`. The engine's AMT cushion is thin (itemizing vs the standard deduction flips the answer), so re-check against the workbook after any input change. Tom's Q4 payment is due 1/15 and the return 4/15. Planning estimates, not tax advice.
+**Next Step:** After the December dividend is declared and each paystub or payment, update the tables, re-run `tax_agent.py`, and compare with the workbook. Consider loading realized gains from Baird activity and payments from the Taxes category automatically.
 
 ---
 

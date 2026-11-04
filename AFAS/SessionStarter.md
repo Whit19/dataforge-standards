@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-11-03 (Session 29 — all three Phase 5 agents built and publishing to Notion; Baird stock reclassified as a private book-value alternative outside allocation targets. SQL watermark 165)
+Last updated: 2026-11-04 (Session 30 — Holdings plan rebuilt as a rolling 8-year forecast; 401(k) fixed income shift made and recorded; Python tax estimate and the Estimated Tax agent added. SQL watermark 178)
 
 ---
 
@@ -106,89 +106,35 @@ top-level status, when verifying an automated sync actually ran.**
 | Phase 2 | Enrichment, normalization, schema cleanup | ✅ Complete |
 | Phase 3 | Automation, Power BI reporting | ✅ Complete |
 | Phase 4 | Accounts/balances, investments/holdings | ✅ Complete (Tom, 2026-11-02) |
-| Phase 5 | AI agent layer | 🔄 In Progress — Spending Intelligence ✅, Holdings Strategy ✅, Portfolio Rebalancing ✅ (open items below) |
+| Phase 5 | AI agent layer | 🔄 In Progress — Spending Intelligence ✅, Holdings Strategy ✅, Portfolio Rebalancing ✅, Estimated Tax ✅ (open items below) |
 
 ---
 
 ## Pick Up Here — Next Session
 
-2026-11-03 (Session 29 — Phase 5 agents completed): all three agents are
-built, committed and pushed (AFAS `main`, latest `29c9994`) and publish to
-Notion from the script. Run order and flags are in TechnicalArchitecture.
+2026-11-04 (Session 30 — rolling 8-year Holdings plan, 401(k) shift recorded, Python tax estimate, Estimated Tax agent). All agents are in AFAS `main` (latest `4b2b9fe`) and publish to Notion; each parent page needs the Notion connection added (a 404 means it was not).
 
-- `scripts/holdings_agent.py` — now treats **Baird stock as a private,
-  employee-owned, book-value Alternative investment** shown as its own
-  "Baird Stock" class and **excluded from the allocation targets**. Targets
-  (ex-Baird, ex-insurance cash value): Equities 80 / Fixed Income 10 /
-  Alternatives 3 / Cash 7, +/-5. Reads actual Baird dividend history and
-  share count from `vw_baird_activity` / holdings.
-- Cash plan income model: Amy pay +3%/yr, Amy bonus held flat from Feb 2027,
-  other income flat, Whit's college **not** inflated (twins' are), Marquette
-  removed (its drop-off grows with the baseline so none remains), Tesla Y
-  swap in 2027 as one-time items outside the cash floor.
-- Plan cash excludes DF Checking, Associated Money Market and a reserve held
-  in Associated Checking for the current-year gap (settings in script 160).
-- Baird Capital (BCGF III Affiliates Fund LP): the call already paid is
-  modeled as cash to Alternatives until the next holdings import; the
-  unfunded commitment is paid from cash on hand, not from the dividend; the
-  cash sweep inside MAIN-PIM cannot be moved.
-- **December 2026 dividend is shown as four buckets** that sum to the gross
-  dividend: (1) taxes, (2) cash to Associated Checking and the money market
-  for the 2027 gap, floor and Baird Capital commitment (with a "what makes
-  up bucket 2" table by account), (3) a round number of Baird shares and its
-  cost, (4) LOC paydown. The shares-vs-LOC split is a manual setting
-  (`baird_shares_added_dec_2026`), roughly 50/50.
-- `scripts/rebalancing_agent.py` (new) — all-account rebalancing review with
-  free yfinance market context (1/3/6/12-month returns vs SPY/AGG,
-  52-week-high distance, trailing P/E), single-stock cap, fund-level 401(k)
-  moves. Notion parent: "Monthly Rebalancing Reviews" (env
-  NOTION_REBALANCE_PAGE_ID).
-- `Category_Taxonomy.md` documents the Baird Stock Dividend category and the
-  `vw_baird_activity` activity-type mapping.
-- SQL 155-165 (see TechnicalArchitecture). Baird activity export files were
-  moved to `Run_Monthly/imports/baird/_Archive` (the importer globs
-  `activity_*.csv` and does not auto-archive).
+**What changed (details in DecisionLog 2026-11-04 and TechnicalArchitecture):**
+- **Holdings plan is a rolling 8-year forecast (2027-2034).** The plan runs one extra internal year so the last December column exists. Each year move `plan_first_year` / `plan_last_year` forward one and add that year's Marquette adjustment row. Amy retires at the end of 2034; retirement income and spending after that are NOT modelled yet.
+- **Dividend:** actual December 2026 per-share amount, then a flat per-share planning amount (Tom: err on the safe side). Book value per share (price of new shares and the value of Baird stock) rises at a conservative planning rate; it is NOT derived from Tom's six percentages (those were dividend as a percent of book value). Each December: taxes, then cash for next year (gap + Baird Capital call + floor), then Baird shares (half the rest, rounded to 50 shares), then LOC paydown.
+- **Cash floor is 3 months** of that year's budgeted spend (setting `core_floor_months`; it is a planning rule, not an outside source). Mortgage (principal and interest only) stops after the 9/1/2031 payment and is not grown. Baird Capital commitment is called evenly over five years from 2027, paid from cash.
+- **Amy's pay model:** base pay from the paystub; bonus pre-tax is 1.4x base in 2027 and 1.0x after; after-tax bonus figures are separate settings; profit share = flat + 3.5% of base + bonus; pre-tax 401(k) additions (deferral at the limit, match, profit share) are separate from the after-tax 401(k), which is converted (Super-Roth) to Baird stock inside IRA ROTH - Baird Stock. No catch-up (Tom wants the cash flow). HSA uses the paystub amount plus the employer contribution. IRA Baird accounts reinvest their dividends.
+- **401(k) fixed income:** Tom made the fund shift and the new contribution election on 2026-11-04. They are recorded in `pending_position_changes` (pro-forma until the next Principal import; it stops applying by itself once that account has a newer snapshot) and `contribution_elections`. Plan: the 401(k) alone carries overall fixed income to the 10% target (no moves in the other retirement accounts); the projection reaches the target around Dec 2031 if the match and profit share follow the election (Tom confirmed they do). Revisit the 401(k) allocations then.
+- **Taxes:** `scripts/tax_engine.py` is a Python port of Tom's `Estimated Tax Calculation.xlsx` (federal incl. AMT, net investment income tax and additional Medicare tax; Wisconsin), verified to match the workbook to the dollar. The December 2026 tax bucket is the workbook's Q4 payment; later Decembers use the extra tax the dividend causes from the engine. New agent `scripts/tax_agent.py` publishes "Estimated Tax Reviews" (env NOTION_TAX_PAGE_ID) with the estimate, payments, safe-harbor test, payment options, dividend sensitivity, an extra-withholding idea, a workbook cross-check and the 8-year tax outlook.
+- The Holdings review shows a milestones list, cash flow by year, holdings by year with where each change comes from, a fixed income path table and an estimated-tax-by-year table.
 
-### PRIORITY #1 — 401(k) fixed income fund options (waiting on Tom)
-Tom will supply the Principal 401(k) plan's fixed income / stable value fund
-options. The 401(k) screenshots showed only equity funds, so the fund-level
-rebalance (sell the mid cap growth fund, trim the large cap growth and value
-funds into fixed income, a few hundred thousand of equity to fixed income)
-cannot be finalized until the destination fund exists. Then re-run
-`python scripts\rebalancing_agent.py` and `python scripts\holdings_agent.py`.
+### PRIORITY #1 — keep the tax and holdings inputs current
+1. **Paystub:** add each new Amy paystub to `paystub_snapshots` (the tax projection is year-to-date plus remaining paychecks); update `tax_inputs` (estimated payments made, realized gains, other investment income) after each payment or 1099.
+2. **When the December Baird dividend is declared:** update `baird_dividend_per_share_2026`, re-run `holdings_agent.py`, `rebalancing_agent.py` and `tax_agent.py`; the Q4 estimated payment is due 1/15; filing 4/15.
+3. **After the next Principal and Baird holdings imports:** confirm `pending_position_changes` stopped applying, set `pending_baird_capital_call` to 0 and lower `baird_capital_unfunded_commitment` as calls are paid.
+4. **Tax assumptions to confirm (ISSUE-053):** realized gains for later years, other investment income held at the 2026 estimate, bracket indexing, and Tom's workbook as the cross-check.
+5. Remaining ISSUE-052 items (see IssuesTracker).
 
-### Other open items (ISSUE-052 — provisional numbers until confirmed)
-1. **Baird stock price source** — the holdings carry a per-share price that
-   does not match the 2025 annual report book value; Tom chose to keep the
-   holdings price and note book value. Confirm where it comes from. Tom's
-   "shareholders' equity over 2.8 billion" and "23 years without a decline"
-   are unverified against the annual report page (it showed less).
-2. **Tax estimate** — 27.2% on the December dividend gives a figure well
-   below last year's actual payment; confirm the December estimate.
-3. **LOC interest (~6.25% variable)** — still unverified whether it sits
-   inside budgeted spend or in the Other group; if outside, the cash plan
-   misses it.
-4. **Nov-Dec 2026 spending drawdown** is not modeled.
-5. **Should the MAIN-PIM sweep cash count toward the 6-month floor?** It
-   cannot be moved; the advisor was asked whether it can fund the Baird
-   Capital call.
-6. **Bucket 2 presentation** — whether to show only the money to move and a
-   separate "kept in cash" line; after-moves cash % still counts the reserve.
-7. **After the next Baird holdings import:** set `pending_baird_capital_call`
-   to 0 (it double counts once the cash leaves the sweep); lower
-   `baird_capital_unfunded_commitment` as calls are paid.
-8. **Expenses after the kids leave** — `cash_plan_adjustments` has only the
-   Marquette and Tesla rows; Tom to supply sports / groceries / dining-out
-   reductions.
-9. **Unconfirmed account facts** — owner of IRA - Baird Stock, IRA ROTH -
-   Baird Stock, IRA - PE Millennium; Whit's scholarship range; twins' cost.
-10. **Concentration** — Baird stock, Amy's pay, bonus and the dividend all
-    depend on Baird; the stock is locked until 2034.
-11. **Anthropic API key expires 2027-02-03** (`ANTHROPIC_API_KEY` in
-    `.env`). yfinance is free, delayed and unofficial — treat market context
-    as indicative.
-12. Dividend history in `projection_fixed_history` — confirm the 2025 and
-    Dec 2026 actuals are recorded (Baird activity now carries them).
+### Other open items
+See ISSUE-052 (holdings/rebalancing assumptions) and ISSUE-053 (tax estimate inputs). The Anthropic API key expires 2027-02-03 (`ANTHROPIC_API_KEY` in `.env`). yfinance is free, delayed and unofficial: treat market context as indicative.
+
+### Previous session — Session 29 (2026-11-03)
+All three Phase 5 agents built and published; Baird stock reclassified as a private book-value alternative outside the allocation targets (80/10/3/7 ex-Baird); Baird Capital commitment; four-bucket December dividend; SQL 155-165. Superseded in part by Session 30 (flat dividend per share, rolling 8-year plan, 3-month floor, tax method).
 
 ### Previous session — Session 28 (2026-11-02)
 Phase 4 declared complete; Spending Intelligence and Holdings Strategy
@@ -312,6 +258,8 @@ Design notes for when this is picked up:
 | ISSUE-047 | High | `plaid_sync.py` stored refunds/statement credits as charges (`-abs`); fix deployed 2026-09-21 | **Chase confirmed live 2026-11-01** (two real credits stored positive). Amex half still unverified — confirm on the first real Amex credit |
 | ISSUE-049 | Medium | Chase card autopay labeled `INCOME_SALARY` by Plaid since August, so stored positive (inflow) instead of negative | Payment-text override in `plaid_sync.py` + Aug-Oct backfill; deploy + verify deployed content |
 | ISSUE-050 | Low | Apple CSV "Gas" category → Car / Gas via `category_map`, conflicting with the no-gas-vehicles rule | Repoint the category_map row (Groceries / General, or Uncategorized for per-transaction review) |
+| ISSUE-052 | Medium | Holdings / Rebalancing agents: remaining unconfirmed assumptions (narrowed Session 30) | Walk the list with Tom; store confirmed values in settings |
+| ISSUE-053 | Medium | Estimated tax: typed inputs and later-year assumptions | Keep paystub and tax inputs current; re-run tax_agent.py after each change |
 | ISSUE-016 | Medium | run_log missing entries for all daily transaction syncs | Add run_log writes to plaid_sync.py |
 
 ---

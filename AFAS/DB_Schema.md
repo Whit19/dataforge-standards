@@ -1,6 +1,6 @@
 # AFAS Project — Database Schema Reference
 **Update this file when any table, view, or column changes.**
-Last updated: 2026-08-01 (dbo.holdings missing columns discovered and added; SQL script log extended through 51), HSA Bank of America holdings added 2026-08-01 (no DDL change — same schema, second data source)
+Last updated: 2026-11-04 (Session 30 — six Phase 5 tables added: retirement_plan_funds, pending_position_changes, contribution_elections, tax_return_history, tax_inputs, paystub_snapshots)
 
 ---
 
@@ -13,6 +13,7 @@ Last updated: 2026-08-01 (dbo.holdings missing columns discovered and added; SQL
 | 2026-03-10 | All `category_confidence` set to HIGH across all 14,730 rows |
 | 2026-03-10 | All 6 Power BI views created and validated (16_powerbi_views.sql) |
 | 2026-03-12 | Phase 4 table definitions designed: securities, account_balances, liabilities, liability_balances, physical_assets, physical_asset_valuations, insurance_assets — **pending Azure creation** |
+| 2026-11-04 | Phase 5 planning tables added (scripts 166, 170, 173, 176): `retirement_plan_funds`, `pending_position_changes`, `contribution_elections`, `tax_return_history`, `tax_inputs`, `paystub_snapshots` |
 | 2026-08-01 | dbo.holdings discovered missing cost_basis and updated_at columns despite being documented — added via ALTER TABLE (script 51). Table was apparently created early (Phase 1-2) before updated_at became a project-wide convention. |
 
 ---
@@ -413,6 +414,30 @@ LEFT JOIN budget_targets da                  -- default annual
 WHERE COALESCE(mo.target_amount, ya.target_amount, da.target_amount) IS NOT NULL
 ORDER BY cat.type, cat.category;
 ```
+
+---
+
+## Phase 5 Planning Tables (Session 30, 2026-11-04)
+
+Inputs for the agents. Judgment calls live in these tables and in `risk_profile_settings`, not in code.
+
+### `retirement_plan_funds` (script 166)
+The Principal 401(k) investment menu: `plan_account`, `ticker`, `fund_name`, `category`, `role` (Fixed Income / Cash / Equity / Reference), `net_expense_pct`, 1y/3y/5y/10y returns, `as_of_date`, `fi_buy_weight_pct`, `sell_tier`, `sell_max_pct`, `index_peer`, `notes`. PK `plan_account` + `ticker`. Read by `rebalancing_agent.py`.
+
+### `pending_position_changes` (script 170)
+Trades made after the latest holdings import, applied to the agents' holdings as a pro-forma: `account_name`, `symbol`, `description`, `asset_classification`, `value_change` (signed), `effective_date`, `note`. A row stops applying automatically once the account has a snapshot newer than `effective_date`.
+
+### `contribution_elections` (script 170)
+The 401(k) future-contribution mix: `plan_account`, `ticker`, `fund_name`, `pct`, `effective_date`, `revisit_date`, `note`. PK `plan_account` + `ticker` + `effective_date`.
+
+### `tax_return_history` (script 173)
+Filed-return summaries (2022-2025, married filing jointly): income lines, itemized deductions, taxable income, tax, credits, Medicare/investment taxes, withholding and payments, balance due or overpayment, and the Wisconsin return. PK `tax_year`. Used for the safe-harbor test.
+
+### `tax_inputs` (script 176)
+The workbook's typed inputs that are not pay data: `tax_year` (2026 = this year; 0 = assumption for later years), `input_key`, `value_num`, `note`. Includes estimated payments made.
+
+### `paystub_snapshots` (scripts 176, 178)
+Amy's paystubs: check date, pay frequency, per-paycheck and year-to-date gross, 401(k), dental, HSA, medical, parking, vision, federal and state withholding, after-tax 401(k). The latest row drives the year-end projection (year-to-date plus remaining paychecks).
 
 ---
 

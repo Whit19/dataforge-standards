@@ -1676,3 +1676,23 @@ the holdings import reflects it. Once the next import posts the movement the
 setting double counts, so zero it (and lower any matching commitment) as
 part of that import.
 *Source: Session 29 — Baird Capital call*
+
+### Replace a rule-of-thumb proxy with a port of the user's own calculation, and prove it matches before trusting it
+
+A flat percentage on the December dividend understated the real tax because the dividend is taxed at the top rates. Porting the household's workbook to Python and comparing its federal and Wisconsin totals to the dollar (and running the engine with and without the dividend) gave the true marginal rate, plus a way to project every future year. Keep the workbook as the cross-check column in the report; any difference over a small threshold is a finding, not noise.
+*Source: Session 30 — tax_engine.py*
+
+### Record real-world trades as pro-forma changes that expire on the next import
+
+When the user makes trades after the last holdings import, store them as dated pro-forma changes applied to the in-memory rows, and let them stop applying by themselves once the account has a newer snapshot. A manual setting would have to be remembered and cleared (see the pending Baird Capital call lesson); the date comparison removes that step.
+*Source: Session 30 — pending_position_changes*
+
+### A rolling forecast needs one extra internal year
+
+To show a year-end column for the last year, the model needs the following year's budget to size that December's cash. Run one extra year internally, show only the requested window in the tables, and label the last column's budget as a placeholder.
+*Source: Session 30 — rolling 8-year plan*
+
+### Ask what a user's numbers mean before building a model on them
+
+A list of six percentages was first read as yearly growth; it was dividend per share as a percent of book value. Restate the interpretation and the headline result back before layering more logic on it, and keep the interpretation in a setting's note.
+*Source: Session 30 — dividend model correction*

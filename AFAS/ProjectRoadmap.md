@@ -176,7 +176,7 @@ Claude writes the narrative), reports saved locally and published to Notion.
 ### 11. Portfolio Rebalancing Agent ✅ Built 2026-11-03 (`scripts/rebalancing_agent.py`)
 - ✅ All accounts; positions, single-stock cap, fund-level 401(k) moves, free yfinance market context (returns vs SPY/AGG, 52-week-high distance, trailing P/E)
 - ✅ Publishes to Notion "Monthly Rebalancing Reviews"
-- ⏳ 401(k) fixed income fund options from Tom (ISSUE-052 / SessionStarter priority #1)
+- ✅ Session 30: 401(k) fund-level plan from the plan's menu; Tom made the shift and contribution election (recorded); the 401(k) alone carries overall fixed income to 10%
 
 ### 12. Holdings Strategy Agent ✅ Built 2026-11-02 (`scripts/holdings_agent.py`) — open items are ISSUE-052 / SessionStarter priority #1
 - ✅ Target allocation 80/10/3/7 (+/-5) excluding Baird stock, which is a separate book-value Alternative (Session 29); account buckets (Locked / Retirement / Earmarked / Insurance / Free)
@@ -184,4 +184,11 @@ Claude writes the narrative), reports saved locally and published to Notion.
 - ✅ Annual cash plan, PIM-fee vs BKG money-market comparison, specific account-to-account moves
 - ✅ Baird dividend counted as cash (shares x per-share, taxes the same December); Dec 2026 leftover split between more Baird shares and paying down the US Bank LOC
 - ✅ Session 29: income/college/Tesla model, plan-cash exclusions, Baird Capital commitment, four-bucket December dividend with per-account detail
+- ✅ Session 30: rolling 8-year plan (2027-2034), flat per-share dividend with rising book value, 3-month floor, mortgage payoff, Amy's 401(k)/Super-Roth/HSA model, cash flow and holdings-by-year tables
 - ⏳ Close the ISSUE-052 items; run monthly and re-confirm the dividend assumptions each December
+
+### 13. Estimated Tax Agent ✅ Built 2026-11-04 (`scripts/tax_agent.py`, `scripts/tax_engine.py`)
+- ✅ Python port of Tom's tax workbook (matches to the dollar); federal incl. AMT, net investment income tax, additional Medicare tax; Wisconsin
+- ✅ Estimate, payments, safe-harbor test, payment options, dividend sensitivity, extra-withholding idea, workbook cross-check, 8-year outlook; publishes to "Estimated Tax Reviews"
+- ✅ December dividend taxes in the Holdings plan come from the engine
+- ⏳ ISSUE-053: keep paystub and tax inputs current; consider loading realized gains and payments automatically

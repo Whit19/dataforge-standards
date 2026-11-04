@@ -372,7 +372,8 @@ Three agents, each reading from FinanceDB views and external inputs:
 | Agent | Primary Data Sources | External Input | Output |
 |-------|---------------------|----------------|--------|
 | Spending Intelligence | vw_category_yoy, vw_monthly_spend, vw_cash_flow, vw_budget_vs_actual | User-defined budget targets (budget_targets table) | Spending adjustment recommendations |
-| Portfolio Rebalancing | vw_holdings_summary, vw_asset_allocation, securities | Market data feed (TBD) | Rebalancing recommendations |
+| Portfolio Rebalancing | vw_holdings_all, positions, retirement_plan_funds, pending_position_changes | yfinance (free, delayed) | Rebalancing recommendations |
+| Estimated Tax | tax_inputs, paystub_snapshots, tax_return_history, holdings plan | Tom's Estimated Tax Calculation workbook (cross-check) | Estimated tax, payments, safe harbor, outlook |
 | Holdings Strategy | vw_holdings_summary, vw_net_worth, vw_liability_summary | Risk tolerance profile | Holdings add/reduce/reallocate recommendations |
 
 **Risk tolerance profile:** To be defined as a structured input — either a document or a dedicated `risk_profile` table in FinanceDB with target allocations, time horizon, and liquidity needs.
@@ -395,6 +396,10 @@ Three agents, each reading from FinanceDB views and external inputs:
 | scripts/notion_publish.py | **NEW 2026-11-02** — stdlib Notion publisher: Markdown (headings, bullets, numbered lists, tables, bold, code) to blocks; creates or replaces a same-titled child page. Connection must be added to the parent page (404 otherwise). | ✅ 2026-11-02 |
 | scripts/holdings_agent.py | **NEW 2026-11-02** — Phase 5 Holdings Strategy agent. Read-only. Reads `vw_holdings_all`, `risk_profile_*`, `account_buckets`, `education_schedule`, `cash_plan_adjustments`, `vw_baird_activity` (PIM fees). Computes allocation drift, bucket-aware liquidity, annual cash plan, PIM-vs-VUSXX fee comparison, Baird dividend plan (shares x per-share, taxes the same December, break-even dividend), the December leftover split (shares vs LOC paydown) and account-to-account moves; Claude writes the narrative; publishes to "Monthly Holdings Reviews". Open assumptions: ISSUE-052. | ✅ 2026-11-02 (`d21bbe4`, `54d3bab`) |
 | scripts/rebalancing_agent.py | **NEW 2026-11-03** — Phase 5 Portfolio Rebalancing agent. Imports `holdings_agent` as H for allocation and buckets; reads all positions (including 401(k) mutual fund tickers); yfinance (free, delayed, unofficial) for 1/3/6/12-month returns vs SPY/AGG, 52-week-high distance and trailing P/E; single-stock cap, 27.2% capital-gain tax estimate; Claude writes the six-section narrative; publishes to "Monthly Rebalancing Reviews" (env NOTION_REBALANCE_PAGE_ID). Flags `--dry-run`, `--no-notion`, `--no-market`. requirements.txt gained `yfinance`. | ✅ 2026-11-03 (`628ac4e`) |
+| scripts/tax_engine.py | **NEW 2026-11-04** — Pure-Python estimated federal + Wisconsin income tax (married filing jointly, 2026 law): regular tax with qualified dividends and long-term gains, itemized vs standard deduction (charity floor, 2/37 limit), AMT, net investment income tax, additional Medicare tax; Wisconsin with the 30% gain exclusion and credits; `dividend_tax()` (tax with vs without the Baird dividend); `project_paystub()` (year-to-date plus remaining paychecks). A port of `Estimated Tax Calculation.xlsx`, verified to match its federal and Wisconsin totals to the dollar. Brackets/deductions index at a planning rate after 2026. | ✅ 2026-11-04 |
+| scripts/tax_agent.py | **NEW 2026-11-04** — Phase 5 Estimated Tax agent. Imports `holdings_agent` and `tax_engine`; reads `tax_inputs`, `paystub_snapshots`, `tax_return_history`, the Taxes category; estimate, payments, safe-harbor test, payment options, dividend sensitivity, extra-withholding idea, workbook cross-check (reads the workbook's Payment Summary), 8-year outlook; Claude writes the narrative; publishes to "Estimated Tax Reviews" (env NOTION_TAX_PAGE_ID, the connection must be added to that page). Flags `--dry-run`, `--no-notion`. | ✅ 2026-11-04 (`d4ae34c`) |
+| scripts/holdings_agent.py (Session 30 changes) | Rolling 8-year plan with one extra internal year; flat per-share dividend with rising book value; Baird Capital over five years; 3-month floor; mortgage payoff; `retirement_contributions()` (pre-tax vs after-tax); `holdings_projection()` (holdings by year with drivers, fixed income path, milestones); pro-forma `apply_pending_changes()`; tax engine drives December taxes; cash flow, holdings, fixed income path and tax tables. | ✅ 2026-11-04 (latest `4b2b9fe`) |
+| scripts/rebalancing_agent.py (Session 30 changes) | Fund-level 401(k) plan from `retirement_plan_funds` (now shown as done), IRA ETF plan when shifts exist, contribution election and revisit note, fixed income path table; positions include the pro-forma changes. | ✅ 2026-11-04 |
 | scripts/holdings_agent.py (Session 29 changes) | Baird stock as its own class outside targets; ex-Baird targets 80/10/3/7; actual Baird dividends and shares read from data; income model (Amy pay/bonus, flat Whit college, Marquette and Tesla one-time adjustments); plan cash exclusions and reserve; Baird Capital pending call and unfunded commitment; four-bucket December dividend (`dividend_cash_plan`) with a per-account bucket-2 breakdown. Settings live in `risk_profile_settings` (scripts 157-165). | ✅ 2026-11-03 (latest `29c9994`) |
 | plaid_sync.py | Shared sync module | ✅ 2026-10-01 (commit `6f232b9`): `_sync_institution()` now skips any transaction Plaid reports as `pending` (added/modified) instead of storing it — eliminates the pending/settled duplicate-row class at the source; logged via `skipped_pending` in the returned dict. `removed` transaction_ids from Plaid are still only counted (`len(removed)`), never acted on — no DELETE is issued for them; this is by design, not a gap (confirmed by code read 2026-10-01). Earlier: both known bugs fixed AND deployed 2026-09-01 (confirmed via VS Code's "Files (Read-only)" remote view — both had been drafted-but-undeployed since Session 14): (1) plaid_category_raw now extracts a clean category string instead of storing full JSON; (2) INFLOW_CATEGORIES no longer includes BANK_FEES/LOAN_PAYMENTS (ISSUE-023). Still does not write to run_log (ISSUE-016, carried over). |
 | enrich_transactions.py | **The single enricher for every source** (Plaid CHASE/ASSOCIATED_PERSONAL/AMEX, Apple Card CSV, HSA CSV) as of 2026-09-08 | ✅ 2026-09-16 (AFAS 3b6989d): fixed the "only write real changes" comparison — it compared rows by *position*, not `transaction_id`, so a full run flagged 9,604 of 16,754 rows as changed (most were untouched — `enrich_from_merchant_patterns`/`enrich_from_history` both reorder rows via `pd.concat(ignore_index=True)`, breaking positional alignment with the pre-pipeline snapshot). Not a data-safety bug (`write_results()` targets `transaction_id`) but destroyed `updated_at` as a "genuinely modified" signal. Verified: an immediate full re-run now reports "0 of 16,754 rows actually changed." Earlier: 2026-09-08 (AFAS b1a3ef3) `enrich_apple_csv.py` + `enrich_hsa_csv.py` retired — this file already had no source filter; `load_transactions()` date cutoff removed; `apply_fallback()` now only fills `in_budget`/`type` where NULL. **Matcher note:** only leading/trailing `%` are wildcards; a mid-pattern `%` is dead. Earlier still: `enrich_from_history()` carry-forward step (2026-09-03, AFAS 557cdd1 + 4f0c052); write-back scoped to changed rows (ISSUE-035); apply_fallback() defaults + `--unenriched-only` retry (2026-08-03). |
@@ -645,7 +650,26 @@ Session 29 (2026-11-03):
                            164_baird_capital_commitment_and_pim_sweep.sql
                            165_round_share_purchase.sql
 
-Current high watermark: **165** (2026-11-03). Previous note: 154 (2026-11-02). Earlier note: 150 (2026-11-01 — re-confirm live rather than
+Session 30 (2026-11-04):
+                           166_holdings_review_amy_notes_and_401k_menu.sql
+                             (new settings; dbo.retirement_plan_funds, the 401(k) menu)
+                           167_holdings_review_flat_dividend_and_projection.sql
+                           168_amy_bonus_230k_pretax_equals_base.sql
+                           169_amy_bonus_2027_multiple.sql
+                           170_pending_position_changes_and_contribution_elections.sql
+                             (dbo.pending_position_changes, dbo.contribution_elections)
+                           171_holdings_plan_to_2034_mortgage_hsa_book_value.sql
+                           172_rolling_8_year_plan_and_book_value_note.sql
+                           173_tax_switch_and_return_history.sql
+                             (dbo.tax_return_history)
+                           174_tax_q4_160k_and_amy_base_255k.sql
+                           175_cash_floor_3_months.sql
+                           176_tax_inputs_and_paystub_snapshots.sql
+                             (dbo.tax_inputs, dbo.paystub_snapshots)
+                           177_tax_payments_made_and_hsa_stub_amount.sql
+                           178_paystub_2026_10_30.sql
+
+Current high watermark: **178** (2026-11-04). Previous note: 165 (2026-11-03). Earlier note: 154 (2026-11-02). Earlier note: 150 (2026-11-01 — re-confirm live rather than
 trust this number. Earlier note, as of watermark 135: re-confirm
 live rather than trust this number next session too. Note: code changes
 committed to AFAS `main` this session that are NOT numbered SQL scripts —

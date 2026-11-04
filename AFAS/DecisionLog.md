@@ -1,6 +1,28 @@
 # AFAS Project — Decision Log
 **Append only. Never delete entries. Most recent session at top.**
-Last updated: 2026-11-03
+Last updated: 2026-11-04
+
+---
+
+## 2026-11-04 (Session 30 — Rolling 8-Year Holdings Plan; 401(k) Shift Recorded; Python Tax Estimate; Estimated Tax Agent)
+
+*Reworked the Holdings plan with Tom and Amy's review notes, recorded the real-world 401(k) trades, and replaced the flat dividend tax proxy with a Python port of Tom's tax workbook. Deterministic figures stay in Python; Claude only writes narrative.*
+
+| Date | Decision | Rows |
+|------|----------|------|
+| 2026-11-04 | **Dividend is a flat per-share planning amount after the actual December 2026 figure** (Tom: err on the safe side). Tom's six percentages were dividend per share as a percent of book value, NOT yearly book-value growth, so the "percent of a rising book value" model from the first pass was dropped (script 167). Supersedes the Session 29 "planning figure" wording | — |
+| 2026-11-04 | **Book value per share rises at a conservative planning rate** (settings: `baird_book_value_growth_pct`); it prices new shares and values Baird stock. Not derived from the six percentages (script 171-172) | — |
+| 2026-11-04 | **Baird Capital unfunded commitment is called evenly over five years from 2027**, paid from the cash bucket each December (script 167) | — |
+| 2026-11-04 | **Cash floor is 3 months** of that year's budgeted spend (was 6). It is a planning rule stored in `core_floor_months`, not an outside source (script 175) | — |
+| 2026-11-04 | **The plan is a rolling 8-year forecast (2027-2034)** redone each year; it runs one extra internal year so the last December column exists. Amy retires at the end of 2034; retirement income/spending is not modelled yet (scripts 171-172) | — |
+| 2026-11-04 | **Mortgage payment is principal and interest only and is not grown; it stops after the 9/1/2031 payment** (`mortgage_last_payment_date`). Trailing mortgage spend is read from the Mortgage subcategory | — |
+| 2026-11-04 | **The Baird dividend lands in the BAIRD Stock account** (Tom confirmed); the old "confirm landing account" wording was removed | — |
+| 2026-11-04 | **Amy's pay and retirement model:** base pay from the paystub; pre-tax bonus 1.4x base in 2027 then 1.0x; after-tax bonus is a separate setting; profit share = flat + 3.5% of base + bonus; pre-tax 401(k) (deferral at the limit, match, profit share) is kept separate from the after-tax 401(k), which goes through a Super-Roth into Baird stock inside IRA ROTH - Baird Stock; IRA Baird accounts reinvest dividends; no age-50 catch-up (Tom wants the cash flow); HSA uses the paystub amount plus the employer contribution (scripts 166-169, 174, 177) | — |
+| 2026-11-04 | **401(k) fixed income:** the fund-level plan used Principal's fund menu (`retirement_plan_funds`). Tom made the shift and a new contribution election on 2026-11-04; recorded in `pending_position_changes` (pro-forma, expires when the account has a newer snapshot) and `contribution_elections` (script 170). **The 401(k) alone carries the overall 10% fixed income; no moves in other retirement accounts** (`no_other_retirement_shifts`). Revisit the allocations when the projection reaches target (about Dec 2031) | — |
+| 2026-11-04 | **Estimated tax method replaced:** the flat percentage on the dividend is replaced by `scripts/tax_engine.py`, a port of `Estimated Tax Calculation.xlsx` (verified to the dollar for the federal and Wisconsin totals). December 2026 uses the workbook's Q4 payment; later Decembers use the extra tax the dividend causes with Amy's projected pay (scripts 173-174, 176). The tax is about 31% of the dividend at these incomes (20% federal + 3.8% net investment income tax + 7.65% Wisconsin) | — |
+| 2026-11-04 | **Estimated Tax agent** (`scripts/tax_agent.py`) publishes to "Estimated Tax Reviews" (env NOTION_TAX_PAGE_ID): estimate, payments, safe-harbor test (prior-year 110% federal when prior-year AGI is above the IRS high-income threshold, 100% Wisconsin vs 90% of current), payment options, dividend sensitivity, an extra-withholding idea for the CPA, a workbook cross-check, the 8-year outlook. Tom keeps Form 2210 with Schedule AI for penalties. Planning estimates, not tax advice | — |
+| 2026-11-04 | **Tax inputs live in the database:** `tax_inputs` (typed workbook inputs), `paystub_snapshots` (latest Amy stub; projection = year-to-date plus remaining paychecks), `tax_return_history` (filed returns 2022-2025) (scripts 173, 176-178) | — |
+| 2026-11-04 | **Display rule:** amounts of 1,000 or more show no cents (cents only for stock prices); agents round before sending payloads to the model (`whole_dollars`) and the prompts say so | — |
 
 ---
 

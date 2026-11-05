@@ -1,6 +1,6 @@
 # AFAS Project — Database Schema Reference
 **Update this file when any table, view, or column changes.**
-Last updated: 2026-11-04 (Session 30 — six Phase 5 tables added: retirement_plan_funds, pending_position_changes, contribution_elections, tax_return_history, tax_inputs, paystub_snapshots)
+Last updated: 2026-11-05 (Session 31 — dividend_allocation_plan, vw_baird_dividend_flow, vw_dividend_allocation added)
 
 ---
 
@@ -13,6 +13,7 @@ Last updated: 2026-11-04 (Session 30 — six Phase 5 tables added: retirement_pl
 | 2026-03-10 | All `category_confidence` set to HIGH across all 14,730 rows |
 | 2026-03-10 | All 6 Power BI views created and validated (16_powerbi_views.sql) |
 | 2026-03-12 | Phase 4 table definitions designed: securities, account_balances, liabilities, liability_balances, physical_assets, physical_asset_valuations, insurance_assets — **pending Azure creation** |
+| 2026-11-05 | `dividend_allocation_plan` table and views `vw_baird_dividend_flow`, `vw_dividend_allocation` added (scripts 179-180, 182) |
 | 2026-11-04 | Phase 5 planning tables added (scripts 166, 170, 173, 176): `retirement_plan_funds`, `pending_position_changes`, `contribution_elections`, `tax_return_history`, `tax_inputs`, `paystub_snapshots` |
 | 2026-08-01 | dbo.holdings discovered missing cost_basis and updated_at columns despite being documented — added via ALTER TABLE (script 51). Table was apparently created early (Phase 1-2) before updated_at became a project-wide convention. |
 
@@ -438,6 +439,17 @@ The workbook's typed inputs that are not pay data: `tax_year` (2026 = this year;
 
 ### `paystub_snapshots` (scripts 176, 178)
 Amy's paystubs: check date, pay frequency, per-paycheck and year-to-date gross, 401(k), dental, HSA, medical, parking, vision, federal and state withholding, after-tax 401(k). The latest row drives the year-end projection (year-to-date plus remaining paychecks).
+
+---
+
+### `dividend_allocation_plan` (script 182)
+A dated snapshot of the Holdings plan for each December dividend, written by `scripts/load_dividend_plan.py`: `plan_date`, `dividend_year`, `line_key`, `line_label`, `line_order`, `amount`, `include_in_total`, `detail`. PK `plan_date` + `dividend_year` + `line_key`. Lines: gross dividend, federal and Wisconsin tax (suggested, minimum, maximum), cash to Associated, kept in the Baird money market, LOC paydown, May share purchase, April tax balance.
+
+### `vw_baird_dividend_flow` (scripts 179-180)
+One row per Baird Stock dividend: gross, cash to Associated Checking (ACH credit from Baird), federal and Wisconsin tax paid (Taxes category, dividend date to 31 January), cash kept in the Baird money market, cash sent to MAIN - PIM for the LOC, the following May's share purchases (BAIRD Stock and the two IRAs, cost, shares, price), the LOC balance before and after, quarterly LOC payments from MAIN - PIM in the year, and an `unaccounted` check that is zero when the flows reconcile.
+
+### `vw_dividend_allocation` (script 182)
+The latest `dividend_allocation_plan` snapshot (source Plan) unioned with the actual split from `vw_baird_dividend_flow` (source Actual) using the same `line_key`, for plan-versus-actual visuals.
 
 ---
 

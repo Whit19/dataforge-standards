@@ -192,3 +192,11 @@ Claude writes the narrative), reports saved locally and published to Notion.
 - ✅ Estimate, payments, safe-harbor test, payment options, dividend sensitivity, extra-withholding idea, workbook cross-check, 8-year outlook; publishes to "Estimated Tax Reviews"
 - ✅ December dividend taxes in the Holdings plan come from the engine
 - ⏳ ISSUE-053: keep paystub and tax inputs current; consider loading realized gains and payments automatically
+
+### 14. Dividend Allocation Power BI page and data ✅ Built 2026-11-05
+- ✅ `dbo.vw_baird_dividend_flow` (actual December split, reconciled), `dbo.dividend_allocation_plan` + `dbo.vw_dividend_allocation` (plan vs actual), `scripts/load_dividend_plan.py`
+- ✅ Page: slicer, cards, tax range chart (minimum / suggested / maximum, federal and Wisconsin)
+- ⏳ Plan versus actual matrix for 2024-2025 history; automate the projected-balance and Q4 payment settings (ISSUE-053)
+
+### 15. Budget Scenario Power BI page ⏳ Planned (Tom, 2026-11-05)
+- ⏳ Next years' budget by category compared with prior years; adjust each category's yearly percentage independently and see the effect on the budget gap (design and inputs to confirm)

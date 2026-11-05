@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-11-04 (Session 30 — Holdings plan rebuilt as a rolling 8-year forecast; 401(k) fixed income shift made and recorded; Python tax estimate and the Estimated Tax agent added. SQL watermark 178)
+Last updated: 2026-11-05 (Session 31 — Dividend Allocation page and data; Baird share purchase moved to May; suggested tax payment rule; tax review automation planned. SQL watermark 184)
 
 ---
 
@@ -112,6 +112,26 @@ top-level status, when verifying an automated sync actually ran.**
 
 ## Pick Up Here — Next Session
 
+2026-11-05 (Session 31 — Dividend Allocation page, May share purchase, suggested tax payment rule). AFAS `main` latest `f492084`, SQL 179-184.
+
+**What changed:**
+- **Baird shares are bought once a year in May**, in BAIRD Stock and both Baird IRAs (a Session 30 claim that no shares were bought was wrong: the check only looked at the weeks after the December dividend). The May price is set at a premium to book value, so it is unknown: the plan fixes the dollars set aside from the December dividend (kept in the Baird money market until May) and counts shares at book value. Shares bought in May earn that December's dividend (script 181).
+- **Where the dividend goes (Tom confirmed):** it lands in BAIRD Stock; cash for the budget gap and the estimated tax payments goes BAIRD Stock to MAIN - BKG to Associated Checking (ACH); share purchases stay in BAIRD Stock; LOC paydown goes BAIRD Stock to MAIN - PIM to US Bank. The quarterly LOC payments are interest only, paid from MAIN - PIM (ACH/ATM Activity), outside the Associated budget. `dbo.vw_baird_dividend_flow` (scripts 179-180) reports each December's actual split and reconciles to zero for 2024 and 2025.
+- **The dividend is deliberately NOT a Budget vs Actual income row** (it would double count with the transfer to checking and distort monthly pages). A separate allocation layer holds it: `dbo.dividend_allocation_plan` (plan snapshots written by `scripts/load_dividend_plan.py`) and `dbo.vw_dividend_allocation` (latest plan next to actual, same line keys; script 182).
+- **Power BI page "Dividend Allocation"** built in AFAS.pbix on that view: year slicer, cards (dividend, taxes with federal and state, cash to Associated, May purchase, LOC paydown) and a tax range chart (minimum, suggested, maximum for federal and Wisconsin). All measures are saved in `Dividend Allocation - Power BI measures.txt` in the AFAS OneDrive folder.
+- **Cash moved to Associated is the budget gap rounded up to a round amount** (`associated_transfer_round_dollars`); the Associated account also receives the tax payments.
+- **Suggested Q4 tax payment:** a set percentage below the projected balance (the maximum), never below the safe-harbor minimum and never above the maximum, rounded up to whole thousands, federal and Wisconsin separately (`tax_suggested_pct_of_max`, `tax_suggested_round_dollars`; script 183). Later years use the same rule: the unpaid share is due the following April and the plan sets it aside as cash (script 184). Tom's reason: avoid both a penalty and a large April bill; he will move toward paying the calculated amount as the estimates prove accurate.
+
+### PRIORITY #1 — automate the tax settings, then keep inputs current
+1. **Automate (Tom asked; planned):** `tax_2026_projected_balance` and `baird_dec2026_tax_payment` are typed settings copied from the tax agent's output; `load_dividend_plan.py` only warns when they drift. Make the Holdings plan read them from the tax agent's calculation directly (the suggested payment and the projected balance), so the plan, the tax review and the Power BI page always agree.
+2. **Paystub:** add each new Amy paystub to `paystub_snapshots`; update `tax_inputs` (estimated payments made, realized gains) after each payment or 1099; keep `Estimated Tax Calculation.xlsx` closed when the tax agent runs (it cannot read a locked file; the cross-check section is skipped).
+3. **When the December Baird dividend is declared:** update `baird_dividend_per_share_2026`, re-run `holdings_agent.py`, `rebalancing_agent.py`, `tax_agent.py` and `load_dividend_plan.py`, then refresh Power BI.
+4. **After the next Principal and Baird holdings imports:** confirm `pending_position_changes` stopped applying, set `pending_baird_capital_call` to 0 and lower `baird_capital_unfunded_commitment` as calls are paid.
+5. **New Power BI page (planned): budget scenarios by category** — compare next years' budget by category with prior years and adjust each category's yearly percentage independently to see the budget gap change (see ProjectRoadmap item 15).
+6. Tax assumptions to confirm (ISSUE-053) and the remaining ISSUE-052 items.
+
+### Session 30 background (2026-11-04)
+
 2026-11-04 (Session 30 — rolling 8-year Holdings plan, 401(k) shift recorded, Python tax estimate, Estimated Tax agent). All agents are in AFAS `main` (latest `4b2b9fe`) and publish to Notion; each parent page needs the Notion connection added (a 404 means it was not).
 
 **What changed (details in DecisionLog 2026-11-04 and TechnicalArchitecture):**
@@ -122,13 +142,6 @@ top-level status, when verifying an automated sync actually ran.**
 - **401(k) fixed income:** Tom made the fund shift and the new contribution election on 2026-11-04. They are recorded in `pending_position_changes` (pro-forma until the next Principal import; it stops applying by itself once that account has a newer snapshot) and `contribution_elections`. Plan: the 401(k) alone carries overall fixed income to the 10% target (no moves in the other retirement accounts); the projection reaches the target around Dec 2031 if the match and profit share follow the election (Tom confirmed they do). Revisit the 401(k) allocations then.
 - **Taxes:** `scripts/tax_engine.py` is a Python port of Tom's `Estimated Tax Calculation.xlsx` (federal incl. AMT, net investment income tax and additional Medicare tax; Wisconsin), verified to match the workbook to the dollar. The December 2026 tax bucket is the workbook's Q4 payment; later Decembers use the extra tax the dividend causes from the engine. New agent `scripts/tax_agent.py` publishes "Estimated Tax Reviews" (env NOTION_TAX_PAGE_ID) with the estimate, payments, safe-harbor test, payment options, dividend sensitivity, an extra-withholding idea, a workbook cross-check and the 8-year tax outlook.
 - The Holdings review shows a milestones list, cash flow by year, holdings by year with where each change comes from, a fixed income path table and an estimated-tax-by-year table.
-
-### PRIORITY #1 — keep the tax and holdings inputs current
-1. **Paystub:** add each new Amy paystub to `paystub_snapshots` (the tax projection is year-to-date plus remaining paychecks); update `tax_inputs` (estimated payments made, realized gains, other investment income) after each payment or 1099.
-2. **When the December Baird dividend is declared:** update `baird_dividend_per_share_2026`, re-run `holdings_agent.py`, `rebalancing_agent.py` and `tax_agent.py`; the Q4 estimated payment is due 1/15; filing 4/15.
-3. **After the next Principal and Baird holdings imports:** confirm `pending_position_changes` stopped applying, set `pending_baird_capital_call` to 0 and lower `baird_capital_unfunded_commitment` as calls are paid.
-4. **Tax assumptions to confirm (ISSUE-053):** realized gains for later years, other investment income held at the 2026 estimate, bracket indexing, and Tom's workbook as the cross-check.
-5. Remaining ISSUE-052 items (see IssuesTracker).
 
 ### Other open items
 See ISSUE-052 (holdings/rebalancing assumptions) and ISSUE-053 (tax estimate inputs). The Anthropic API key expires 2027-02-03 (`ANTHROPIC_API_KEY` in `.env`). yfinance is free, delayed and unofficial: treat market context as indicative.

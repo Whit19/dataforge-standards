@@ -1,6 +1,22 @@
 # AFAS Project — Decision Log
 **Append only. Never delete entries. Most recent session at top.**
-Last updated: 2026-11-04
+Last updated: 2026-11-05
+
+---
+
+## 2026-11-05 (Session 31 — May Share Purchase; Dividend Allocation Layer and Power BI Page; Suggested Tax Payment Rule)
+
+*Corrected how the Baird dividend is used in practice and built a separate allocation layer for it.*
+
+| Date | Decision | Rows |
+|------|----------|------|
+| 2026-11-05 | **Baird shares are bought once a year in May** in BAIRD Stock and both Baird IRAs at one price, funded from cash the December dividend left in the Baird money market. The May price is set at a premium to book value, so the plan fixes the dollars (rounded down to a set amount) and counts shares at book value; shares bought in May earn that year's December dividend. Corrects a Session 30 statement that no shares were ever bought (scripts 180-181) | — |
+| 2026-11-05 | **Cash flow of the dividend (Tom):** BAIRD Stock to MAIN - BKG to Associated Checking for the budget gap and tax payments; share purchases stay in BAIRD Stock; LOC paydown goes BAIRD Stock to MAIN - PIM to US Bank. Quarterly LOC payments are interest only, paid from MAIN - PIM and outside the Associated budget (resolves the open question whether LOC interest is inside budgeted spend) | — |
+| 2026-11-05 | **The Baird dividend and its tax payments are NOT Budget vs Actual rows.** A separate allocation layer instead: `dbo.dividend_allocation_plan` (plan snapshots from `scripts/load_dividend_plan.py`), `dbo.vw_baird_dividend_flow` (actual), `dbo.vw_dividend_allocation` (plan next to actual) and a Power BI "Dividend Allocation" page. Reason: the dividend would double count with the transfer to checking and distort monthly budget pages (scripts 179, 182) | — |
+| 2026-11-05 | **Cash moved to Associated is the budget gap rounded up to a round amount** (`associated_transfer_round_dollars`); the April tax balance is held in the Baird money market, not in the rounded transfer (script 182) | — |
+| 2026-11-05 | **Suggested Q4 tax payment = a set percentage of the projected balance (the maximum), never below the safe-harbor minimum, never above the maximum, rounded up to whole thousands; federal and Wisconsin separately.** Tom: avoid paying far too much or too little (penalty) without a large April bill; he will move toward paying the calculated amount as accuracy proves out. Later years follow the same rule and the plan sets the unpaid share aside as April cash (scripts 183-184) | — |
+| 2026-11-05 | **Planned:** automate the projected balance and Q4 payment settings (Holdings plan to read the tax agent's calculation directly) instead of typed settings | — |
+| 2026-11-05 | **Planned:** a Power BI budget scenario page: next years' budget by category compared with prior years, each category's yearly percentage adjustable independently, showing the effect on the budget gap | — |
 
 ---
 

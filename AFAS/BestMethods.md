@@ -1696,3 +1696,23 @@ To show a year-end column for the last year, the model needs the following year'
 
 A list of six percentages was first read as yearly growth; it was dividend per share as a percent of book value. Restate the interpretation and the headline result back before layering more logic on it, and keep the interpretation in a setting's note.
 *Source: Session 30 — dividend model correction*
+
+### Check an event window across the whole year before saying something never happened
+
+A search of the few weeks after the December dividend found no share purchases, so the review said none had been made; the purchases are annual, in May. Before concluding "never", query the full period (all months, all related accounts) or ask the person who makes the decision.
+*Source: Session 31 — May Baird share purchase*
+
+### Keep lumpy funding flows out of the budget pages; give them an allocation layer
+
+A large annual inflow that is moved between accounts (here the Baird dividend) double counts if it is both income and a transfer, and it swamps monthly budget pages. Show it in a separate plan-versus-actual allocation view and page, and let the budget keep measuring living costs.
+*Source: Session 31 — dividend allocation*
+
+### Power BI: a measure cannot share a column's name, and paste one formula at a time
+
+`Amount` failed because the table already had an `amount` column (names are case-insensitive); use a distinct measure name such as `Total Amount`. A calculated table and a measure pasted together, or with headings from a notes file, fail with a syntax error on the first brace: paste exactly one formula per box.
+*Source: Session 31 — Dividend Allocation page*
+
+### Power BI Store app: save after each build step; auto-recovery may be empty
+
+When a save hung, the Store version's AutoRecovery folder (`%USERPROFILE%\Microsoft\Power BI Desktop Store App\AutoRecovery`, not under AppData) held nothing, so ending the task lost the new page. Save (Ctrl+S) after each step, keep every measure and table formula in a text file in the project folder so a rebuild is a paste job, and if it hangs, ending the dialog-host and idle query-container processes can release the stall (here ending the whole app was needed).
+*Source: Session 31 — Power BI hang*

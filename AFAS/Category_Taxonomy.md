@@ -87,7 +87,7 @@ Last updated: 2026-11-03 (Baird activity categories section added, incl. new `Ba
 | 2026-09-08 | Bills & Utilities: added subcategory `General` — generic-utilities Plaid codes (`Utilities`, `RENT_AND_UTILITIES_UTILITIES`) with no Electric/Gas/Internet/Phone specificity | 2 (category_map) |
 | 2026-09-08 | Other Income: added subcategory `Dividends` — Baird / investment dividend income; script 89 | 1 (category_map) |
 | 2026-09-08 | Uncategorized: added subcategories `eBay - Review` and `PayPal - Review` — review-queue holding pens matching the existing `VENMO - Review` convention | 3 (merchant_patterns) |
-| 2026-11-03 | **Baird activity (separate from transaction taxonomy):** added activity category `Baird Stock Dividend` (see section below). Applied in `dbo.vw_baird_activity` (script 156), so it covers all history | 2 rows (Dec 2024 $203,787.50; Dec 2025 $400,276.50) |
+| 2026-11-03 | **Baird activity (separate from transaction taxonomy):** added activity category `Baird Stock Dividend` (see section below). Applied in `dbo.vw_baird_activity` (script 156), so it covers all history | 2 rows (the Dec 2024 and Dec 2025 dividends) |
 
 ---
 
@@ -109,12 +109,14 @@ every historical row. Current definition: script 156 (supersedes 143).
 
 **Baird Stock Dividend** is the annual Baird dividend that drives household
 cash flow. It lands in the BAIRD Stock account (cash sweep) in early December
-(2025: 12/9, 61,581 sh x $6.50 = $400,276.50) and is journaled to MAIN - BKG
+(2025: paid 12/9, on the shares held then) and is journaled to MAIN - BKG
 as `Other-journal`, which stays `Cash Movement`, so it is not counted twice.
 It was previously grouped with all other dividends as `Income`.
 
+**This is an activity category, not a transaction category.** It lives in the Baird brokerage activity view, so it does not appear in the transaction category tree (`dbo.transactions`) and the tree has no matching entry. The last structural change to the tree was 2026-09-08 (new subcategories). The tree's `Other Income / Dividends` subcategory is a separate thing: dividend income that arrives through the transaction feeds.
+
 The 2025 dividend is also recorded in `projection_fixed_history`
-(script 155, 'Baird Stock Dividends', 2025, $400,276.50).
+(script 155, 'Baird Stock Dividends', 2025).
 
 ---
 

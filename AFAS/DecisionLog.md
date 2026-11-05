@@ -1,6 +1,23 @@
 # AFAS Project — Decision Log
 **Append only. Never delete entries. Most recent session at top.**
-Last updated: 2026-11-05
+Last updated: 2026-11-05 (Session 32)
+
+---
+
+## 2026-11-05 (Session 32 — Budget Scenario by Category)
+
+*Built the budget scenario Tom asked for and made it drive the Holdings plan.*
+
+| Date | Decision | Rows |
+|------|----------|------|
+| 2026-11-05 | **The scenario is a saved table, not Power BI what-if parameters** (`budget_scenario`), so the Holdings plan, Power BI and Excel all read the same numbers; income categories are adjustable too so the cash flow gap is visible | — |
+| 2026-11-05 | **Baseline is the trailing 12 months by category**; each plan year is the prior year times (1 plus that year's percent change), or a set amount with a note (scripts 185-186) | — |
+| 2026-11-05 | **The scenario drives the Holdings plan** (income, expenses, college, mortgage, large purchases per year); the cash floor excludes large purchases | — |
+| 2026-11-05 | **Large Purchases is a single value Tom sets per year with a note** (new car, new roof, ...); travel is historical with an adjustable percent; property tax is prior year plus a safe increase; the mortgage is removed after the last payment | — |
+| 2026-11-05 | **No separate "Adjustments" line:** adjustments are applied to the category they belong to in the year they start (Marquette removal applied to Children as an editable percent) (Tom) | — |
+| 2026-11-05 | **Notes are shown only in the year a change first applies**; the college note says when the 529s start (the twins' last two years) (Tom) | — |
+| 2026-11-05 | **Categories sort largest to smallest by the first scenario year** (`sort_rank` in the view; Power BI category column sorted by it) (Tom) | — |
+| 2026-11-05 | **Editing path is Excel** (`Budget Scenario.xlsx` via `budget_scenario_xlsx.py` export/import); derived rows (college, mortgage, bonus) are rewritten by the loader, Tom's edits are never overwritten | — |
 
 ---
 

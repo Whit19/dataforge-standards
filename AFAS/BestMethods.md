@@ -1716,3 +1716,23 @@ A large annual inflow that is moved between accounts (here the Baird dividend) d
 
 When a save hung, the Store version's AutoRecovery folder (`%USERPROFILE%\Microsoft\Power BI Desktop Store App\AutoRecovery`, not under AppData) held nothing, so ending the task lost the new page. Save (Ctrl+S) after each step, keep every measure and table formula in a text file in the project folder so a rebuild is a paste job, and if it hangs, ending the dialog-host and idle query-container processes can release the stall (here ending the whole app was needed).
 *Source: Session 31 — Power BI hang*
+
+### Power BI: color a percent by section with a text measure, "Field value"
+
+One rules-based color cannot treat income and expense differently (a rise is good for income, bad for expense). Write a measure that returns a color text (`SELECTEDVALUE` of the section decides), leave its format as Text, then set the percent series' Background color to fx, Format style "Field value", based on that measure.
+*Source: Session 32 — Budget Scenario page*
+
+### Repeated notes hide the change: show a note only where it first applies
+
+A note copied onto every year buries the one year something changed, and a stale note can mislead (a "net of the 529" note sat on years where no 529 money was used yet). Generate notes per year from the same data that drives the number, and blank a note equal to the last one shown.
+*Source: Session 32 — Budget Scenario notes*
+
+### Do not model a separate "adjustments" line: put the change in the category it belongs to
+
+A catch-all Adjustments row hid where money really moved and made the category totals wrong. Apply the change to its category in the year it starts, as an editable percent, so each category row tells the true story.
+*Source: Session 32 — Budget Scenario*
+
+### A retry loop that pipes to `tail` never retries
+
+`cmd | tail && break` tests the exit status of `tail`, which is always 0, so an Azure SQL auto-pause timeout is never retried. Redirect to a file, test the command's own status, then `tail` the file.
+*Source: Session 32 — import retries*

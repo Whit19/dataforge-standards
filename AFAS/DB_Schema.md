@@ -1,6 +1,6 @@
 # AFAS Project — Database Schema Reference
 **Update this file when any table, view, or column changes.**
-Last updated: 2026-11-05 (Session 31 — dividend_allocation_plan, vw_baird_dividend_flow, vw_dividend_allocation added)
+Last updated: 2026-11-05 (Session 32 — budget_scenario_baseline, budget_scenario, vw_budget_scenario added)
 
 ---
 
@@ -13,6 +13,7 @@ Last updated: 2026-11-05 (Session 31 — dividend_allocation_plan, vw_baird_divi
 | 2026-03-10 | All `category_confidence` set to HIGH across all 14,730 rows |
 | 2026-03-10 | All 6 Power BI views created and validated (16_powerbi_views.sql) |
 | 2026-03-12 | Phase 4 table definitions designed: securities, account_balances, liabilities, liability_balances, physical_assets, physical_asset_valuations, insurance_assets — **pending Azure creation** |
+| 2026-11-05 | `budget_scenario_baseline`, `budget_scenario` tables and view `vw_budget_scenario` added (scripts 185-186) |
 | 2026-11-05 | `dividend_allocation_plan` table and views `vw_baird_dividend_flow`, `vw_dividend_allocation` added (scripts 179-180, 182) |
 | 2026-11-04 | Phase 5 planning tables added (scripts 166, 170, 173, 176): `retirement_plan_funds`, `pending_position_changes`, `contribution_elections`, `tax_return_history`, `tax_inputs`, `paystub_snapshots` |
 | 2026-08-01 | dbo.holdings discovered missing cost_basis and updated_at columns despite being documented — added via ALTER TABLE (script 51). Table was apparently created early (Phase 1-2) before updated_at became a project-wide convention. |
@@ -450,6 +451,15 @@ One row per Baird Stock dividend: gross, cash to Associated Checking (ACH credit
 
 ### `vw_dividend_allocation` (script 182)
 The latest `dividend_allocation_plan` snapshot (source Plan) unioned with the actual split from `vw_baird_dividend_flow` (source Actual) using the same `line_key`, for plan-versus-actual visuals.
+
+### `budget_scenario_baseline` (script 185)
+Trailing-12-month amount by `section` (Income / Expense) and `category` (mortgage separate; Pay split Amy / other), rewritten by `scripts/load_budget_scenario.py`.
+
+### `budget_scenario` (scripts 185-186)
+One row per `plan_year`, `section`, `category`: `pct_change` (change versus the prior year, percent, compounding), `fixed_amount` (overrides the percent), `note`, `derived` (1 = rewritten by the loader), `updated_at`. Edited through `Budget Scenario.xlsx`.
+
+### `vw_budget_scenario` (scripts 185-186)
+Actuals (2023-2025), the trailing-12 baseline (plan year 2026) and the scenario (2027+) in one long table: `plan_year`, `section`, `category`, `source` (Actual / Trailing 12 / Scenario), `amount`, `pct_change`, `is_fixed`, `note`, `sort_rank` (largest to smallest by the first scenario year within the section). Read by the Holdings plan and the Budget Scenario page.
 
 ---
 

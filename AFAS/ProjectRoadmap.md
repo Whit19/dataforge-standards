@@ -1,6 +1,6 @@
 # AFAS Project — Roadmap
 **Living document. Update status and tasks as work completes.**
-Last updated: 2026-11-03 (Session 29: Rebalancing agent built, Holdings agent reworked) / 2026-10-01 (Sessions 14-25 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh; note Session 22 deregistered `timer_sync.py`/`monthly_sync.py` in favor of a manual `http_monthly_ingest_all` route — bullets below still referencing "monthly sync via monthly_sync.py" describe the sync logic, which is unchanged, not the now-inert automatic timer; Session 25 rewrote both the HSA and Apple Card CSV importers to insert-only — see BestMethods and DecisionLog 2026-10-01)
+Last updated: 2026-11-05 (Session 32: Budget Scenario built) / 2026-11-03 (Session 29: Rebalancing agent built, Holdings agent reworked) / 2026-10-01 (Sessions 14-25 detail lives in SessionStarter.md / DecisionLog.md — this file tracks phase-level status only and is due a broader refresh; note Session 22 deregistered `timer_sync.py`/`monthly_sync.py` in favor of a manual `http_monthly_ingest_all` route — bullets below still referencing "monthly sync via monthly_sync.py" describe the sync logic, which is unchanged, not the now-inert automatic timer; Session 25 rewrote both the HSA and Apple Card CSV importers to insert-only — see BestMethods and DecisionLog 2026-10-01)
 
 ---
 
@@ -198,5 +198,7 @@ Claude writes the narrative), reports saved locally and published to Notion.
 - ✅ Page: slicer, cards, tax range chart (minimum / suggested / maximum, federal and Wisconsin)
 - ⏳ Plan versus actual matrix for 2024-2025 history; automate the projected-balance and Q4 payment settings (ISSUE-053)
 
-### 15. Budget Scenario Power BI page ⏳ Planned (Tom, 2026-11-05)
-- ⏳ Next years' budget by category compared with prior years; adjust each category's yearly percentage independently and see the effect on the budget gap (design and inputs to confirm)
+### 15. Budget Scenario Power BI page ✅ Built 2026-11-05
+- ✅ `budget_scenario_baseline`, `budget_scenario`, `vw_budget_scenario` (scripts 185-186), `load_budget_scenario.py`, Excel edit path `budget_scenario_xlsx.py`; the Holdings plan reads the scenario
+- ✅ Page: summary matrix, chart, category matrix with percent change colored by section, notes table
+- ⏳ Retirement income and spending after 2034 are not modelled

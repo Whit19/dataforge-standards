@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-11-05 (Session 31 — Dividend Allocation page and data; Baird share purchase moved to May; suggested tax payment rule; tax review automation planned. SQL watermark 184)
+Last updated: 2026-11-05 (Session 32 — Budget Scenario data layer, Excel editing path and Power BI page; scenario drives the Holdings plan. SQL watermark 186)
 
 ---
 
@@ -112,6 +112,19 @@ top-level status, when verifying an automated sync actually ran.**
 
 ## Pick Up Here — Next Session
 
+2026-11-05 (Session 32 — Budget Scenario by category). AFAS `main` latest `bc40b1f`, SQL 185-186.
+
+**What changed:**
+- **Budget Scenario data layer.** `dbo.budget_scenario_baseline` (trailing 12 months by category, income AND expense; the mortgage is its own line; Pay is split Amy / other), `dbo.budget_scenario` (one row per plan year, section and category: `pct_change` compounding on the prior year, or `fixed_amount` with a `note`) and `dbo.vw_budget_scenario` (actuals 2023-2025, the trailing-12 baseline as plan year 2026 and the scenario 2027+ in one long table, plus `sort_rank` = categories largest to smallest by the first scenario year, within Income / Expense). Scripts 185-186.
+- **Defaults (Tom):** expenses grow at the expense growth setting, Amy's pay at her own setting, other income flat; property tax prior year plus a safe increase; travel and everything else historical with an adjustable percent. **Large Purchases is a single set value per year with a note** (new car, new roof, ...), seeded from the one-time plan adjustments. College comes from the education schedule (the 529s are used only from the twins' last two years; the notes say when it starts). The mortgage is removed after its last payment. The bonus is the after-tax setting. **There is no separate Adjustments line:** the Marquette removal is applied to the Children category in the year it starts, as an editable percent.
+- **Notes appear only in the year a change first applies** (not repeated each year), so clicking the cell shows what changed.
+- **The scenario drives the Holdings plan** (`holdings_agent.py` reads `vw_budget_scenario`): income, expenses, college, mortgage and large purchases per year come from it, and the cash floor excludes large purchases. Changing a percent changes the cash gap, the December allocation and the milestones.
+- **Edit loop:** `scripts/budget_scenario_xlsx.py export` writes `Budget Scenario.xlsx` (AFAS OneDrive folder; blue/yellow cells are editable: a percent sheet and a set-amounts-and-notes sheet). After editing, Tom says "imported"; run `budget_scenario_xlsx.py import`, then `load_dividend_plan.py` and `holdings_agent.py`, then refresh Power BI. `scripts/load_budget_scenario.py` rewrites the baseline and the derived rows but inserts scenario rows only if missing, so Tom's edits are never overwritten (re-run it when the baseline or assumptions change).
+- **Power BI page "Budget Scenario"** built in AFAS.pbix: summary matrix (income, expense, gap by year), income / expense / gap chart, category matrix sorted by next year's amount with dollars and percent change versus prior year side by side (a text `Pct Color` measure colors the percent by section: expense up is red, income up is green), notes table, filter plan year 2025-2034 (2035 is the internal extra year). All measures are in `Dividend Allocation - Power BI measures.txt`.
+- Tom entered his first edits (Clothing and others) and the plan was re-run each time.
+
+### Session 31 background (2026-11-05)
+
 2026-11-05 (Session 31 — Dividend Allocation page, May share purchase, suggested tax payment rule). AFAS `main` latest `f492084`, SQL 179-184.
 
 **What changed:**
@@ -127,7 +140,7 @@ top-level status, when verifying an automated sync actually ran.**
 2. **Paystub:** add each new Amy paystub to `paystub_snapshots`; update `tax_inputs` (estimated payments made, realized gains) after each payment or 1099; keep `Estimated Tax Calculation.xlsx` closed when the tax agent runs (it cannot read a locked file; the cross-check section is skipped).
 3. **When the December Baird dividend is declared:** update `baird_dividend_per_share_2026`, re-run `holdings_agent.py`, `rebalancing_agent.py`, `tax_agent.py` and `load_dividend_plan.py`, then refresh Power BI.
 4. **After the next Principal and Baird holdings imports:** confirm `pending_position_changes` stopped applying, set `pending_baird_capital_call` to 0 and lower `baird_capital_unfunded_commitment` as calls are paid.
-5. **New Power BI page (planned): budget scenarios by category** — compare next years' budget by category with prior years and adjust each category's yearly percentage independently to see the budget gap change (see ProjectRoadmap item 15).
+5. **Budget Scenario** is built (Session 32). Keep it current: re-run `load_budget_scenario.py` when the baseline changes; after each Excel edit run the import, the dividend plan and the Holdings agent. Open: retirement income and spending after 2034 are not modelled.
 6. Tax assumptions to confirm (ISSUE-053) and the remaining ISSUE-052 items.
 
 ### Session 30 background (2026-11-04)

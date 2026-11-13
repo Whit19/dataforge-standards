@@ -60,6 +60,7 @@
 - [x] Whole-week cancel, after pairings are sent: cancelling every slot in a week now locks it as `CANCELLED`, Elo-neutral — `cancelSlots` itself does it, no separate callable; `restoreSlot` reverses it back to whatever status the week had before (TP-078)
 - [x] Automatic messages (Settings): chronological order, 12-hour clock, and each step's day/time is now editable — `updateSeasonAutomation` recomputes upcoming weeks' send times inside a transaction (TP-079)
 - [x] Admin availability shortcut on Home, visible before pairings are sent; fixed a row-spacing regression in the Availability admin list from TP-077 (TP-080)
+- [x] Availability tracker now stays on the relevant week through `pairing_draft`, not just `availability_open`; count tiles are the filter themselves, duplicate segmented control removed (TPI-053, TP-091)
 - [x] Post-Week-2 round (Tom's 7 notes, Oct 23), in build order:
   - [x] Rankings lists every enrolled player in the active season ("Not played yet" rows mixed in by starting Elo); Provisional counts past seasons; "1 match" fix (TP-081, TPI-048)
   - [x] Info hub + Rules / Elo / Menu & Golf Sim / Music sub-pages; members-only `leagueInfo/members` for Music; editor "Shows on" picker and "Add starter Elo text" (TP-082)
@@ -70,6 +71,7 @@
   - [x] Week 2's missed results email sent via a one-time script (TP-089, TPI-049)
 - [ ] Tom: assign each existing Info section's "Shows on" (League setup → Top of Info; update its availability line to "Next week opens as soon as this week's results are final…"), review the starter Elo text, and add the real Music content (WiFi, Sonos, amp reset, door code)
 - [x] Thanksgiving early-open behavior: no early open across a skipped week or session break — option 2 (TPI-051, TP-090)
+- [x] A two-match player's results/full-schedule cards each show that match's own Elo change, not the week's combined total duplicated on every card (TPI-054, TP-092)
 - [ ] Show the Monday auto-lock / open-on-lock behavior in Settings' Automatic messages panel (TPI-050)
 - [ ] Re-date the weekly-loop rehearsal before ~Dec 2, 2026 (TPI-052)
 - [ ] Optional cleanup: make Rankings use `useSeasonStandings` instead of its own inline copy of the same logic (TP-083)

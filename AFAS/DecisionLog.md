@@ -1,6 +1,18 @@
 # AFAS Project — Decision Log
 **Append only. Never delete entries. Most recent session at top.**
-Last updated: 2026-11-05 (Session 32)
+Last updated: 2026-11-16 (Session 33)
+
+---
+
+## 2026-11-16 (Session 33 — Update Flow, College, Associated Transfer, Notion Token)
+
+| Date | Decision | Rows |
+|------|----------|------|
+| 2026-11-16 | **Excel is the only place Tom types; one command (`update_plan.py`) carries it to Power BI.** No hand-typing from paystubs: payslip PDFs are parsed (`load_paystub.py`); the two tax settings are set from the tax agent's calculation, not typed (Tom) | — |
+| 2026-11-16 | **Suggested Q4 payment in the workbook uses the same rule as the agent** (a set percent of the balance, not below safe harbor, not above the balance, rounded up to whole thousands, federal and Wisconsin separately) so the sheet and Power BI reconcile | — |
+| 2026-11-16 | **All Budget Scenario set amounts are editable in Excel and kept** (a hand edit sets `derived = 0`); category "College (from cash)" renamed College (script 187) (Tom) | — |
+| 2026-11-16 | **Cash moved to Associated = budget gap less the projected Associated Checking balance at the start of the year, rounded up to steps of 10,000; no Baird money market or sweep counted** (Tom; script 188) | — |
+| 2026-11-16 | **AFAS Notion publishing uses its own token setting `AFAS_NOTION_TOKEN`**, falling back to `NOTION_TOKEN`, so the unrelated Highlight Fixer integration is not disturbed | — |
 
 ---
 

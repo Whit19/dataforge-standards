@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-11-05 (Session 32 — Budget Scenario data layer, Excel editing path and Power BI page; scenario drives the Holdings plan. SQL watermark 186)
+Last updated: 2026-11-16 (Session 33 — one-command update flow from Excel to Power BI, paystub PDFs read automatically, College and Associated-transfer rules, Notion token fix. SQL watermark 188)
 
 ---
 
@@ -112,7 +112,19 @@ top-level status, when verifying an automated sync actually ran.**
 
 ## Pick Up Here — Next Session
 
-2026-11-05 (Session 32 — Budget Scenario by category). AFAS `main` latest `bc40b1f`, SQL 185-186.
+2026-11-16 (Session 33 — update flow, College, Associated transfer, Notion token). AFAS `main` latest `3f2c284`, SQL 187-188.
+
+**What changed:**
+- **One command from Excel to Power BI: `python scripts/update_plan.py`** (flags `--dry-run`, `--reports`, `--baseline`). Steps: (0) `load_paystub.py` reads Amy's payslip PDFs (`AJ Payslip*.pdf` in the AFAS OneDrive folder) into `paystub_snapshots`, nothing typed; (1) the blue input cells of `Estimated Tax Calculation.xlsx` go into `tax_inputs` and the dividend per share into `baird_dividend_per_share_2026` (the workbook's own paystub block is no longer used); (2) the tax estimate is calculated and sets `tax_2026_projected_balance` and `baird_dec2026_tax_payment` itself, so nothing is copied by hand any more; (3) `Budget Scenario.xlsx` edits are imported; (4) `load_dividend_plan.py` rewrites the snapshot. Then Power BI Home > Refresh. Excel may stay open (workbooks are read from a temporary copy). The workbook's Payment Summary suggested payment uses the same rule as the agent, so the sheet and Power BI agree.
+- **Budget Scenario set amounts are all editable in Excel and kept.** A hand-changed cell sets `derived = 0`, so the loader never overwrites it. The category "College (from cash)" is now **College** (script 187). Tom's college numbers drive the cash gap; the Holdings plan's own college section still uses the schedule's half-fall / half-spring split (open item).
+- **Cash moved to Associated** = the budget gap less the projected Associated Checking balance at the start of the year (no Baird money market or sweep), rounded up to steps of `associated_transfer_round_dollars` (script 188); the Associated balance carries forward each year. Tom to confirm whether true nearest-step rounding is wanted instead of rounding up.
+- **Power BI:** the Dividend Allocation page gained a dividend per share line (`dividend_per_share`, not included in totals); new measures Gap % of Income and Gap Change vs Prior Year (Budget Scenario page) are in `Dividend Allocation - Power BI measures.txt`. Tom still has to add the Dividend Per Share card, the two gap measures and cards, and rebuild the Cash Flow Gap table (copy the top summary matrix so years ascend left to right).
+- **Notion publishing:** the agents now read `AFAS_NOTION_TOKEN` first and fall back to `NOTION_TOKEN` (a different integration, Highlight Fixer). A 404 means the token's integration is not connected to the parent page; check which integration a token is with `GET /v1/users/me`. The three November reports were republished.
+- Notion instruction pages ("Estimated Tax and Paystub - How to Update", "Budget and Estimated Taxes Updates") describe the flow above.
+
+### Session 32 background (2026-11-05)
+
+2026-11-05 (Session 32 — Budget Scenario by category). AFAS `main` then at `bc40b1f`, SQL 185-186.
 
 **What changed:**
 - **Budget Scenario data layer.** `dbo.budget_scenario_baseline` (trailing 12 months by category, income AND expense; the mortgage is its own line; Pay is split Amy / other), `dbo.budget_scenario` (one row per plan year, section and category: `pct_change` compounding on the prior year, or `fixed_amount` with a `note`) and `dbo.vw_budget_scenario` (actuals 2023-2025, the trailing-12 baseline as plan year 2026 and the scenario 2027+ in one long table, plus `sort_rank` = categories largest to smallest by the first scenario year, within Income / Expense). Scripts 185-186.
@@ -136,8 +148,8 @@ top-level status, when verifying an automated sync actually ran.**
 - **Suggested Q4 tax payment:** a set percentage below the projected balance (the maximum), never below the safe-harbor minimum and never above the maximum, rounded up to whole thousands, federal and Wisconsin separately (`tax_suggested_pct_of_max`, `tax_suggested_round_dollars`; script 183). Later years use the same rule: the unpaid share is due the following April and the plan sets it aside as cash (script 184). Tom's reason: avoid both a penalty and a large April bill; he will move toward paying the calculated amount as the estimates prove accurate.
 
 ### PRIORITY #1 — automate the tax settings, then keep inputs current
-1. **Automate (Tom asked; planned):** `tax_2026_projected_balance` and `baird_dec2026_tax_payment` are typed settings copied from the tax agent's output; `load_dividend_plan.py` only warns when they drift. Make the Holdings plan read them from the tax agent's calculation directly (the suggested payment and the projected balance), so the plan, the tax review and the Power BI page always agree.
-2. **Paystub:** add each new Amy paystub to `paystub_snapshots`; update `tax_inputs` (estimated payments made, realized gains) after each payment or 1099; keep `Estimated Tax Calculation.xlsx` closed when the tax agent runs (it cannot read a locked file; the cross-check section is skipped).
+1. **DONE in Session 33 (`update_plan.py` sets both settings from the tax agent). Original note:** `tax_2026_projected_balance` and `baird_dec2026_tax_payment` are typed settings copied from the tax agent's output; `load_dividend_plan.py` only warns when they drift. Make the Holdings plan read them from the tax agent's calculation directly (the suggested payment and the projected balance), so the plan, the tax review and the Power BI page always agree.
+2. **Paystub:** now automatic: drop the new payslip PDF in the AFAS folder and run `update_plan.py`. Previously: add each new Amy paystub to `paystub_snapshots`; update `tax_inputs` (estimated payments made, realized gains) after each payment or 1099; keep `Estimated Tax Calculation.xlsx` closed when the tax agent runs (it cannot read a locked file; the cross-check section is skipped).
 3. **When the December Baird dividend is declared:** update `baird_dividend_per_share_2026`, re-run `holdings_agent.py`, `rebalancing_agent.py`, `tax_agent.py` and `load_dividend_plan.py`, then refresh Power BI.
 4. **After the next Principal and Baird holdings imports:** confirm `pending_position_changes` stopped applying, set `pending_baird_capital_call` to 0 and lower `baird_capital_unfunded_commitment` as calls are paid.
 5. **Budget Scenario** is built (Session 32). Keep it current: re-run `load_budget_scenario.py` when the baseline changes; after each Excel edit run the import, the dividend plan and the Holdings agent. Open: retirement income and spending after 2034 are not modelled.

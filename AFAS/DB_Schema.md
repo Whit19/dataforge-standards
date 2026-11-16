@@ -13,6 +13,7 @@ Last updated: 2026-11-05 (Session 32 — budget_scenario_baseline, budget_scenar
 | 2026-03-10 | All `category_confidence` set to HIGH across all 14,730 rows |
 | 2026-03-10 | All 6 Power BI views created and validated (16_powerbi_views.sql) |
 | 2026-03-12 | Phase 4 table definitions designed: securities, account_balances, liabilities, liability_balances, physical_assets, physical_asset_valuations, insurance_assets — **pending Azure creation** |
+| 2026-11-16 | Category College (from cash) renamed College in `budget_scenario` (script 187); setting `associated_transfer_round_dollars` set to 10,000 steps (script 188); `dividend_allocation_plan` gains line_key `dividend_per_share` |
 | 2026-11-05 | `budget_scenario_baseline`, `budget_scenario` tables and view `vw_budget_scenario` added (scripts 185-186) |
 | 2026-11-05 | `dividend_allocation_plan` table and views `vw_baird_dividend_flow`, `vw_dividend_allocation` added (scripts 179-180, 182) |
 | 2026-11-04 | Phase 5 planning tables added (scripts 166, 170, 173, 176): `retirement_plan_funds`, `pending_position_changes`, `contribution_elections`, `tax_return_history`, `tax_inputs`, `paystub_snapshots` |

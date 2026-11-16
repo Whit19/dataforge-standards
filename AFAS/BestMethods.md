@@ -1736,3 +1736,18 @@ A catch-all Adjustments row hid where money really moved and made the category t
 
 `cmd | tail && break` tests the exit status of `tail`, which is always 0, so an Azure SQL auto-pause timeout is never retried. Redirect to a file, test the command's own status, then `tail` the file.
 *Source: Session 32 — import retries*
+
+### Find out which Notion integration a token really is before debugging a 404
+
+A Notion 404 `object_not_found` means the token's integration is not connected to that page, not that the page ID is wrong. Call `GET /v1/users/me` with the token to see which integration it is, then test `GET /v1/pages/<id>` per parent page. Keep each project's token in its own variable (`AFAS_NOTION_TOKEN`) so an unrelated integration is never overwritten.
+*Source: Session 33 — Notion publish 404*
+
+### Read Excel workbooks from a temporary copy
+
+An open Excel file is locked (PermissionError). Copy it to a temp folder and read the copy, so the user can keep editing while the script runs.
+*Source: Session 33 — update_plan.py and the budget importer*
+
+### A loader that skips "derived" rows silently ignores the user's edits
+
+Importing hand edits must mark the row as user-owned (`derived = 0`), or the next loader run overwrites it. Treat every edited cell as an override, not just cells the export labelled editable.
+*Source: Session 33 — College amounts*

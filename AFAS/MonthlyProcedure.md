@@ -13,7 +13,7 @@ corrected to the 1st of the month. Updated 2026-11-01: Step 0 (no Resume
 button on serverless; firewall rule per machine), Step 3 (watermark now
 compares clearing dates), Steps 4/4a (Baird now exports .xlsx — convert
 to CSV with accounting-style negatives), Step 5 (BofA's default
-filenames). See DecisionLog.md for the history and
+filenames). Step 11 added 2026-11-17 (update_plan.py flow and report publishing). See DecisionLog.md for the history and
 rationale behind individual steps; see BestMethods.md for the lessons
 several of these steps encode.
 
@@ -373,6 +373,34 @@ list) despite this rule (ISSUE-050).
    merchant. Confirm each (`category_reviewed = 1`) once resolved.
 4. Confirm the Needs Review page is back to 0 rows before considering the
    month closed out.
+
+---
+
+## 11. Update the Plan and Phase 5 Reports (Excel to Power BI to Notion)
+1. **Edit in Excel only.** `Estimated Tax Calculation.xlsx` (blue input cells:
+   realized gains, joint-account dividends and interest, estimated payments
+   made, dividend per share) and `Budget Scenario.xlsx` (percent changes, set
+   amounts and notes). Drop any new Amy payslip PDF (`AJ Payslip*.pdf`) into
+   the AFAS OneDrive folder; nothing from a paystub is typed. Excel may stay
+   open.
+2. **Preview, then apply:** `python scripts/update_plan.py --dry-run` shows
+   what would change; `python scripts/update_plan.py` applies it (payslips,
+   tax inputs, the two plan tax settings from the tax agent, the Budget
+   Scenario import, the dividend allocation snapshot). First of the month,
+   add `--baseline` to rebuild the trailing-12-month budget baseline.
+3. **Refresh Power BI** (Home > Refresh) and check the Dividend Allocation and
+   Budget Scenario pages.
+4. **Monthly reports (uses Claude, once a month):**
+   `python scripts/update_plan.py --reports`, or run `spending_agent.py`,
+   `holdings_agent.py`, `rebalancing_agent.py` and `tax_agent.py` directly.
+   Each saves Markdown to the agent_reports folder and publishes to its
+   Notion parent page.
+5. **If a Notion publish fails** (404 = the integration behind
+   `AFAS_NOTION_TOKEN` is not connected to that parent page): fix the
+   connection, then run the agent with `--publish-saved` to publish the
+   already-saved report without a database or Claude call.
+6. When the December Baird dividend is declared, update the dividend per share
+   in the workbook and repeat steps 2-4.
 
 ---
 

@@ -2,7 +2,7 @@
 > **Protocol:** Load MASTER_CLAUDE_PROTOCOL.md before this file.
 > Repo: github.com/Whit19/dataforge-standards
 **Load this file at the start of every session. Update pick-up pointer before closing.**
-Last updated: 2026-11-16 (Session 33 — one-command update flow from Excel to Power BI, paystub PDFs read automatically, College and Associated-transfer rules, Notion token fix. SQL watermark 188)
+Last updated: 2026-11-17 (Session 34 — publish-saved option, college timing, 401(k) revisit date, monthly procedure step 11. SQL watermark 188)
 
 ---
 
@@ -112,7 +112,20 @@ top-level status, when verifying an automated sync actually ran.**
 
 ## Pick Up Here — Next Session
 
-2026-11-16 (Session 33 — update flow, College, Associated transfer, Notion token). AFAS `main` latest `3f2c284`, SQL 187-188.
+2026-11-17 (Session 34 — small follow-ups to Session 33). AFAS `main` latest `678909c`, no new SQL (watermark 188).
+
+**What changed:**
+- **`--publish-saved` on the four agents** (spending, holdings, rebalancing, tax): publishes the already-saved report to Notion with no database and no Claude call, so a Notion problem never costs another API run (helper `saved_report` in `notion_publish.py`). Monthly Claude usage should be one run of each agent; the Nov 3-5 spike on the usage page was development, the Nov 16 spike was reruns after the 404. All four agents use `claude-opus-5-5` (`MODEL` in `spending_agent.py`); Tom chose to leave the model, thinking effort and payload size alone and watch usage (options noted: Sonnet 5.5, compact JSON, lower effort).
+- **College timing:** each school year's whole bill is paid in the spring it starts (calendar year of the first term), not half and half; applied in the Holdings plan, the Budget Scenario default for College and the report text. The 529 draws stay half and half across the two calendar years (Tom's note). Tom's hand-set College amounts are unchanged and still drive the cash gap.
+- **Tom confirmed:** the Associated transfer stays rounded up to the next step; the Clothing change in his scenario is intentional (Amy refreshes her wardrobe every few years); Power BI items done (Dividend Per Share card, Gap % of Income and Gap Change measures, Cash Flow Gap table with years ascending).
+- **401(k) contribution election** confirmed on the Principal site (40% Vanguard Short-Term Investment-Grade, 30% Morley Stable Value, 30% Baird Intermediate Bond). Keep it until overall fixed income reaches the 10% target: the November plan reaches it at Dec 2031 (9.8% in 2030, 10.0% in 2031, 10.1% in 2032); then move new money back to the normal mix. Needs the match and profit share to follow the election. The earlier December 2032 note was from an older plan.
+- **MonthlyProcedure.md Step 11** added: the Excel edits, `update_plan.py`, Power BI refresh, monthly reports, `--publish-saved`.
+
+**Open:** retirement income and spending after 2034 not modelled; plan-versus-actual matrix on the Dividend Allocation page; after the next Principal and Baird imports clear `pending_baird_capital_call` and confirm `pending_position_changes` expired; ISSUE-049, 050, 052, 053. When the December Baird dividend is declared: update the per-share amount in the workbook and run `update_plan.py --reports`.
+
+### Session 33 background (2026-11-16)
+
+2026-11-16 (Session 33 — update flow, College, Associated transfer, Notion token). AFAS `main` then at `3f2c284`, SQL 187-188.
 
 **What changed:**
 - **One command from Excel to Power BI: `python scripts/update_plan.py`** (flags `--dry-run`, `--reports`, `--baseline`). Steps: (0) `load_paystub.py` reads Amy's payslip PDFs (`AJ Payslip*.pdf` in the AFAS OneDrive folder) into `paystub_snapshots`, nothing typed; (1) the blue input cells of `Estimated Tax Calculation.xlsx` go into `tax_inputs` and the dividend per share into `baird_dividend_per_share_2026` (the workbook's own paystub block is no longer used); (2) the tax estimate is calculated and sets `tax_2026_projected_balance` and `baird_dec2026_tax_payment` itself, so nothing is copied by hand any more; (3) `Budget Scenario.xlsx` edits are imported; (4) `load_dividend_plan.py` rewrites the snapshot. Then Power BI Home > Refresh. Excel may stay open (workbooks are read from a temporary copy). The workbook's Payment Summary suggested payment uses the same rule as the agent, so the sheet and Power BI agree.

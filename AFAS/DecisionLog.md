@@ -1,6 +1,17 @@
 # AFAS Project — Decision Log
 **Append only. Never delete entries. Most recent session at top.**
-Last updated: 2026-11-16 (Session 33)
+Last updated: 2026-11-17 (Session 34)
+
+---
+
+## 2026-11-17 (Session 34 — Publish-Saved, College Timing, 401(k) Revisit)
+
+| Date | Decision | Rows |
+|------|----------|------|
+| 2026-11-17 | **Reduce Claude token use by never rerunning an agent just to republish:** `--publish-saved` publishes the saved report. Model (Opus 5.5), thinking effort and payload size are left as they are; Tom will watch usage and expects one run a month | — |
+| 2026-11-17 | **College is paid in full in the spring the school year starts** (calendar year of the first term); the 529 draws stay half and half across the two calendar years (Tom) | — |
+| 2026-11-17 | **Associated transfer stays rounded up** to the next step (Tom); Clothing change in the scenario is intentional | — |
+| 2026-11-17 | **401(k) contribution election stays until overall fixed income reaches 10%** (Dec 2031 in the November plan), then new money returns to the normal mix | — |
 
 ---
 

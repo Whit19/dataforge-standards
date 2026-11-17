@@ -201,5 +201,6 @@ Claude writes the narrative), reports saved locally and published to Notion.
 ### 15. Budget Scenario Power BI page ✅ Built 2026-11-05
 - ✅ `budget_scenario_baseline`, `budget_scenario`, `vw_budget_scenario` (scripts 185-186), `load_budget_scenario.py`, Excel edit path `budget_scenario_xlsx.py`; the Holdings plan reads the scenario
 - ✅ `update_plan.py` one-command flow from Excel to Power BI, `load_paystub.py` reads payslip PDFs, College rename and editable set amounts, Associated transfer rule (scripts 187-188), `AFAS_NOTION_TOKEN` (Session 33). Open: the Holdings plan's college section to follow Tom's hand-set College numbers; Power BI Dividend Per Share card and gap measures to add.
+- ✅ `--publish-saved` on the four agents; college paid in full in the spring the school year starts; MonthlyProcedure Step 11 (Session 34). Power BI follow-ups from Session 33 done by Tom.
 - ✅ Page: summary matrix, chart, category matrix with percent change colored by section, notes table
 - ⏳ Retirement income and spending after 2034 are not modelled

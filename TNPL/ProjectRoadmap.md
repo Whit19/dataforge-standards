@@ -72,6 +72,7 @@
 - [ ] Tom: assign each existing Info section's "Shows on" (League setup → Top of Info; update its availability line to "Next week opens as soon as this week's results are final…"), review the starter Elo text, and add the real Music content (WiFi, Sonos, amp reset, door code)
 - [x] Thanksgiving early-open behavior: no early open across a skipped week or session break — option 2 (TPI-051, TP-090)
 - [x] A two-match player's results/full-schedule cards each show that match's own Elo change, not the week's combined total duplicated on every card (TPI-054, TP-092)
+- [x] Players page: admin-only Select mode + "Email selected" (admin in To, selected players in Bcc), mirroring the existing Text-selected pattern (TP-093)
 - [ ] Show the Monday auto-lock / open-on-lock behavior in Settings' Automatic messages panel (TPI-050)
 - [ ] Re-date the weekly-loop rehearsal before ~Dec 2, 2026 (TPI-052)
 - [ ] Optional cleanup: make Rankings use `useSeasonStandings` instead of its own inline copy of the same logic (TP-083)

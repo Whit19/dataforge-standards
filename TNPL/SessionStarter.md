@@ -3,14 +3,18 @@
 Repo: github.com/Whit19/dataforge-standards
 
 **Project:** Thursday Night Paddle League (TNPL) PWA
-**Status:** Live and in use. Weeks 1 through 5 have played (through Thu Nov 12) on the new auto-lock / open-on-lock flow shipped Oct 23. Two small bugs reported live by Tom since then were fixed same-day: the Availability tracker jumping to the wrong week (Oct 21), and a two-match player's results cards both showing the week's combined Elo instead of each match's own (Nov 13).
-**Last updated:** 2026-11-13
+**Status:** Live and in use. Weeks 1 through 6 have played (through Thu Nov 19) on the new auto-lock / open-on-lock flow shipped Oct 23 — the Thanksgiving-gap design (TP-090) is now confirmed working in production, not just designed. Two small bugs reported live by Tom were fixed same-day (Oct 21, Nov 13), and an admin "select players and email them" feature shipped on the Players page (Nov 24).
+**Last updated:** 2026-11-24
 
 ## One-line description
 A PWA for Thursday Night Paddle League: live scoring, member sign-up, Elo rankings, and weekly match creation/viewing — similar to the UP Golf and Club Golf PWAs.
 
 ## Current status
-Deployed and in real use. Firestore rules, Storage rules, all 44 Cloud Functions, and hosting are live on `tnpl-pwa`. Test suite: **573 passing** (`npm test` from the repo root); the weekly-loop rehearsal is **112/112** (rewritten for the new flow, 5 simulated weeks incl. a session break) — unaffected by the two fixes below, neither touched `functions/`.
+Deployed and in real use. Firestore rules, Storage rules, all 44 Cloud Functions, and hosting are live on `tnpl-pwa`. Test suite: **573 passing** (`npm test` from the repo root); the weekly-loop rehearsal is **112/112** (rewritten for the new flow, 5 simulated weeks incl. a session break) — unaffected by any of the three items below, none touched `functions/`.
+
+**Tue Nov 24 — Players page: admin select-and-email (TP-093).** New admin-only "Select" mode on `/players`: checkboxes per row, "Select all" over the current filter/search, and an "Email selected (N)" link via new `mailtoHref(to, bccAddresses)` (`src/lib/email.js`) — the admin's own email in To, every selected player's email comma-joined in Bcc, same unencoded-list style as `phone.js`'s existing `smsHref`. Anyone selected with no email on file is skipped, with a count shown. Hidden entirely for non-admins. Hosting-only (`e18c408`).
+
+**Confirmed in production (Nov 24): the Thanksgiving-gap design (TP-090) worked exactly as designed.** Week 6 (Nov 19) was locked manually the morning after league night (Fri Nov 20) and its results email went out ~6 minutes later; Week 7 (Dec 3) was **not** opened early by that lock (`openEarlyRequestedAt` is unset on its doc) — it's still `draft`, waiting for its normal Monday, Nov 30. The skipped week (Nov 26) has no week doc at all (404), confirming a skipped week is excluded from creation entirely rather than given a `skipped`-status doc.
 
 **Wed Oct 21 — Availability tracker fix (TP-091, TPI-053).** Tom clicked Admin → Availability on Week 2's draft-build day and landed on Week 3 instead. `defaultWeek()` only recognized `availability_open`/`draft`; `pairing_draft` added to the priority chain so a week stays the one shown right up until pairings send, not just until its draft is built. Also: the three count tiles are now the filter selector themselves, and the duplicate segmented control under them is gone. Hosting-only, deployed during the Wed–Thu freeze at Tom's explicit request (`5e6bf75`).
 
@@ -26,15 +30,15 @@ Deployed and in real use. Firestore rules, Storage rules, all 44 Cloud Functions
 - **Week 2's missed results email (TP-089):** Week 2 was locked before the new flow, so `functions/scripts/sendWeekResults.js` replayed `afterWeekLocked`. Tom previewed, then ran `--apply` at 4:34 PM; the 4:48 PM run opened **Week 3 early** and sent the results + "Are you in for Oct 29?" email to all 34 Week 3 recipients. (`d2d232b`)
 
 ## Key dates
-- **Weeks 1–5 have played and locked** (through Thu Nov 12) on the new flow — confirmed working end to end across 5 real weeks, not just the rehearsal.
-- **Week 6 (`weeks/2026-11-19`) is open now**, confirmed in Firestore: opened early right after Week 5's lock (`openEarlyRequestedAt` 2026-11-13 ~8:44 AM Central), Tuesday reminder already sent. Draft builds Wed Nov 18, 9 AM; pairings send 5 PM; league night Thu Nov 19.
-- **Thu Nov 19 is also the Thanksgiving-gap test (TP-090).** Session 1 skips Nov 26, so locking Week 6 should send results only (no early open) — Dec 3 opens on its normal Monday, Nov 30. Worth confirming this actually happens as designed when it's locked.
-- **Deploy freeze is recurring**, every Wednesday morning through Thursday night of a league week. Next window: Wed Nov 18 morning through Thu Nov 19 night.
-- **Before ~Dec 2, 2026:** re-date the weekly-loop rehearsal (TPI-052) — getting close.
+- **Weeks 1–6 have played and locked** (through Thu Nov 19) on the new flow — confirmed working end to end across 6 real weeks, including the Thanksgiving gap, not just the rehearsal.
+- **Week 7 (`weeks/2026-12-03`) is still `draft`** — no early open across the Nov 26 gap, as designed (TP-090). It opens on its normal Monday, Nov 30.
+- **Nov 26 (Thanksgiving) has no week doc at all** — a skipped week is excluded from season setup entirely, not given a `skipped`-status doc.
+- **Deploy freeze is recurring**, every Wednesday morning through Thursday night of a league week. Next window: Wed Dec 2 morning through Thu Dec 3 night.
+- **Before ~Dec 2, 2026:** re-date the weekly-loop rehearsal (TPI-052) — due now.
 
 ## Next priorities
-1. Confirm Thu Nov 19's lock actually triggers the Thanksgiving-gap behavior (TP-090): results-only, no early open, Dec 3 opens Mon Nov 30 instead.
-2. Re-date the weekly-loop rehearsal before it expires (~Dec 2, TPI-052).
+1. Re-date the weekly-loop rehearsal — it's due (~Dec 2, TPI-052).
+2. Watch Week 7 (Dec 3) open normally on Mon Nov 30, then run through the rest of Session 1 as usual.
 3. TPI-050: show the Monday auto-lock / open-on-lock in Settings' Automatic messages panel.
 4. Respect the recurring Wed–Thu deploy freeze; run the rehearsal before any functions deploy touching automation, availability, pairing, change requests or lock/Elo.
 5. Batch D, remaining: push notifications, an admin progress bar on Home, custom profile fields.
@@ -45,15 +49,14 @@ Deployed and in real use. Firestore rules, Storage rules, all 44 Cloud Functions
 10. Standing habits: use "Link to {name}" (not plain Approve) on join requests from people already on the roster; record "not this season" replies via the edit sheet's "This season" section — there is no admin path to mark anyone declined.
 
 ## Key decisions so far
-See DecisionLog.md — TP-001 through TP-092. The most recent entries:
-- **TP-083 / TP-084:** Home after lock; match details page with per-set Elo.
-- **TP-085:** Monday 6 AM auto-lock, open-on-lock, Monday nudge, session-break exception (supersedes the timing parts of TP-044 / TP-047).
+See DecisionLog.md — TP-001 through TP-093. The most recent entries:
 - **TP-086 / TP-087:** the results + Are-you-in email; who gets which email (admin copies, staff schedule only).
 - **TP-088:** no Monday nudge when the week opened that same morning.
 - **TP-089:** Week 2's results sent after the fact via a one-time script.
-- **TP-090:** a week opens early only when it's the very next Thursday — a skipped week (Thanksgiving) or session break means results go out alone and the next week opens on its normal Monday.
+- **TP-090:** a week opens early only when it's the very next Thursday — a skipped week (Thanksgiving) or session break means results go out alone and the next week opens on its normal Monday. **Confirmed working in production Nov 20.**
 - **TP-091:** Availability tracker stays on the relevant week through `pairing_draft`; count tiles are the filter themselves.
 - **TP-092:** a two-match player's results cards each show that match's own Elo change, not the week's combined total on both.
+- **TP-093:** Players page admin Select mode + "Email selected" (admin in To, selected players in Bcc).
 
 ## Open questions
 - **Should a re-invite keep the previous decline as history?** Currently a re-invite clears `declinedAt` (TP-071). Option: keep it as `lastDeclinedAt`.

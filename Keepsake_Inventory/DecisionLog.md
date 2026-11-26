@@ -1,0 +1,19 @@
+# Keepsake Inventory — Decision Log
+
+Prefix: KI
+**Status column:** `Active` (default) · `Open` (not yet decided) · `Resolved by [ID]` · `Superseded by [ID]`
+
+| ID | Date | Decision | Rationale | Status |
+|---|---|---|---|---|
+| KI-001 | 2026-11-26 | Stack: React + Vite + Firebase (Firestore, Storage, Auth, Hosting), delivered as an installable PWA | Matches the existing DataForge PWA pattern; hosted Firebase was the plan from the start; a PWA gives a Home Screen icon on iPhone without an app store | Active |
+| KI-002 | 2026-11-26 | The single-file Claude artifact prototype is a reference only, not the production path | Viewers need a Claude account to save or edit; a published artifact has no real access gate; its storage was inconsistent (KII-001). It still defines the fields and flow | Active |
+| KI-003 | 2026-11-26 | Repo `Keepsake_Inventory` (private, `Whit19`); docs in `dataforge-standards/Keepsake_Inventory/`; local folder `C:\DEV_Projects\Keepsake_Inventory` | Master Protocol Sections 3a and 13; the local folder already exists | Open — confirm the repo name before the first commit (raw doc URLs are case-sensitive) |
+| KI-004 | 2026-11-26 | An item or a set is one record with a Quantity field (default 1) | A set stays one clean record; to split it, duplicate the record and divide the quantity | Active |
+| KI-005 | 2026-11-26 | Decision workflow: Needs Review (default) → Donate / Sell / Keep in family / Still in use. Donate asks where; Sell asks approximate price (free text) plus a "needs appraisal" checkbox; Keep in family asks which family member; Still in use asks current home vs after the move. The date of the last decision change is stored and shown | Each outcome carries the one detail someone needs to act on it; the date shows how old a decision is | Active |
+| KI-006 | 2026-11-26 | Categories and sub-categories are editable data: pre-seeded (Silver, Silver - Sterling, Silver - Plated, Furniture, China & Glassware, Art & Decor, Jewelry, Linens & Textiles, Books & Paper, Clocks, Lighting, Kitchenware), reorderable, duplicable, comma-separated bulk add. Antique is a per-item checkbox on every category | The family will add categories as the inventory grows; sterling vs plated drives value | Active |
+| KI-007 | 2026-11-26 | Each item has a Maker's mark / brand field and two photo groups: regular photos and Measured pictures (Measure-app screenshots added from the photo library) | Hallmarks drive silver value; a web app cannot launch Apple's Measure app or read the number back (KII-004) | Active |
+| KI-008 | 2026-11-26 | Photos must stay at a size where detail is readable and be viewable with swipe and pinch-zoom. Approach: image files in Firebase Storage (long edge about 1600 px, JPEG quality about 0.82), path only in Firestore | Firestore documents cap at about 1 MiB, so base64 photos do not scale; hallmark detail must survive zooming | Active (storage approach is proposed — confirm at build) |
+| KI-009 | 2026-11-26 | Access: Firebase Auth with sign-up closed (an admin adds each family member). Individual logins vs one shared password is undecided | Family-only data; a simple login was asked for from the start | Open |
+| KI-010 | 2026-11-26 | Migration path: the prototype's Export data (.json) feeds a one-time import script (photos decoded to Storage files, items and taxonomy into Firestore) | The artifact's storage cannot be read from outside it | Active |
+| KI-011 | 2026-11-26 | Keep family-specific details out of the public docs repo: no personal names, locations or values. "Keep in family" recipients and the current-home / after-the-move labels are configurable data. Item data lives only in Firestore | dataforge-standards is public (Sections 5c and 6a) | Active |
+| KI-012 | 2026-11-26 | Separate Firebase project for this app | Master Protocol Section 8: never share a Firebase project across apps | Active |
